@@ -1,0 +1,49 @@
+# ---- Vivado の生成物（すべて再生成できる）----
+build/
+build-*/
+*.jou
+*.log
+*.str
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.gen/
+*.sim/
+*.xpr
+*.xsa
+
+# ---- ビットストリームとハンドオフ ----
+# リリースする .bit・.hwh は GitHub Releases に添付する（docs/release.md）。git には入れない
+*.bit
+*.hwh
+*.ltx
+*.bin
+
+# ---- ライセンス・秘密情報（万一置いても入らないように）----
+*.lic
+.Xilinx/
+
+# ---- 公開前スキャンの手元の追加パターン（環境に依る値なので入れない）----
+.prepublish-patterns
+
+# ---- 取得データ・測定の大きな記録 ----
+*.npy
+*.npz
+*.s45
+runs/**/data/
+
+# ---- OS / エディタ ----
+.DS_Store
+*~
+.vscode/
+.idea/
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/

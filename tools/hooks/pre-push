@@ -1,0 +1,13 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-3-Clause
+# push の前に公開前スキャンを走らせる。ヒットがあれば止める。
+# 確かめた上で通したいときだけ git push --no-verify。
+root=$(git rev-parse --show-toplevel)
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "pre-push: python3 が無いので公開前スキャンを走らせられません。手で確かめてから --no-verify で push してください" >&2
+  exit 1
+fi
+python3 "$root/tools/prepublish_scan.py" --quiet || {
+  echo "pre-push: 公開前スキャンにヒットがあります（上の一覧）。直してから push してください" >&2
+  exit 1
+}

@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-3-Clause
+# コミットメッセージにセッションの URL などが入っていたら止める（docs/publishing.md の手順 9）。
+# 公開リポジトリでは、push した後に消すには履歴の書き換えが要る。
+if grep -qiE 'claude\.ai/|^Claude-Session:|session_[A-Za-z0-9]{8,}|onedrive|sharepoint' "$1"; then
+  echo "commit-msg: セッションの URL などがコミットメッセージに入っています。消してからコミットしてください" >&2
+  grep -niE 'claude\.ai/|^Claude-Session:|session_[A-Za-z0-9]{8,}|onedrive|sharepoint' "$1" >&2
+  exit 1
+fi
