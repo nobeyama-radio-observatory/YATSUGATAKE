@@ -137,6 +137,29 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 - 以後、**同じ RTL の作り直しの同一性は「`.bit` のヘッダを除いた構成データの sha256」で言える**（WNS の一致より強い。ヘッダの日時だけが違う）。比べ方: `.bit` のヘッダ（長さ付きの欄 a〜d）を読み飛ばし、欄 e の長さぶんの本体の sha256 を取る
 - M4（実機の短い回帰）は、構成データが同じなので移植元の結果がそのまま当てはまる見込み。それでも載せる bit・hwh は移植先の build/ のものを使い、ID と PS 側（`sw/pynq/`）の置き場所が通ることを確かめる
 
+## M4 の手順と予言（2026-10-14、実機の前）
+
+**載せるもの**（ボードの新しいディレクトリ `~/sam45-fine-m4/`。study-rfsoc の proj021 の道具のディレクトリとは混ぜない）:
+- 移植先の `hw/bits/sam45-fine/build/` の `proj021.bit`・`proj021.hwh`（M3 で構成データが移植元と同じ。ID は変えていないので名前も proj021 のまま）
+- `sw/pynq/` の `*.py` と `tp_cal.json`（33 個すべて study-rfsoc@proj021-m0 の `pynq/` とバイト単位で同じ）
+- `bits.json`: proj021 の 1 件だけ、`sha256` に移植先の bit の値（`4f491488…909eae`）。LOAD・起動で specd が照らす
+
+**回すもの**（配線 N、外部 10 MHz と 1PPS。合格は各判定のファイルの条件そのまま）:
+
+| 判定 | 動かし方 | 長さ |
+|---|---|---|
+| [ID-1](../test/acceptance/sam45-fine/ID-1.md) | ボード直 | — |
+| [F-1](../test/acceptance/sam45-fine/F-1.md) | ボード直 | 120 s |
+| [W-0](../test/acceptance/sam45-fine/W-0.md) | ボード直（A0 窓 0・D3 窓 1） | ダンプ 3 個 |
+| [V2-b](../test/acceptance/sam45-fine/V2-b.md) の短縮 | specd | **300 s**（判定の 1,800 s の代わり） |
+
+**予言**:
+1. ID-1: 移植元と同じ値（IF_ID 0x0202_0301 × 4・0x0202_0302・0x0202_0303、RAW の流れ SID 0x0204_0200）
+2. F-1: 13 コアとも RUN_T = START_AT ＋ 1、≒ 2,930 ダンプでずれ 0、DUMP_H の印なし
+3. W-0: ダンプ 3 個・各 6,250 フレーム、FLAGS 0（[4] を除く）、飽和 0
+4. V2-b（300 s）: SPEC ≒ 8 × 29,297 ≒ 234,400、CRC・欠け・説明のない欠け・kgap・tdev・tp_gap 0、STATUS の miss・bdrop・r_bad・pl_drop・pl_crc・tp_lost・tp_rec_lost 0
+5. bit も PS も移植元とバイト単位で同じなので、**外れるとしたら置き場所（ボードのディレクトリ・bits.json・hwh の名前の組）か、その日の配線・クロック**。外れたら同じ日に移植元の道具のディレクトリで同じ判定を回して比べる
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
