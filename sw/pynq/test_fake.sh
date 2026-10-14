@@ -114,25 +114,28 @@ t_v1() {      # proj021 2-3c: --proto 1（今までの v1）でも basic と同�
   judge $([ "$s" = 800 ] && grep -q "照合: 通過" "$OUT/v1.recv.log" && echo 1) "SPEC $s（期待 800）・版 $v"
 }
 
-t_load() {    # proj021 2-3d: LOAD で proj020 の道具（s45proto v1）↔ proj021（v2）を往復。受けは切らずに続け、番号は続く・説明のない欠け 0・版 1 と 2 の両方
+t_load() {    # proj021 2-3d: LOAD で bit を往復。受けは切らずに続け、番号は続く・説明のない欠け 0・EVENT LOAD 2・bad は元に戻る
+  # 往復の相手の道具は LOAD_PEER（例: study-rfsoc の proj020/pynq = s45proto 版 1）。無ければ同じ sw/pynq を別の名前で（版 2 だけ）
   echo "== load（2-3d）"
-  local B="$OUT/bits"; mkdir -p "$B"; echo p21 > "$B/p21.bit"; echo p20 > "$B/p20.bit"
-  printf '{"default": "proj021", "bits": {"proj021": {"bit": "p21.bit", "pydir": "%s"}, "proj020": {"bit": "p20.bit", "pydir": "%s"}, "bad": {"bit": "p20.bit", "pydir": "/nonexistent"}}}' \
-    "$PWD" "$(cd ../../proj020/pynq && pwd)" > "$B/bits.json"
+  local B="$OUT/bits"; mkdir -p "$B"; echo p21 > "$B/p21.bit"; echo peer > "$B/peer.bit"
+  local peer="$PWD" want="2"
+  if [ -n "$LOAD_PEER" ]; then peer="$(cd "$LOAD_PEER" && pwd)" || { judge 0 "LOAD_PEER $LOAD_PEER が無い"; return; }; want="1 2"; fi
+  printf '{"default": "proj021", "bits": {"proj021": {"bit": "p21.bit", "pydir": "%s"}, "peer": {"bit": "peer.bit", "pydir": "%s"}, "bad": {"bit": "peer.bit", "pydir": "/nonexistent"}}}' \
+    "$PWD" "$peer" > "$B/bits.json"
   srv load --bits "$B/bits.json" --boot-timeout 30
   ctl "START n=20" "SEND ON" > /dev/null
   rcv --seconds 14 --json "$OUT/load.json" > "$OUT/load.recv.log" &
   local R=$!
-  sleep 3; ctl "LOAD bit=proj020" "START n=10" > "$OUT/load.ctl1"
+  sleep 3; ctl "LOAD bit=peer" "START n=10" > "$OUT/load.ctl1"
   sleep 2; ctl "LOAD bit=bad" > "$OUT/load.ctl2"
   ctl "LOAD bit=proj021" "START n=10" > "$OUT/load.ctl3"
   wait $R
   stop_srv
   local s=$(js "$OUT/load.json" spec) u=$(js "$OUT/load.json" unexplained) d=$(js "$OUT/load.json" dup) v=$(js "$OUT/load.json" ver)
   local ev=$(grep -c '"ev": "LOAD"' "$OUT/load.recv.log")
-  judge $([ "$s" = 320 ] && [ "$u" = 0 ] && [ "$d" = 0 ] && [ "$ev" = 2 ] && grep -q "ERR LOAD bad" "$OUT/load.ctl2" && grep -q "OK bit=proj020" "$OUT/load.ctl1" \
-          && python3 -c "import sys; v=$v; sys.exit(0 if v.get('1') and v.get('2') else 1)" && echo 1) \
-    "SPEC $s（期待 320）・説明のない欠け $u・送り直しとみなした記録 $d・EVENT LOAD $ev・版 $v・bad は元に戻る"
+  judge $([ "$s" = 320 ] && [ "$u" = 0 ] && [ "$d" = 0 ] && [ "$ev" = 2 ] && grep -q "ERR LOAD bad" "$OUT/load.ctl2" && grep -q "OK bit=peer" "$OUT/load.ctl1" \
+          && python3 -c "import sys; v=$v; sys.exit(0 if all(v.get(k) for k in '$want'.split()) else 1)" && echo 1 || echo 0) \
+    "SPEC $s（期待 320）・説明のない欠け $u・送り直しとみなした記録 $d・EVENT LOAD $ev・版 $v（求める版: $want$([ -z "$LOAD_PEER" ] && echo '。LOAD_PEER なし: 版をまたぐ往復は見ていない')）・bad は元に戻る"
 }
 
 t_tpjump() {  # proj021 B2: TP の跳ねの見張り。tpjump の単体試験 ＋ 偽物の TP の 500 個ごとに +0.21 dB → STATUS の tp_jump・EVENT TP_JUMP = 入れた数。入れなければ 0
