@@ -159,6 +159,20 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 4. `all`: 13 試験とも通過（`test_fake: 全部通過`）
 
 ついでの直し: `t_load` の判定の式に `|| echo 0` を足した（`t_idle` と同じ形）。無いと、NG のときに判定の行の説明が空になる（直す前の NG も説明が空だった）
+## M1 から持ち越した直し: 係数の生成の道具の既定の書き出し先（2026-10-14）
+
+**問題**（proj021 の手順 1a から。Makefile は書き出し先を明示して渡すので、ビルドと sim には効いていない）:
+- `model/pfb4.py gen` の書き出し先が `model/../src/pfb4_rom.v`（＝リポジトリの直下の `src/`、無い）。実際の置き場所は `hw/bits/sam45-fine/src/pfb4_rom.v`。直す前に回すと `FileNotFoundError`（係数の表 `model/pfb4_coef.txt` は書き終えた後で落ちる。中身は同じだった）
+- `hw/bits/sam45-fine/tools/gen_coef.py` を引数なしで回すと `hw/bits/sam45-fine/src/` に `win_coef.vh`・`nco_rom.v` を書く。実際の置き場所は `hw/common/`。直す前に回して確かめた: 2 個とも `hw/common/` のものとバイト単位で同じ中身が、間違った場所に新しく出来た（消した）
+
+**直し方**: 2 つの道具の既定の書き出し先と、使い方の注釈の中のパスだけを直す（`pfb4.py` は `HERE/../hw/bits/sam45-fine/src/pfb4_rom.v`、`gen_coef.py` は `tools/../../../common/win_coef.vh`）。係数・生成の中身・Makefile は変えない。
+
+**予言**:
+1. 直した後、`python3 model/pfb4.py gen` は `model/pfb4_coef.txt` と `hw/bits/sam45-fine/src/pfb4_rom.v` をバイト単位で同じに書き直す（`git status` が空）
+2. 直した後、`python3 hw/bits/sam45-fine/tools/gen_coef.py`（引数なし）は `hw/common/win_coef.vh`・`hw/common/nco_rom.v` をバイト単位で同じに書き直し、ほかの場所にファイルを作らない
+3. bit・sim には効かない（Makefile は前から明示して渡している）
+
+**結果（2026-10-14）: 予言 1・2 当たり**。直した後、2 つの道具をリポジトリの外のディレクトリから引数なしで回した: `pfb4.py gen` は `model/pfb4_coef.txt`・`hw/bits/sam45-fine/src/pfb4_rom.v` を、`gen_coef.py` は `hw/common/win_coef.vh`・`hw/common/nco_rom.v` を書き、`git status` に出たのは直した 2 つの道具だけ（生成物はバイト単位で同じ、ほかの場所にファイルは出来ない）。予言 3 は Makefile を変えていないことによる（sim・ビルドは回していない）
 
 ## 移植の後
 
