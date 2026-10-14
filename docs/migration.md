@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画
 
-- 状態: **準備中**（proj021 の完成を待つ）
+- 状態: **始める条件が揃った**（2026-10-14）。次は M0（置き場所の対応の表を確定する）
 - 決定: [ADR 0002](decisions/0002-migrate-from-proj021-restructure-only.md)（proj021 を土台にし、構成替えだけを行う）
 
 ## 原則
@@ -11,10 +11,26 @@
 
 ## 始める条件
 
-- [ ] proj021 の判定（手順 0・1a・1b・2 の V2-a〜V2-g・F-2）が通り、README に結論が書かれている
-- [ ] proj021 の手順 1a で、ソースが `src/common/`・`src/sam45fine/`・`src/board/` に分かれている
-- [ ] proj021 の判定が `test/acceptance/` の書き方（6 項目）で書かれている
-- [ ] study-rfsoc の proj021 が push 済みで、移植元の commit を 1 つに決めた → **移植元: `study-rfsoc@________`**（ここに記録する）
+- [x] proj021 の判定（手順 0・1a・1b・2 の V2-a〜V2-g・F-2）が通り、README に結論が書かれている（2026-10-14。最終の bit は手順 2-5、21 判定とも通過）
+- [x] proj021 の手順 1a で、ソースが `src/common/`・`src/sam45fine/`・`src/board/` に分かれている
+- [x] proj021 の判定が `test/acceptance/` の書き方（6 項目）で書かれている（study-rfsoc の `proj021/test/acceptance/`、21 判定）
+- [x] study-rfsoc の proj021 が push 済みで、移植元の commit を 1 つに決めた → **移植元: `study-rfsoc@proj021-m0`**（注釈つきタグ、commit 7be50ac）
+
+### 移植元の bit（M3 の比べの相手）
+
+study-rfsoc の proj021 README「移植元を決める」の節の写し。
+
+| 項目 | 値 |
+|---|---|
+| bit の sha256 | `a99b7a96b14b51deb8738bed7bce203ca6c753f4eca5a24227da7193bf0814e8`（34,437,476 B） |
+| hwh の sha256 | `613ba1aee43c0882d155b11c107a96054fbfbf0cf05411149543d687a294f54d` |
+| ID | BIT_KIND 2・BIT_REV 3・PROJ 0x0021_0200。IF_ID 0x0202_0301（コア 4）・0x0202_0302（time_core）・0x0202_0303（リング） |
+| `-1` の WNS / WHS（既定の戦略） | +0.044057 ns / +0.009766 ns |
+| LUT / FF | 168,982（39.73 %）/ 256,455（30.15 %） |
+| DSP / BRAM タイル / URAM | 2,096 / 233.5 / 56 |
+| `report_cdc` | CDC-3 Info 105・CDC-6 Warning 5・CDC-15 Warning 3,137 |
+
+bit そのものは git に入れない（[ADR 0018](decisions/0018-release-on-github-releases.md) の扱い）
 
 ## 置き場所の対応（案）
 
