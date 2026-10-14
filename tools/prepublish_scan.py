@@ -46,6 +46,8 @@ RE_PRIVATE_URL = re.compile(
 )
 # 手順 5: IPv4 アドレス
 RE_IPV4 = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+# 公開してよい番地: ループバック 127.0.0.0/8・「全部の口」0.0.0.0（--host の既定値など）・RFC 5737 の文書用
+RE_IPV4_OK = re.compile(r"127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0\.0\.0\.0|192\.0\.2\.\d{1,3}|198\.51\.100\.\d{1,3}|203\.0\.113\.\d{1,3}")
 # 手順 7: 外部リンク
 RE_URL = re.compile(r"https?://[^\s)>\]`\"'|]+")
 # 手順 9: コミットメッセージ
@@ -128,8 +130,9 @@ def main():
                     hit("1 MAC・Host ID", where, line)
                     break
             for m in RE_IPV4.finditer(line):
-                hit("5 IP アドレス", where, line)
-                break
+                if not RE_IPV4_OK.fullmatch(m.group(0)):
+                    hit("5 IP アドレス", where, line)
+                    break
             if is_self:
                 continue
             urls.update(u.rstrip(".,;:") for u in RE_URL.findall(line))
