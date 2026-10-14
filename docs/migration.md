@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画
 
-- 状態: **M0 済み**（2026-10-14）。次は M1（ファイルを置き直す）
+- 状態: **M2 済み**（2026-10-14）。次は M3（ビルドして移植元の bit と比べる）
 - 決定: [ADR 0002](decisions/0002-migrate-from-proj021-restructure-only.md)（proj021 を土台にし、構成替えだけを行う）
 
 ## 原則
@@ -75,13 +75,23 @@ bit そのものは git に入れない（[ADR 0018](decisions/0018-release-on-g
 | 手順 | すること | 合格 |
 |---|---|---|
 | M0 | 移植元の commit を決め、上の表を確定する | 表に「移さない」も含めて全ファイルの行き先がある（**済み 2026-10-14**、付録 migration-files.md） |
-| M1 | ファイルを置き直し、パスだけを直す（中身は変えない） | `git diff --stat` で中身の変更がパスの行だけ |
-| M2 | sim を全部回す | proj021 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
+| M1 | ファイルを置き直し、パスだけを直す（中身は変えない） | `git diff --stat` で中身の変更がパスの行だけ（**済み 2026-10-14**: 156 個のうち 137 個は移植元と同じ、19 個・107 行はすべてパスの行） |
+| M2 | sim を全部回す | proj021 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**済み 2026-10-14**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、proj021 と同じ実装の戦略） | 下の「同一性の判定」 |
 | M4 | 実機で短い回帰 | ID の読み出し・F-1（RUN_T）・W-0・V2-b を短く（5 分）。proj021 と同じ値 |
 | M5 | ここで初めて ID を製品の形に変える（別の PR） | [`release.md`](release.md) の手順。変えた後に M2〜M4 をもう一度 |
 | M6 | 判定を全部通し、最初の性能評価を書く | `docs/performance/sam45-fine/<版>.md` |
 | M7 | spec・design・user を書き、最初のリリース | [`release.md`](release.md) |
+
+## M2 の結果（2026-10-14）
+
+同じサーバで、移植元（`study-rfsoc@proj021-m0` の proj021）と移植先（`hw/bits/sam45-fine/`）をそれぞれ別の worktree に出し、同じ sim を回した:
+`make sim-all`（sim-spec-all・sim-win-all・sim-t-all）と `make sim-top sim-win4 sim-wdelay sim-tsys sim-tsys-p sim-ring`。
+
+- **2 つの木の `build-sim-*/` の出力 372 個のうち 362 個がバイト単位で同じ**。違う 10 個は中身の値ではない:
+  - `build-sim-logs/*.log` 9 個: make のログにコンパイルの命令の行（RTL のパス）が書かれる。パスを読み替えると 9 個とも同じ
+  - `build-sim-time/tb1`: iverilog のコンパイル物（中に絶対パスが入る）
+- 結果の行（`check*.log`・`build-sim-logs`）は 2 つの木で全部同じ。通過するべき変種は全部通過し、陽性対照（`-p`・`posctl`・`flip`・`snap-nochk`）は全部落ちるべきところで落ちた（`build-sim-time/check1.log` の「失敗（6 件）」・`build-sim-tsys-posctl` の「失敗（1 件）」は陽性対照で、移植元と同じ件数）
 
 ## 同一性の判定（M3）
 
