@@ -5,7 +5,7 @@
   python3 check_pfbm.py check DIR QW       DIR/y_w*.txt（tb_pfbm.v の出力）を窓ごとに照合（入力は DIR/../x14.npy）
 
 窓 w の区切りごとに、始まりのビート q_s（「# S」の q_start を QW bit の巻き戻りから戻す: 「# R」の時点以降で最小の、合同な q ≧ 5）から
-m_s = 2·q_s − 10 を出し、x[8·m_s:] を model/win_fixed.py の pfb_fixed（k_w）に通したものとフレームの順に bit 単位で比べる。
+m_s = 2·q_s − 10 を出し、x[8·m_s:] を ../../../model/win_fixed.py の pfb_fixed（k_w）に通したものとフレームの順に bit 単位で比べる。
   - 最後の区切り: フレームの数が模型と同じ
   - 打ち直しで切れた区切り（「# X」）: 打ち直しの時点までのフレームの数（2·(X − q_s)）から、途中のパイプラインのぶん（≦ 20 ビート = 40 フレーム ＋ 2。pfb_core の LAT）だけ少なくてよい
 判定: 全部の窓・全部の区切りで値が一致・数が合う・飽和 0。
@@ -16,7 +16,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import win_fixed as F  # noqa: E402
 import win_model as WM  # noqa: E402
 

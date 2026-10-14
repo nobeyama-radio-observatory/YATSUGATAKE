@@ -1,6 +1,6 @@
 # sw — ソフトウェア
 
-**状態: 空。** 移植時に study-rfsoc proj021 の `pynq/` と `tools/` から写す。
+**状態: 移植中（M1）。** study-rfsoc の proj021（`proj021-m0`）の `pynq/` を `pynq/` にそのまま置いた。下の 3 つに分けるのは M1 の後の別の PR（import を直すので。[`docs/migration.md`](../docs/migration.md)）。
 
 | 場所（予定） | 中身 |
 |---|---|

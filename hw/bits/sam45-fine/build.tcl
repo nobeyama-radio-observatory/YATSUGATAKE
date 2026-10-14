@@ -5,21 +5,21 @@
 #   2. BIT_REV 2 → 3（s45_core_i・time_core_0・s45_ring_0）。資源の数えの FULL の行は RAW の行（g_raw.u_raw）に
 #   （full_kind = fft にすると 2-2d〜2-4 の形の FULL に戻る。BIT_REV は 3 のまま。PS は流れの KIND で見分ける）
 #
-#   1. コアのセルを s45_core_i（src/common/s45_core.v = win_core ＋ i = 0 だけ FULL の流れの spec_core）に。**spec_core_0 のセルは無い**。
+#   1. コアのセルを s45_core_i（../../common/s45_core.v = win_core ＋ i = 0 だけ FULL の流れの spec_core）に。**spec_core_0 のセルは無い**。
 #      axis_sel4（full_sel）の出口 → s45_core_0/s_axis_full、選ぶのは s45_core_0 の full_sel（FULL の流れの SRC）
 #   2. CORE_PORT（ADC・タイル・スライス）を chans から、BIT_KIND 2・BIT_REV 2（2-2d。2-1〜2-2c は 1）・PROJ 0x0021_0200 を s45_core_i と time_core_0 に
 #   3. SmartConnect の M は 1 + nch + 1（spec_core_0 の M が無くなった）。コアの窓は 1 MiB のまま（仮の読み窓）。**2-2d で 64 KiB に**
 #   4. 資源の数え: FULL は s45_core_0/inst/g_full.u_full、窓は s45_core_i/inst/u_win の下
 # proj021 手順 2-2a（proj021/README の手順 2-2a）
 #   1. s45_core_1〜 の FULL の入口（s_axis_full_tdata・tvalid・full_gb_stat・full_adc_stat）を xlconstant の 0 で縛る（BD 41-759）
-#   2. リング s45_ring_0（src/common/s45_ring.v、CORE_KIND 3）: 入口 = s45_core_i/m_axis_rec（rec_fr のレコード）と rec_drop、
+#   2. リング s45_ring_0（../../common/s45_ring.v、CORE_KIND 3）: 入口 = s45_core_i/m_axis_rec（rec_fr のレコード）と rec_drop、
 #      書き手 → PS の S_AXI_HP0_FPD（GP2、128 bit、saxihp0_fpd_aclk = DSP のクロック）、レジスタ = smc_ctrl の M0(2+nch)
 #
 # （以下は proj020 の記録）
 # proj020 — SAM45-Fine rev2: proj017 の wspec_core の溜めと FFT の間に PFB（T = 4）を入れる
 #
 # ---- proj017 からの変更点 ----
-#   1. src/sam45fine/pfb4_rom.v（PFB の係数 ROM、model/pfb4.py gen の生成物）を足す。wspec_core の溜めは 5 面のリング（URAM）
+#   1. src/pfb4_rom.v（PFB の係数 ROM、../../../model/pfb4.py gen の生成物）を足す。wspec_core の溜めは 5 面のリング（URAM）
 #   2. ID: win_core 0x0020_0100 / 0x0020_A100、spec_core 0x0020_01xx、time_core 0x0020_7101（spec_core・time_core は中身は同じ）
 #   3. 資源の予言: wspec 32 → 40（PFB の積 8）、win_core 504 → 520、全体 2520 → 2584。URAM 16 → 56（窓ごとに 5）、BRAM36 −4 / 窓
 #
@@ -37,12 +37,12 @@
 # ---- proj015 からの変更点 ----
 #   1. chans を {{2 2}}（ADC_A = Tile 226 / slice 2）の 1 本に。adc_tiles = {2}（Clocking Wizard の源 clk_adc2 と同じタイル）。
 #      窓 4（win_core_0、NW = 4）・total power・全帯域 1 本（spec_core_0）は残す。full_sel（axis_sel4）は s0 だけつなぐ
-#   2. **time_core_0**（src/common/time_core.v）を module reference で置く。DSP ドメイン（256 MHz）、AXI4-Lite は smc_ctrl の M(2 + nch)。
+#   2. **time_core_0**（../../common/time_core.v）を module reference で置く。DSP ドメイン（256 MHz）、AXI4-Lite は smc_ctrl の M(2 + nch)。
 #      ctrl_aclk / ctrl_aresetn は pl_clk0 / rst_ctrl（エポックを MMCM に依らない側で数える。proj007 rev2 と同じ）。
-#      PPS の外部ポート pps_trig（AH13）/ pps_comp（AJ13）を create_bd_port で作り、src/board/pps.xdc で置く（実装後に読み返す）
+#      PPS の外部ポート pps_trig（AH13）/ pps_comp（AJ13）を create_bd_port で作り、../../board/pps.xdc で置く（実装後に読み返す）
 #   3. time_core_0 の t_out・go_out・ev_out を win_core_i と spec_core_0 の t_in・go_in・tev_in へ（共有のネットとして照合する。
 #      ch が 1 本だと ch 間の陽性対照が回らないので、時刻のネットで陽性対照を置く）
-#   4. src/common/dstamp.v・src/common/adc_ev.v（win_core・spec_core の中で使う）
+#   4. ../../common/dstamp.v・../../common/adc_ev.v（win_core・spec_core の中で使う）
 #
 # （以下は proj015 の記録）
 # proj015 — bit ③（狭帯域の窓）の最終の形: **4 ADC × 4 窓**（win_core × 4、NW = 4）＋ 全帯域の分光 1 本（spec_core_0、4 ADC から選ぶ）
@@ -50,7 +50,7 @@
 # ---- proj014 からの変更点 ----
 #   1. win_core を ch ごとに 1 個（win_core_i、CONFIG.NW = 4）。中で粗い PFB を 4 窓で共有し、窓ごとに ddc（NS 1..8）・wspec、
 #      ADC の total power（tp_core）とスナップショット 1 つを持つ。AXI4-Lite の窓は **1 MiB**（20 bit 番地。窓 w = 0x20000·w、ADC の共通 = 0x80000）
-#   2. spec_core は **spec_core_0 の 1 本だけ**（RTL は proj013 rev1 と同一で ID だけ）。入力は axis_sel4（src/common/axis_sel4.v）で
+#   2. spec_core は **spec_core_0 の 1 本だけ**（RTL は proj013 rev1 と同一で ID だけ）。入力は axis_sel4（../../common/axis_sel4.v）で
 #      4 本の gb_dn の出口から選ぶ。選ぶのは win_core_0 の FULL_SEL（0x80020）。ch ごとに gb_bc_i（axis_broadcaster）で
 #      win_core_i と axis_sel4 に分ける
 #   3. **ギアボックスの制御は win_core_i**（gb_hold = 0・gb_adj = 0・gb_dn_rstn = aresetn・gb_k = GB_K）。spec_core の GRST は
@@ -64,14 +64,14 @@
 # proj014 — proj013 rev1（全帯域 4 IF ＋ total power）に、**窓 1 つの分光計 win_core を ADC_B に 1 個足す**（bit ③ の最初の形）
 #
 # ---- proj013 からの変更点（これ以外は proj013 rev1 と同一）----
-#   1. win_core（src/common/win_core.v。pfb_core → ddc_core → wspec_core。中で FFT IP win_fft を 1 個使う）を module reference で置く。
+#   1. win_core（../../common/win_core.v。pfb_core → ddc_core → wspec_core。中で FFT IP win_fft を 1 個使う）を module reference で置く。
 #      入力は ADC_B（ch i = WIN_CH = 1）の gb_dn の出口を axis_broadcaster（gb_bc）で 2 本に分けたもの。**spec_core_1 と同じ流れ**なので、
 #      同じ入力で全帯域と窓を比べられる（判定 W-6）。ギアボックスの制御（gb_hold・GB_K・見張り）は spec_core_1 のまま
 #   2. FFT IP win_fft（複素 4096 点・入力 18 bit・unscaled・realtime・use_mults_resources・use_luts。tools/ip_survey.tcl の win4096_res_lut）
 #   3. SmartConnect の M を 1 + 4 + 1 本に。win_core の窓は **128 KiB**（17 bit 番地）。重なりも見る
 #   4. win_core の BUILD_TAG = spec_core と同じ土台 ＋ [22] 窓のコア ＋ [1:0] ch の番号
 #   5. spec_core の ID を 0x0014_01CC に（**RTL は proj013 rev1 と同一で、定数だけ**。載っている .bit を PS が見分けるため）
-#   6. src/common/win_coef.vh を include するので、sources_1 の include_dirs に ./src
+#   6. ../../common/win_coef.vh を include するので、sources_1 の include_dirs に ./src
 #
 # proj012 — proj011 rev6 の分光計（RFDC → ギアボックス → spec_core → AXI4-Lite → PS）を
 #           **ADC_A〜D の 4 本に広げる**（全帯域 4096 ch × 0.5 MHz × 4 IF）
@@ -103,7 +103,7 @@
 #
 # ---- （履歴）proj011 の proj010 からの変更点 ----
 #
-#   1. **FFT IP の設定を src/sam45fine/fft_cfg.tcl に移し、FFT_OPT（res / perf）で選ぶ。**
+#   1. **FFT IP の設定を src/fft_cfg.tcl に移し、FFT_OPT（res / perf）で選ぶ。**
 #      tools/ip_survey.tcl（make survey）も同じファイルを読むので、IP 単体の調査と本番が同じ設定を数える
 #   2. **throttle_scheme = realtime。**nonrealtime の CE（proj010 の -2 の最悪経路）を無くす。
 #      realtime の IP には m_axis_data_tready が無い（PG109）ので、spec_core.v の接続も外した。
@@ -122,7 +122,7 @@
 
 set proj         proj021
 # proj015: **既定の part を -1 に**（実機の .bit を -1 で配置配線する。チップの刻印が未確認で、遅い方で閉じたものだけを載せる）。
-#   -1 のビルドは board_part を使わず、src/board/ps_preset.tcl（make ps-preset で書き出したボードプリセットの PS の設定）を当てる。
+#   -1 のビルドは board_part を使わず、../../board/ps_preset.tcl（make ps-preset で書き出したボードプリセットの PS の設定）を当てる。
 #   -2（board_part の宣言値）は PART=xczu48dr-ffvg1517-2-e で build-2-e/ に（board_part ＋ プリセット。proj014 までの build/ と同じ作り）
 set part_default xczu48dr-ffvg1517-1-e
 set board_part_part xczu48dr-ffvg1517-2-e
@@ -150,7 +150,7 @@ if {![string is integer -strict $gb_k_rst] || $gb_k_rst < 0 || $gb_k_rst > 24} {
     puts "ERROR: GB_K = '$gb_k_rst'（0〜24。gb_fifo の深さ 32 に余裕を残す）"
     exit 1
 }
-source ./src/sam45fine/fft_cfg.tcl
+source ./src/fft_cfg.tcl
 lassign [fft_opt_map $fft_opt] fft_throttle fft_cmul fft_bfly
 set fft_code [fft_cfg_code $fft_throttle $fft_cmul $fft_bfly]
 
@@ -332,9 +332,9 @@ file mkdir $outdir
 create_project $proj $projdir -part $part -force
 
 # board_part は part をボードの宣言値（-2）へ強制的に戻す（WARNING: Project 1-153）。
-# -1 では board_part を使わず、src/board/ps_preset.tcl の PS の設定を明示して当てる（proj015）
+# -1 では board_part を使わず、../../board/ps_preset.tcl の PS の設定を明示して当てる（proj015）
 set use_board [expr {$part eq $board_part_part}]
-set ps_preset_file [file normalize ./src/board/ps_preset.tcl]
+set ps_preset_file [file normalize ../../board/ps_preset.tcl]
 set use_preset_file [expr {!$use_board && [file exists $ps_preset_file]}]
 set has_preset [expr {$use_board || $use_preset_file}]
 if {$use_preset_file} {
@@ -355,24 +355,24 @@ if {$use_board} {
     puts "BOARD PART: $bp"
     set_property board_part $bp [current_project]
 } elseif {$use_preset_file} {
-    puts "NOTE: board_part は使わない（part $part のまま）。PS には src/board/ps_preset.tcl を当てる"
+    puts "NOTE: board_part は使わない（part $part のまま）。PS には ../../board/ps_preset.tcl を当てる"
 } else {
-    puts "NOTE: src/board/ps_preset.tcl が無い。PS にプリセットを当てない検証ビルド（実機に使わない）。make ps-preset で作る"
+    puts "NOTE: ../../board/ps_preset.tcl が無い。PS にプリセットを当てない検証ビルド（実機に使わない）。make ps-preset で作る"
 }
 
 # proj021 2-5: s45_core_0 の FULL の位置の中身。raw = raw_core（生サンプルの SNAP だけ）/ fft = spec_core（2-2d〜2-4）
 set full_kind raw
 if {$full_kind ni {raw fft}} { puts "ERROR: full_kind は raw か fft（$full_kind）"; exit 1 }
 puts "FULL の位置: $full_kind（[expr {$full_kind eq "raw" ? "raw_core、KIND 4 RAW" : "spec_core、KIND 1 FULL"}]）"
-add_files -norecurse [list ./src/common/tp_core.v ./src/common/cmul.v ./src/common/gb_adc.v ./src/common/gb_gate.v ./src/common/raw_core.v]
-if {$full_kind eq "fft"} { add_files -norecurse [list ./src/common/spec_core.v ./src/common/dft16.v ./src/common/tw_rom.v] }
+add_files -norecurse [list ../../common/tp_core.v ../../common/cmul.v ../../common/gb_adc.v ../../common/gb_gate.v ../../common/raw_core.v]
+if {$full_kind eq "fft"} { add_files -norecurse [list ../../common/spec_core.v ../../common/dft16.v ../../common/tw_rom.v] }
 # proj014: 窓（win_core）。win_coef.vh は make coef の生成物（手で直さない）
-add_files -norecurse [list ./src/common/win_core.v ./src/common/pfb_core.v ./src/common/dft16f.v ./src/common/ddc_core.v ./src/common/hb2.v ./src/common/hb2s.v ./src/common/pair2.v \
-                           ./src/common/nco_rom.v ./src/common/wspec_core.v ./src/sam45fine/pfb4_rom.v ./src/common/win_coef.vh ./src/common/axis_sel4.v]
+add_files -norecurse [list ../../common/win_core.v ../../common/pfb_core.v ../../common/dft16f.v ../../common/ddc_core.v ../../common/hb2.v ../../common/hb2s.v ../../common/pair2.v \
+                           ../../common/nco_rom.v ../../common/wspec_core.v ./src/pfb4_rom.v ../../common/win_coef.vh ../../common/axis_sel4.v]
 # proj016: 時刻・健全性
-add_files -norecurse [list ./src/common/time_core.v ./src/common/dstamp.v ./src/common/adc_ev.v ./src/common/s45_core.v ./src/common/rec_fr.v ./src/common/rec_arb.v ./src/common/s45_ring.v]
+add_files -norecurse [list ../../common/time_core.v ../../common/dstamp.v ../../common/adc_ev.v ../../common/s45_core.v ../../common/rec_fr.v ../../common/rec_arb.v ../../common/s45_ring.v]
 set_property file_type {Verilog Header} [get_files win_coef.vh]
-set_property include_dirs [file normalize ./src/common] [get_filesets sources_1]
+set_property include_dirs [file normalize ../../common] [get_filesets sources_1]
 set WIN_NW 2              ;# proj017: 1 ADC の窓の数（win_core の CONFIG.NW）。SAM45-Fine は 2（proj015・016 は 4）
 set win_range 65536       ;# proj021 2-2d: s45_core_i の AXI4-Lite の窓（16 bit 番地 = 64 KiB。INTERFACE 3.）。proj015〜2-2c は 1 MiB（20 bit、仮の読み窓）
 
@@ -386,7 +386,7 @@ if {$full_kind eq "fft"} {
 #   **自然順で出力し XK_INDEX を載せる**（k1 でひねり係数と積分の番地を引くため）
 #   **realtime**（proj011。入力が途切れても IP は待たない。途切れは spec_core の FLAGS[4] / [6] が捕まえる。
 #   出力側の tready は IP に無い）
-#   乗算器・バタフライは FFT_OPT で選ぶ（src/sam45fine/fft_cfg.tcl）
+#   乗算器・バタフライは FFT_OPT で選ぶ（src/fft_cfg.tcl）
 # CONFIG の名前は版で変わりうるので、1 つずつ投げて **読み返しで判定する**（proj003 の流儀）。
 create_ip -name xfft -vendor xilinx.com -library ip -module_name lane_fft
 set xfft [get_ips lane_fft]
@@ -494,7 +494,7 @@ if {$top eq ""} {
 }
 }
 # ------------------------------------------------------------------ FFT IP（win_fft。proj014）
-# win_core の中の wspec_core が 1 個使う。**名前 win_fft は RTL（src/common/wspec_core.v）と sim/win_fft_model.v と対**。
+# win_core の中の wspec_core が 1 個使う。**名前 win_fft は RTL（../../common/wspec_core.v）と sim/win_fft_model.v と対**。
 # 設定は tools/ip_survey.tcl の win4096_res_lut と同じ（survey: DSP 30・LUT 4.0k・BRAM 15 / 個）。
 # 出力 31 bit（= 18 + 12 + 1）を wspec_core.v の YW が前提にしている。読み返して確かめる
 create_ip -name xfft -vendor xilinx.com -library ip -module_name win_fft
@@ -928,7 +928,7 @@ if {[llength $rdc] == 0} {
 set rdc_w [expr {[get_property LEFT $rdc] - [get_property RIGHT $rdc] + 1}]
 
 # proj015: 全帯域は 1 本だけ（axis_sel4 で 4 ADC から選ぶ）。proj021 手順 2-1: spec_core_0 のセルは無くし、
-#   s45_core_0 の中の FULL の流れ（CONFIG.FULL = 1、src/common/s45_core.v）にした。入力は s45_core_0 の s_axis_full、選ぶのはその流れの SRC
+#   s45_core_0 の中の FULL の流れ（CONFIG.FULL = 1、../../common/s45_core.v）にした。入力は s45_core_0 の s_axis_full、選ぶのはその流れの SRC
 set spec_build_tag [expr {$build_tag_base | (1 << 21)}]
 set fsel [create_bd_cell -type module -reference axis_sel4 full_sel]
 set_property CONFIG.DW $beat_bits $fsel
@@ -956,7 +956,7 @@ if {abs([get_property CONFIG.BEATS_PER_SEC $tcore] - $dsp_mhz * 1e6) > 0.5} {
 set time_axi [BI time_core_0 [list "s_axi" "S_AXI"] "time_core_0 の AXI4-Lite"]
 puts [format "time_core_0: BUILD_TAG = 0x%08x / 1 秒 = %d ビート" $time_tag [get_property CONFIG.BEATS_PER_SEC $tcore]]
 
-# proj021 手順 2-2a: リング（s45_ring_0、src/common/s45_ring.v）。入口 i = s45_core_i/m_axis_rec、書き手 → PS の S_AXI_HP0_FPD
+# proj021 手順 2-2a: リング（s45_ring_0、../../common/s45_ring.v）。入口 i = s45_core_i/m_axis_rec、書き手 → PS の S_AXI_HP0_FPD
 set rcore [create_bd_cell -type module -reference s45_ring s45_ring_0]
 foreach {k want} [list CONFIG.NIN $nch CONFIG.BIT_KIND 2 CONFIG.BIT_REV 3 CONFIG.PROJ [expr {0x00210200}]] {
     set_property $k $want $rcore
@@ -975,7 +975,7 @@ puts "s45_ring_0: NIN = $nch / 書き手 → zynq_ultra_ps_e_0/S_AXI_HP0_FPD（1
 for {set i 0} {$i < $nch} {incr i} {
     set lbl  [lindex $ch_labels $i]
     # proj015: 窓のコア（ch ごと、NW = 4）
-    # proj021 手順 2-1: コア s45_core_i（src/common/s45_core.v = win_core ＋ i = 0 だけ FULL の流れ）。**PS はこの名前でコアを見つける**
+    # proj021 手順 2-1: コア s45_core_i（../../common/s45_core.v = win_core ＋ i = 0 だけ FULL の流れ）。**PS はこの名前でコアを見つける**
     #   CORE_PORT = [3:0] ADC の番号（SMA のラベル）/ [11:8] タイル / [15:12] スライス（chans。VERSIONS.md の実測）
     set wcore [create_bd_cell -type module -reference s45_core s45_core_$i]
     set win_tag [expr {$build_tag_base | (1 << 22) | $i}]
@@ -1499,8 +1499,8 @@ add_files -norecurse $wrapper
 set_property top ${bd_name}_wrapper [current_fileset]
 update_compile_order -fileset sources_1
 
-add_files -fileset constrs_1 -norecurse ./src/board/timing.xdc
-add_files -fileset constrs_1 -norecurse ./src/board/pps.xdc      ;# proj016: 1PPS のピン（実装後に読み返す）
+add_files -fileset constrs_1 -norecurse ../../board/timing.xdc
+add_files -fileset constrs_1 -norecurse ../../board/pps.xdc      ;# proj016: 1PPS のピン（実装後に読み返す）
 # クロックは実装の段階で出そろう。合成時に get_clocks が空を返すと
 # set_clock_groups がエラーになるので、実装でのみ使う。
 set_property USED_IN_SYNTHESIS false [get_files timing.xdc]
@@ -1621,7 +1621,7 @@ puts "---- 1PPS の入力ポート ----"
 foreach {pname want} {pps_trig AH13 pps_comp AJ13} {
     set prt [get_ports -quiet $pname]
     if {[llength $prt] == 0} {
-        puts "ERROR: ポート $pname が存在しない（create_bd_port の名前と src/board/pps.xdc の get_ports を突き合わせる）"
+        puts "ERROR: ポート $pname が存在しない（create_bd_port の名前と ../../board/pps.xdc の get_ports を突き合わせる）"
         exit 1
     }
     set got [get_property PACKAGE_PIN $prt]
@@ -1675,7 +1675,7 @@ puts ""
 puts "クロック間の制約: $outdir/clock_interaction.rpt"
 puts "  asynchronous を含む箇所 = $n_async"
 if {$n_async == 0} {
-    puts "  **非同期の宣言が見当たらない。src/board/timing.xdc が効いていない可能性がある**"
+    puts "  **非同期の宣言が見当たらない。../../board/timing.xdc が効いていない可能性がある**"
 }
 
 # ---- BRAM と DSP の使用量 ----
@@ -1881,7 +1881,7 @@ if {[info exists timing_failed]} {
     puts ""
     puts "ERROR: タイミングが閉じていない。成果物は調査用に残したが実機に使わないこと。"
     puts "  上の「違反している経路」でクロック対を見る。"
-    puts "  クロック対が違っていれば src/board/timing.xdc の非同期宣言の漏れ。"
+    puts "  クロック対が違っていれば ../../board/timing.xdc の非同期宣言の漏れ。"
     puts "  **XDC で if / foreach を使うと黙って無効になる**（Designutils 20-1307）"
     exit 1
 }
@@ -1889,6 +1889,6 @@ if {[info exists timing_failed]} {
 if {!$has_preset} {
     puts ""
     puts "NOTE: これは PS にプリセットを当てていない検証ビルド（$part）。"
-    puts "      このビットストリームは実機に使わない。見るのは上の TIMING の値だけ。make ps-preset で src/board/ps_preset.tcl を作る"
+    puts "      このビットストリームは実機に使わない。見るのは上の TIMING の値だけ。make ps-preset で ../../board/ps_preset.tcl を作る"
 }
 

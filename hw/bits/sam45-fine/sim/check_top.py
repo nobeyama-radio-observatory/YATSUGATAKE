@@ -5,7 +5,7 @@
   python3 check_top.py check DIR NS NACC NDUMP SHIFT
 
 判定:
-  0. ddc_core の出力 z が、x → pfb_fixed → ddc_fixed（model/win_fixed.py）と bit 単位で一致（入力の途切れ・止めを挟んでも）
+  0. ddc_core の出力 z が、x → pfb_fixed → ddc_fixed（../../../model/win_fixed.py）と bit 単位で一致（入力の途切れ・止めを挟んでも）
   1〜4. sim/check_wspec.py の 4 層（積分・FFT のモデル・帳簿・FLAGS）を、AXI で読んだダンプ・スナップショット・レジスタに
   5. 窓の設定が取り込まれた（WCUR）・飽和なし
 """
@@ -14,7 +14,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_wspec as CW  # noqa: E402
 import win_fixed as F  # noqa: E402

@@ -8,7 +8,7 @@
   A. bit 単位: FFT のモデルの出力（fft.txt）を電力・積分の整数模型（sat18(Y >>> SHIFT) → re² + im² → 和）に通した値 = ダンプ（全 ch）。飽和の回数も
   B. FFT のモデル = numpy の複素 4096 点 FFT（PFB の模型 y のフレーム f と FFT の出力のフレーム f が同じもの。差 ≦ 1 LSB）
   C. 帳簿: ダンプ k の f0 = RUN_F0 + k·N、n = N、SEQ が 1 ずつ、面が交互、スナップショットの番号 = f0 で
-     **中身 = PFB の模型（model/pfb4.py の pfb4_fixed）の出力フレーム f0 と bit 単位で一致**（proj020: PFB の bit 単位の照合はここ）
+     **中身 = PFB の模型（../../../model/pfb4.py の pfb4_fixed）の出力フレーム f0 と bit 単位で一致**（proj020: PFB の bit 単位の照合はここ）
   D. FLAGS = 0（ただし [4] 待たされた は、FFT のモデルが待たせる変種（RDLY > 4096 か STALL > 0）でだけ立ち、立つこと）、
      0 ≦ fin − fout ≦ 3（溜め切ったフレームは順に FFT を通っている。途中の 2 フレーム ＋ 待たされて予約中の 1 面まで）
 陽性対照 1（SIM_WSPEC_POSCTL=1、RTL の -DWSPEC_POSCTL: 初回のフレームでも読み値に足す）: A が落ちること
@@ -21,7 +21,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import pfb4  # noqa: E402
 
 NF = 4096

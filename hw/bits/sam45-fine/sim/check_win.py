@@ -11,7 +11,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import win_fixed as F  # noqa: E402
 import win_model as WM  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

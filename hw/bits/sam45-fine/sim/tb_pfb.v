@@ -3,7 +3,7 @@
 //   +K=<0..16>   粗い ch
 //   +GAP=<0|1>   1 なら s_tvalid をときどき落とす（窓は valid なビートだけ進むので、出力は変わらないはず）
 //   +IN=<path> +OUT=<path>
-// 照合は sim/check_pfb.py（model/win_fixed.py の pfb_fixed と bit 単位で）
+// 照合は sim/check_pfb.py（../../../model/win_fixed.py の pfb_fixed と bit 単位で）
 `timescale 1ns / 1ps
 module tb_pfb;
     reg clk = 0;

@@ -121,7 +121,7 @@ module tb_spec_core;
     end
 
     // ---- AXI4-Lite ----
-    // proj021 手順 2-1: tb の中は旧番地のまま書き、ここで v2 の番地（spec_core の中の 16 bit。src/common/spec_core.v の冒頭）に直す
+    // proj021 手順 2-1: tb の中は旧番地のまま書き、ここで v2 の番地（spec_core の中の 16 bit。../../common/spec_core.v の冒頭）に直す
     //   2-2d: total power のレジスタは流れのブロックの 0x100〜。リング・スナップショット・スペクトルの番地は無い（レコードで読む）
     function [15:0] xs(input [15:0] a);
         if (a[15:12] == 4'hF) xs = {4'd0, a[11:0]};                     // 2-2d: 0xFxxx = v2 の番地そのもの（REC_CTRL など、旧番地の無いもの）

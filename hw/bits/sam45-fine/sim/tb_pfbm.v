@@ -4,7 +4,7 @@
 //   出力: DIR/y_w<w>.txt。区切りの行「# R <その時までに渡した valid なビートの数>」（w_rst を下ろした時）、
 //         「# S <q_start>」（その区切りの最初の ok なフレームの前）、フレーム「実部 虚部」（m' の順）
 //   -DPFB_QW=<n> で pfb_core のビートの番号を n bit に（巻き戻りの試験）
-// 照合は sim/check_pfbm.py（窓ごとに x[8·m_s:] を model/win_fixed.py の pfb_fixed に通したものと bit 単位で）
+// 照合は sim/check_pfbm.py（窓ごとに x[8·m_s:] を ../../../model/win_fixed.py の pfb_fixed に通したものと bit 単位で）
 `timescale 1ns / 1ps
 `ifndef PFB_QW
 `define PFB_QW 32

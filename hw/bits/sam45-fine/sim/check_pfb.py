@@ -2,7 +2,7 @@
 """proj014 — pfb_core の単体の sim の照合（make sim-pfb）。
 
   python3 check_pfb.py gen DIR          入力を作る（雑音 + CW 2 本 + 満杯に近い振幅を少し。低位の 2 bit は乱数）
-  python3 check_pfb.py check DIR K...   DIR/y_K*.txt を model/win_fixed.py の pfb_fixed と bit 単位で照合
+  python3 check_pfb.py check DIR K...   DIR/y_K*.txt を ../../../model/win_fixed.py の pfb_fixed と bit 単位で照合
 
 判定: 全フレーム・全 k で実部・虚部とも一致（1 LSB の違いも NG）。出力のフレーム数が模型と同じ。飽和 0。
 陽性対照（make sim-pfb SIM_PFB_POSCTL=1）: RTL の分岐の和の丸めを切り捨てに替える → 一致しないこと。
@@ -12,7 +12,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import win_fixed as F  # noqa: E402
 import win_model as WM  # noqa: E402
 

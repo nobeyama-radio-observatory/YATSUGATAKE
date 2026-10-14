@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""proj014 — model/win_model.py の設計（18 bit に丸めた係数）から src/common/win_coef.vh を作る（make coef）。
+"""proj014 — ../../../model/win_model.py の設計（18 bit に丸めた係数）から ../../common/win_coef.vh を作る（make coef）。
 
 生成物はリポジトリに入れる（proj013 の tw_rom.v と同じ扱い）。**手で直さない。**
 設計を変えたら make coef で作り直し、make model・make fixed・make sim-pfb を回し直す。
@@ -8,7 +8,7 @@ import math
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import win_model as WM  # noqa: E402
 
 
@@ -48,7 +48,7 @@ def main():
 
 
 def gen_nco_rom(path):
-    """NCO の 1/4 波の表（model/win_fixed.py の nco_table と同じ値）を ROM のモジュールにする。"""
+    """NCO の 1/4 波の表（../../../model/win_fixed.py の nco_table と同じ値）を ROM のモジュールにする。"""
     import win_fixed as F
     P, A = F.DEFAULT["NCO_P"], (1 << (F.DEFAULT["NCO_A"] - 1)) - 1
     T = F.nco_table(P, A)

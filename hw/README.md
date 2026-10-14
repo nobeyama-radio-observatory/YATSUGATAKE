@@ -1,6 +1,6 @@
 # hw — PL の設計
 
-**状態: 空。** study-rfsoc の proj021 が完成したら、その RTL をここへ移す（[`docs/migration.md`](../docs/migration.md)）。
+**状態: 移植中（M1）。** study-rfsoc の proj021（`proj021-m0`）の RTL をここへ置いた（[`docs/migration.md`](../docs/migration.md)）。SAM45-Fine の組み立て・sim・ビルドの道具は `bits/sam45-fine/`。
 
 | 場所 | 中身 | 境目の決め方 |
 |---|---|---|

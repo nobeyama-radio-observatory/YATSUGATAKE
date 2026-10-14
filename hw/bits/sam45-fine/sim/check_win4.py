@@ -5,7 +5,7 @@
   python3 check_win4.py check DIR
 
 判定:
-  0. 窓ごとに、z が x[8·m_s:] → pfb_fixed → ddc_fixed（model/win_fixed.py）と bit 単位で一致。m_s = 2·WSTART − 10
+  0. 窓ごとに、z が x[8·m_s:] → pfb_fixed → ddc_fixed（../../../model/win_fixed.py）と bit 単位で一致。m_s = 2·WSTART − 10
      （WRST を入力の途中で打った窓は、共有の PFB の途中から始まる。z の数は模型の −2〜0）
   1. 窓 1 の SNAP_SEL のスナップショット = 窓 1 の z のフレーム SNAP_F（4096 語）、DUMP_F0 = SNAP_F。選ばれていない窓 0 の範囲は 0
   2. レジスタ: ADC の共通の ID・NW・SNAP_SEL、窓ごとの ID・WIDX・WCUR、FLAGS（[4] 待たされた を除いて 0）・DDC_OVR 0、無い流れは 0（proj021 手順 2-1: 番地は v2）
@@ -16,7 +16,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import win_fixed as F  # noqa: E402
 import win_model as WM  # noqa: E402
 import pfb4  # noqa: E402

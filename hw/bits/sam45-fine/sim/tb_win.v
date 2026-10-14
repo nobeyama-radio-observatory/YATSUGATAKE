@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // proj014 — pfb_core → ddc_core を 1 本につないだ sim（窓 1 つ、ADC 1 本）。入力 x.hex（1 行 16 bit）→ z.txt
 //   +K= +NS= +DPHI= +GAP= +NSAMP= +IN= +OUT=
-// 照合は sim/check_win.py（model/win_fixed.py の pfb_fixed → ddc_fixed と bit 単位で）。つなぎ目（ok・組のまとめ直し・m = 0 の揃え）の試験
+// 照合は sim/check_win.py（../../../model/win_fixed.py の pfb_fixed → ddc_fixed と bit 単位で）。つなぎ目（ok・組のまとめ直し・m = 0 の揃え）の試験
 `timescale 1ns / 1ps
 module tb_win;
     reg clk = 0;

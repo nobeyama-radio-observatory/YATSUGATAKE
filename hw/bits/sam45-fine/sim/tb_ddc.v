@@ -2,7 +2,7 @@
 // proj014 — ddc_core の単体の sim。入力 y.txt（1 行 1 ビート: y0_ok y0_re y0_im y1_ok y1_re y1_im。pfb_core の出力と同じ並び）
 //   → z.txt（「実部 虚部」を出る順に）
 //   +NS=<1..8> +DPHI=<32 bit 符号なし> +GAP=<0|1> +IN= +OUT= +NBEAT=
-// 照合は sim/check_ddc.py（model/win_fixed.py の ddc_fixed と bit 単位で）
+// 照合は sim/check_ddc.py（../../../model/win_fixed.py の ddc_fixed と bit 単位で）
 `timescale 1ns / 1ps
 module tb_ddc;
     reg clk = 0;
