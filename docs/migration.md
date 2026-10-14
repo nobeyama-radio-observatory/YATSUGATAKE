@@ -150,6 +150,8 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 2. 直した後、`python3 hw/bits/sam45-fine/tools/gen_coef.py`（引数なし）は `hw/common/win_coef.vh`・`hw/common/nco_rom.v` をバイト単位で同じに書き直し、ほかの場所にファイルを作らない
 3. bit・sim には効かない（Makefile は前から明示して渡している）
 
+**結果（2026-10-14）: 予言 1・2 当たり**。直した後、2 つの道具をリポジトリの外のディレクトリから引数なしで回した: `pfb4.py gen` は `model/pfb4_coef.txt`・`hw/bits/sam45-fine/src/pfb4_rom.v` を、`gen_coef.py` は `hw/common/win_coef.vh`・`hw/common/nco_rom.v` を書き、`git status` に出たのは直した 2 つの道具だけ（生成物はバイト単位で同じ、ほかの場所にファイルは出来ない）。予言 3 は Makefile を変えていないことによる（sim・ビルドは回していない）
+
 ## 移植の後
 
 - study-rfsoc の README と INDEX に「SAM45-Fine は YATSUGATAKE へ移した（commit）」と 1 行足す

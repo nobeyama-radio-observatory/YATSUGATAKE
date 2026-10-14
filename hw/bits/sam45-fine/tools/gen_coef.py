@@ -18,7 +18,7 @@ def packed(name, vals, w):
 
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "src", "win_coef.vh")
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..", "..", "common", "win_coef.vh")
     des = WM.design(60.0, WM.RIPPLE_PP)
     lines = ["// SPDX-License-Identifier: BSD-3-Clause",
              "// 生成物（tools/gen_coef.py、make coef）。**手で直さない。**",
