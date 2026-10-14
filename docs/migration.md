@@ -137,6 +137,19 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 - 以後、**同じ RTL の作り直しの同一性は「`.bit` のヘッダを除いた構成データの sha256」で言える**（WNS の一致より強い。ヘッダの日時だけが違う）。比べ方: `.bit` のヘッダ（長さ付きの欄 a〜d）を読み飛ばし、欄 e の長さぶんの本体の sha256 を取る
 - M4（実機の短い回帰）は、構成データが同じなので移植元の結果がそのまま当てはまる見込み。それでも載せる bit・hwh は移植先の build/ のものを使い、ID と PS 側（`sw/pynq/`）の置き場所が通ることを確かめる
 
+## M1 から持ち越した直し: 係数の生成の道具の既定の書き出し先（2026-10-14）
+
+**問題**（proj021 の手順 1a から。Makefile は書き出し先を明示して渡すので、ビルドと sim には効いていない）:
+- `model/pfb4.py gen` の書き出し先が `model/../src/pfb4_rom.v`（＝リポジトリの直下の `src/`、無い）。実際の置き場所は `hw/bits/sam45-fine/src/pfb4_rom.v`。直す前に回すと `FileNotFoundError`（係数の表 `model/pfb4_coef.txt` は書き終えた後で落ちる。中身は同じだった）
+- `hw/bits/sam45-fine/tools/gen_coef.py` を引数なしで回すと `hw/bits/sam45-fine/src/` に `win_coef.vh`・`nco_rom.v` を書く。実際の置き場所は `hw/common/`。直す前に回して確かめた: 2 個とも `hw/common/` のものとバイト単位で同じ中身が、間違った場所に新しく出来た（消した）
+
+**直し方**: 2 つの道具の既定の書き出し先と、使い方の注釈の中のパスだけを直す（`pfb4.py` は `HERE/../hw/bits/sam45-fine/src/pfb4_rom.v`、`gen_coef.py` は `tools/../../../common/win_coef.vh`）。係数・生成の中身・Makefile は変えない。
+
+**予言**:
+1. 直した後、`python3 model/pfb4.py gen` は `model/pfb4_coef.txt` と `hw/bits/sam45-fine/src/pfb4_rom.v` をバイト単位で同じに書き直す（`git status` が空）
+2. 直した後、`python3 hw/bits/sam45-fine/tools/gen_coef.py`（引数なし）は `hw/common/win_coef.vh`・`hw/common/nco_rom.v` をバイト単位で同じに書き直し、ほかの場所にファイルを作らない
+3. bit・sim には効かない（Makefile は前から明示して渡している）
+
 ## 移植の後
 
 - study-rfsoc の README と INDEX に「SAM45-Fine は YATSUGATAKE へ移した（commit）」と 1 行足す
