@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画
 
-- 状態: **始める条件が揃った**（2026-10-14）。次は M0（置き場所の対応の表を確定する）
+- 状態: **M0 済み**（2026-10-14）。次は M1（ファイルを置き直す）
 - 決定: [ADR 0002](decisions/0002-migrate-from-proj021-restructure-only.md)（proj021 を土台にし、構成替えだけを行う）
 
 ## 原則
@@ -32,35 +32,49 @@ study-rfsoc の proj021 README「移植元を決める」の節の写し。
 
 bit そのものは git に入れない（[ADR 0018](decisions/0018-release-on-github-releases.md) の扱い）
 
-## 置き場所の対応（案）
+## 置き場所の対応（M0 で確定、2026-10-14）
 
-| study-rfsoc | YATSUGATAKE | 備考 |
+ファイル 1 つずつの行き先は付録 [`migration-files.md`](migration-files.md)（proj021 の 229 個: 移す 156・移さない 73）。
+
+**M1 は「分けずに置く」**: M1 はパスだけを変える（原則 1）。proj021 の中で import・相対パスで結び付いているものを分けると中身を直すことになるので、M1 では一緒に置き、分けるのは M1 の後の別の PR にする（下の「M1 の後に分けるもの」）。
+
+| study-rfsoc | YATSUGATAKE（M1） | 備考 |
+|---|---|---|
+| proj021 `src/common/` | `hw/common/` | 全帯域の FFT（`spec_core.v`・`tw_rom.v`）も移す。SAM45-Fine の bit では使わない（build.tcl の `full_kind fft` のときだけ入る）が、SAM45-Wide などの共通部品 |
+| proj021 `src/board/`・`clocks/` | `hw/board/`・`hw/board/clocks/` | `ps_preset.tcl`・タイミング制約・1PPS のピン。clocks は出荷時の控え（実行時には読まない） |
+| proj021 `src/sam45fine/` | `hw/bits/sam45-fine/src/` | FFT IP の設定・PFB の係数の ROM |
+| proj021 `build.tcl`・`Makefile`・`program.tcl` | `hw/bits/sam45-fine/` | `src/`・`model/`・`sw/pynq/` の位置だけを直す |
+| proj021 `sim/` | `hw/bits/sam45-fine/sim/` | 陽性対照の変種も全部。共通の tb を `hw/sim/` に出すのは後 |
+| proj021 `tools/`（Makefile が使うもの） | `hw/bits/sam45-fine/tools/` | フロアマップ・最悪の経路・CDC・係数とひねり係数の生成・PS のプリセット・OOC の見積もり |
+| proj021 `model/` | `model/` | 係数を作る模型（pfb4・win_fixed など）。係数の表と一緒に版を持つ |
+| proj021 `pynq/`（specd・取得・受け側・制御・判定と測りの道具・`tp_cal.json`・`bits.example.json`） | `sw/pynq/` | specd が window・timetest・spectrometer・plring・sg まで import し、s45client が s45proto・s45cal を import するので、M1 では 1 か所に置く |
+| proj021 `docs/`（ブロック図・フロアマップ・PFB と窓の設計の図） | `docs/design/sam45-fine/` | |
+| proj021 `test/acceptance/`（21 判定と一覧） | `test/acceptance/sam45-fine/` | 判定の ID は bit ごとに中身が違いうるので bit のディレクトリに分ける |
+| proj017〜021 の README の結果 | `docs/performance/sam45-fine/` の最初の 1 本の材料 | 移植後の .bit で測り直す（M6） |
+
+**M1 では移さない共通の文書**（中身を書き直して移すので M7 で）:
+
+| study-rfsoc | YATSUGATAKE（M7） | 備考 |
 |---|---|---|
 | `BITS.md` | `docs/spec/bits.md` | 仕様の行に ADR の番号を添える |
-| `INTERFACE.md`（v2） | `docs/spec/interface.md` | 経緯（「見送った案」）は ADR 0016 に寄せ、spec には今の約束だけを残す。図（`docs/interface_*.svg`）も移す |
+| `INTERFACE.md`（v2）・`docs/interface_*.svg`・`docs/interface_figs.py` | `docs/spec/interface.md` と図 | 経緯（「見送った案」）は ADR 0016 に寄せ、spec には今の約束だけを残す |
 | `VERSIONS.md` | `docs/spec/hardware.md` ＋ `docs/knowledge/` | 固定値は spec、経緯と落とし穴は knowledge（既に要約済み） |
 | `proj001/docs/runbook.md` | `docs/knowledge/environment.md` に足す | ライセンスの節は環境に依る部分を除いて一般化する |
-| proj021 `src/common/` | `hw/common/` | |
-| proj021 `src/board/` | `hw/board/` | `ps_preset.tcl`・タイミング制約・1PPS のピン |
-| proj021 `src/sam45fine/` | `hw/bits/sam45-fine/` | |
-| proj021 `build.tcl`・`Makefile`・`program.tcl`・`clocks/` | 共通の部分は `hw/common/tcl/` ＋ bit ごとの Makefile | 照合（part・結線・両側）を共通の手続きにする |
-| proj021 `sim/` | `hw/sim/`（共通の tb）＋ `hw/bits/sam45-fine/sim/` | 陽性対照の変種も移す |
-| proj021 `model/` | `model/` | 係数を作る模型（pfb4・win_fixed など）。係数の表と一緒に版を持つ |
-| proj021 `pynq/`（specd・s45proto・s45ring・timebase・取得の道具） | `sw/specd/` | |
-| proj021 `pynq/`（s45client・specrecv・照合の道具） | `sw/client/` | |
-| proj021 `pynq/`・`tools/`（s45lin・s45allan・s45spur・s45tastar など） | `sw/tools/` | 較正・測定の道具 |
-| proj021 `pynq/tp_cal.json`・timebase の CAL | 較正ファイル（`bits.json` が指す） | (BIT_KIND, BIT_REV) ごと |
-| proj021 `docs/`（ブロック図の描画） | `docs/design/` | |
-| proj021 README の判定 | `test/acceptance/<ID>.md` | |
-| proj017〜021 の README の結果 | `docs/performance/sam45-fine/` の最初の 1 本の材料 | 移植後の .bit で測り直す |
 
-移さないもの: `runs/`（測定の記録）・`build*/`・試行の途中の道具（使わなくなったもの）。必要なら study-rfsoc を指す。
+**移さないもの**: proj021 の `README.md`（経緯と結果。M6 の材料として指す）・`runs/` と `pynq/` の中の測定の記録（.json・.jsonl・.png・.npz）・`build*/`・使わなくなった試行の道具
+（proj014〜019 の窓の試験 `win*`・`fine`・`lockcheck`・`adcstat`・`resp_explain`・`s45fcheck`・`fcheck.ipynb`、手順 0・1b の `bench_ps`・`gbboot`、全帯域の解析 `tools/tp_*`・`tick_analyze`・`ipround_model`・`allan`）。必要なら study-rfsoc を指す。
+
+**M1 の後に分けるもの**（それぞれ別の PR。分けた後に M2〜M4 の回帰を回す）:
+1. `sw/pynq/` → `sw/specd/`・`sw/client/`・`sw/tools/`（import の直し。sw/README.md の予定の形）
+2. `hw/bits/sam45-fine/build.tcl` の共通の手続き（照合: part・結線・両側）→ `hw/common/tcl/`
+3. `hw/bits/sam45-fine/sim/` の共通の tb → `hw/sim/`
+4. 較正（`tp_cal.json`・timebase の CAL）を (BIT_KIND, BIT_REV) ごとの較正ファイルに（`bits.json` が指す）
 
 ## 手順
 
 | 手順 | すること | 合格 |
 |---|---|---|
-| M0 | 移植元の commit を決め、上の表を確定する | 表に「移さない」も含めて全ファイルの行き先がある |
+| M0 | 移植元の commit を決め、上の表を確定する | 表に「移さない」も含めて全ファイルの行き先がある（**済み 2026-10-14**、付録 migration-files.md） |
 | M1 | ファイルを置き直し、パスだけを直す（中身は変えない） | `git diff --stat` で中身の変更がパスの行だけ |
 | M2 | sim を全部回す | proj021 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
 | M3 | ビルド（`-1`、proj021 と同じ実装の戦略） | 下の「同一性の判定」 |
