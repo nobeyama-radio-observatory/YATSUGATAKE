@@ -22,6 +22,7 @@ import traceback
 
 import numpy as np
 
+import bitinfo
 import s45cal
 import s45proto as P
 from tpjump import TpJump
@@ -284,6 +285,13 @@ class HwBackend:
         self.stall_at = getattr(opts, "posctl_ring_stall", 0.0)
         self.n_pump = 0
 
+    def _usr_access(self):
+        """YATSUGATAKE M5b: 載せた .bit の USR_ACCESS（16 進 8 桁、焼いていなければ none、読めなければ ?）。FPGA の中からは読まない（.bit の構成の流れから）"""
+        try:
+            return bitinfo.fmt(bitinfo.usr_access(self.o.bitfile))
+        except (OSError, bitinfo.BitError):
+            return "?"
+
     def open(self):
         import spectrometer as S
         import timetest as T
@@ -318,6 +326,7 @@ class HwBackend:
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(W.R_ID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",   # proj021 2-2d: 載っている time_core の IF_ID（BIT_REV 1 / 2）
                         proj=f"{c0.proj:08x}",
+                        usr=self._usr_access(),                                   # YATSUGATAKE M5b: 載せた .bit の USR_ACCESS（commit）
                         lmx_vco=f"{self.lmx['vco_mhz']:.2f}" if self.lmx else "7864.32",
                         lmx_pwr=str(self.lmx.get("outa_pwr", 31)) if self.lmx else "31")
         self.clock = Clock(None, TB.WIN_DELAY_BEATS)

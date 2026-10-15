@@ -1605,6 +1605,26 @@ set bad [ooc_bad $ooc_names]
 if {[llength $bad] > 0} { puts "ERROR: 回し直しても OOC の合成が通らない: $bad"; exit 1 }
 puts "OOC 合成   : [llength $ooc_names] 個すべて完了"
 
+# ---- YATSUGATAKE M5b: USR_ACCESS に commit を焼く（Makefile の USR_ACCESS）。write_bitstream の前のフックで設定するだけで、
+#      配置・配線には触れない（RTL も変えない）。make が書き出した .bit を sw/pynq/bitinfo.py で読み返して照らす ----
+set usr_access [expr {[info exists ::env(USR_ACCESS)] ? $::env(USR_ACCESS) : ""}]
+if {$usr_access eq ""} { puts "ERROR: USR_ACCESS が来ていない（make から回す。焼かないなら USR_ACCESS=none）"; exit 1 }
+if {[string tolower $usr_access] eq "none"} {
+    puts "USR_ACCESS (焼く): なし（USR_ACCESS=none。比べのためのビルド）"
+} else {
+    if {![regexp {^0x[0-9a-fA-F]{8}$} $usr_access]} { puts "ERROR: USR_ACCESS $usr_access が 0x と 16 進 8 桁でない"; exit 1 }
+    set hook [file normalize $outdir/usr_access_hook.tcl]
+    set fh [open $hook w]
+    puts $fh "set_property BITSTREAM.CONFIG.USR_ACCESS $usr_access \[current_design\]"
+    puts $fh "puts \"USR_ACCESS: \[get_property BITSTREAM.CONFIG.USR_ACCESS \[current_design\]\]\""
+    close $fh
+    set_property STEPS.WRITE_BITSTREAM.TCL.PRE $hook [get_runs impl_1]
+    if {[get_property STEPS.WRITE_BITSTREAM.TCL.PRE [get_runs impl_1]] ne $hook} {
+        puts "ERROR: write_bitstream の前のフックが設定されていない"; exit 1
+    }
+    puts "USR_ACCESS (焼く): $usr_access（commit [string range $usr_access 2 8]・汚れ [string index $usr_access end]）"
+}
+
 # ---- 合成〜実装〜ビットストリーム ----
 launch_runs impl_1 -to_step write_bitstream -jobs $jobs
 wait_on_run impl_1

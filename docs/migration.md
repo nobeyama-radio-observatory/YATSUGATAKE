@@ -246,6 +246,8 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 3. sim は RTL が同じなので回さない（M2 の結果がそのまま）
 4. 実機: M4 と同じ判定（ID-1・F-1・W-0・V2-b 300 s）が通る。specd の ID と START の EVENT に `usr` が出て、1 と同じ値
 
+**PC での確かめ（2026-10-15、作業用の環境で）**: `bitinfo.py` で移植元の bit を読むと USR_ACCESS なし・FDRI 8,608,824 語・sha256 `e095fa97…`・欄 e の sha256 `f042da9f…`（M3 と同じ）。`--expect none` は通過、`--expect 0x12345670` は失敗（終了状態 1）、.bit でないファイルは「読めない」。陽性対照: 移植元の bit の同期語の直後に USR_ACCESS の書き込み（0xabcdef10）を差し込んだ偽の bit は `commit abcdef1（汚れなし）` と読め、FDRI の sha256 は変わらない。`make -n` で `USR_ACCESS` が git から作られ（`0x` ＋ commit 7 桁 ＋ 汚れ）、vivado の後に読み返しが走ること。`test_fake.sh basic` 通過（s45acq の import）
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
