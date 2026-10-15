@@ -8,7 +8,8 @@ dBm への換算は受け側で行う（係数を測り直しても、過去の�
   dBm（ADC の入口、SMA）= 10·log10(σ_x²) + K_adc、σ_x² = Σx² / (フレーム数 · 8192)（14 bit の LSB²、TP の 1 サンプルの平均の電力）
 
 tp_cal.json の形:
-  {"version": 1, "bit_id_win": "00170100"（proj020 から一覧も可: ["00170100", "00200100"]）, "unit": "dBm at ADC input (SMA)",
+  {"version": 1, "bits": [[2, 3]]（使ってよい bit の (BIT_KIND, BIT_REV) の一覧。YATSUGATAKE M5a から。空なら どの bit でも使わない）,
+   "measured_on": [...]（測った bit の記録。照合には使わない）, "unit": "dBm at ADC input (SMA)",
    "adc": {"A": {"k_db": -69.37, "valid_dbfs": [-47, -7], "provisional": true, "source": "...", "date": "2026-10-06"}, ...},
    "note": "..."}
   provisional: true = 見積もりを含む暫定（0 dBFS ≒ +5.9 dBm の正弦波の値を使ったなど）。PM を ADC の口で測って置き換えたら false
@@ -35,17 +36,25 @@ def load(path):
 
 
 def check(cal, ids):
-    """載っている bit の ID と較正ファイルの bit_id_win を照らす（timebase の CAL と同じく、違えば使わない）。戻り値 (使えるか, 説明)"""
+    """載っている bit の (BIT_KIND, BIT_REV) と較正ファイルの bits を照らす（timebase の CAL と同じく、違えば使わない）。戻り値 (使えるか, 説明)
+
+    YATSUGATAKE M5a（INTERFACE v2 の 5.2）: 鍵は (BIT_KIND, BIT_REV)。載っている bit のそれは コア 0 の IF_ID（ids["adc"]、16 進 8 桁）から取る。
+    PROJ は記録だけで照らさない"""
     if cal is None:
         return False, "較正ファイルが無い"
-    w = cal.get("bit_id_win", "")
-    wants = [str(v).lower() for v in (w if isinstance(w, list) else [w]) if str(v)]   # proj020: 一覧も許す（TP の経路が同じ bit）
-    # proj021 手順 2-1: 窓の 0x00 は SID（bit を見分けない）になったので、PROJ（コアの 0x04）で照らす。PROJ が無い（旧 bit）なら窓の ID
-    got = str((ids or {}).get("proj") or (ids or {}).get("win", "")).lower()
-    if got == "fake":
+    got = str((ids or {}).get("adc", "")).lower()
+    if got == "fake" or str((ids or {}).get("win", "")).lower() == "fake":
         return True, "偽物（ID を照らさない）"
-    if wants and got not in wants:
-        return False, f"bit の ID が違う（較正 {'/'.join(wants)}・載っている {got}）"
+    if "bits" not in cal:
+        return False, "較正ファイルに bits が無い（YATSUGATAKE M5a より前の形。bit_id_win は照らさない）"
+    try:
+        v = int(got, 16)
+    except ValueError:
+        return False, f"載っている bit の IF_ID が読めない（{got!r}）"
+    have = (v >> 16 & 0xFF, v >> 8 & 0xFF)
+    wants = [tuple(int(x) for x in b) for b in cal["bits"]]
+    if have not in wants:
+        return False, f"bit が違う（較正 {wants or 'なし'}・載っている (BIT_KIND, BIT_REV) = {have}）"
     return True, "ok"
 
 

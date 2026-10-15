@@ -217,6 +217,11 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 3. 陽性対照（PC で）: `Timebase` に (2, 2) の time_core を渡すと「較正定数を持っていない」で止まる。`s45cal.check` は `bits: [[2, 2]]` と IF_ID 0x0202_0301 で「使えない」、`[[2, 3]]` で「使える」
 4. 実機: ID-1 の表は今と同じ。F-1 の錨の行の較正（adc_to_core 146.0・146.3・147.4・147.5、bound 50）が今と同じ。specd の STATUS の tp_dbm は今と同じ `-`
 
+**PC での結果（2026-10-15、作業用の環境で）**:
+- 予言 2: **当たり**。`test_fake.sh all` の 13 試験とも通過
+- 予言 3: **当たり**。偽の time_core で (2, 3) は較正あり（adc_to_core 146.0・146.3・147.4・147.5、bound 50）、(2, 2) は「BIT_KIND 2・BIT_REV 2 の較正定数を持っていない（未較正…）」で止まった。`s45cal.check`（IF_ID 0x0202_0301）: `tp_cal.json`（bits 空）は使えない、`[[2, 2]]` は使えない、`[[2, 3]]` は使える、bits の無い旧い形は使えない、偽物は照らさない
+- 予言 1（sim-regmap）と 4（実機）は Vivado サーバとボードで（未）
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
