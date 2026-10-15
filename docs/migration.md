@@ -250,6 +250,22 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 
 **ビルドの 1 回目（2026-10-15）: build.tcl の照合で止まった**。`ERROR: USR_ACCESS 1278564400 が 0x と 16 進 8 桁でない`（合成の前、OOC の後）。1278564400 = 0x4C355830 で、make が渡した値そのもの。build.tcl で環境変数を `expr {… ? $::env(USR_ACCESS) : ""}` で受けたため、Tcl の expr が `0x…` を数として読み、10 進の文字列にして返した（tclsh で再現）。`if` で受けるように直した（tclsh で、直した節を切り出して `0x4c355830` と `none` の両方で回し、フックの中身が `set_property BITSTREAM.CONFIG.USR_ACCESS 0x4c355830 [current_design]` になることを確かめた）。形の照合を置いていたので、黙って違う値を焼かずに止まった
 
+**ビルドの 2 回目（2026-10-15、commit 8eba348、汚れなし）: 予言 1・2 当たり**
+
+| 項目 | M3（移植元と同じ） | M5b |
+|---|---|---|
+| USR_ACCESS（bitinfo） | なし | **8eba3480 = commit 8eba348（汚れなし）**。make の読み返しの照合 通過、vivado.log と impl_1 の runme.log にも `USR_ACCESS: 0x8eba3480` |
+| `-1` の WNS / WHS | +0.044057 / +0.009766 ns | **同じ（小数 6 桁まで）** |
+| LUT / FF / DSP / BRAM / URAM | 168,982 / 256,455 / 2,096 / 233.5 / 56 | 同じ |
+| CDC-3 / CDC-6 / CDC-15 | 105 / 5 / 3,137 | 同じ |
+| vivado.log の要点（CRITICAL WARNING を含む）・.hwh の IP と番地 | | diff が空 |
+| **FDRI（構成のフレームのデータ）の sha256** | `e095fa977cf9ebaa6f980a7a0f5f8bc0212ae6bed469ecdb047b6e18dfbc29f9`（8,608,824 語） | **同じ** |
+| 構成の流れ（欄 e）の sha256 | `f042da9f…` | `de33b5bc…`（USR_ACCESS の書き込みと CRC の分だけ違う。長さは同じ 34,437,476 B の .bit） |
+| `.bit` / `.hwh` の sha256 | `4f491488…` / `8ddd7f42…`（M3） | `ed6bcf787e4f821364f04b036d855ae742a6aae6f817b8387b174cc384d7bce6` / `0a40365e25e0488ae4fe4ff4c099a3c5429fa774efd8324d4fbc37deee28ce4b` |
+
+- **FDRI が同じ = 配置・配線は M3 とビットまで同じ**。USR_ACCESS を焼いても配置に触れない（ADR 0018 の「確かめること」）を、WNS より強い形で確かめた
+- OOC の合成で `system_s45_core_0_0_synth_1` が 1 回落ち、build.tcl の回し直し（Vivado が落ちた run だけを回し直す既存の仕組み）で通った。M3 では落ちていない。結果の値には効いていない（上の表）
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
