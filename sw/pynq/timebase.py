@@ -39,42 +39,17 @@ NS_NUM, NS_DEN = 125, 32          # 1 ビート = 125/32 ns（厳密）
 #   **T-2（閉ループ）で測れるのは差 M = adc_to_core − pps_det（＋ 2 本のケーブルの差）の 1 つだけ**なので、M を adc_to_core_ns に入れ、
 #   pps_det_ns = 0 とする（式の上では引く量は M で同じ）。
 CAL = {
-    # proj021 手順 2-1: 鍵を time_core の PROJ（0x5C）に替えた（ID の 0x00 は IF_ID = bit の種類と版だけになった）。
-    #   ギアボックス・time_core の RTL は 1b と同じ。1b も未較正なので、F-2 で測るまで未較正のまま（1b の値が出たら持ち込める）
-    #   2-5（BIT_REV 3）の bit で F-2 を測った（2026-10-14）。鍵は PROJ なので 2-1〜2-4 の bit にも当たるが、それらは 2-5 で置き換えた
-    #   （INTERFACE 5.2 は (BIT_KIND, BIT_REV) を鍵にする決定。移植のときに鍵を替える）
-    0x0021_0200: dict(pps_det_ns=0.0, adc_to_core_ns={0: 146.0, 1: 146.3, 2: 147.4, 3: 147.5}, bound_ns=50,
+    # YATSUGATAKE M5a（INTERFACE v2 の 5.2）: 鍵は (BIT_KIND, BIT_REV)。PROJ（0x5C）は記録だけで、較正には使わない。
+    #   値は study-rfsoc の proj021 2-5（BIT_KIND 2・BIT_REV 3、PROJ 0x0021_0200）の F-2。
+    #   IF_ID の無い過去の proj の bit（0x0021_7101・0x0020_7101・0x0017_7101・0x0016_7101 の鍵）の値は study-rfsoc に残る
+    #   **RTL を変えて BIT_REV を上げたら、F-2 で測り直して新しい鍵で足す**（古い値は新しい REV に当たらない = 黙って使われない）
+    (2, 3): dict(pps_det_ns=0.0, adc_to_core_ns={0: 146.0, 1: 146.3, 2: 147.4, 3: 147.5}, bound_ns=50,
                       source="proj021 2-5 の F-2（2026-10-14、BIT_REV 3）: RAW の流れの生サンプルで 1PPS の縁がコアに入った T − スタンプ（TRIG 系統）を 4 ADC、"
                              "ADC に入れるケーブルを A↔C・B↔D に入れ替えて 2 回（Overlay も 2 回）。値は各回 5 試行の平均の 2 回の平均"
                              "（A 36.96・37.80 / B 37.01・37.88 / C 37.30・38.19 / D 37.27・38.24 ビート）。"
                              "2 回目は 4 ADC とも +0.84〜+0.97 ビート大きく、共通の分 ≒ +0.89 ビート（3.5 ns）は Overlay ごとのずれ、"
                              "ケーブルの差は 0.05 ビート以下。proj020 より +21.3〜+25.6 ns（1b の群 C のスキッド ≒ +6 ビート = +23 ns）。"
                              "タイル 224（C・D）が 226（A・B）より 1.2 ns 遅い（proj020・017 と逆の向き）"),
-    # proj021 1b: gb_gate の入口に 2 語のスキッド（群 C）。ギアボックスの遅れが ≒ +2 語（+6 ビート ≒ +23 ns、sim）変わるので、
-    #   proj020 の値は持ち込まず未較正で足す（F-2 で測る）
-    0x0021_7101: dict(pps_det_ns=0.0, adc_to_core_ns=None, bound_ns=50,
-                      source="proj021 1b: 未較正（F-2 で測る。sim の見込みは proj020 の 122〜125 ns ＋ ≒ 23 ns）"),
-    # proj020: time_core・ギアボックスの RTL は proj017 と同じだが、別の Overlay・別の配置なので proj017 の値は持ち込まず、F-2 で測り直した
-    0x0020_7101: dict(pps_det_ns=0.0, adc_to_core_ns={0: 124.7, 1: 124.9, 2: 122.1, 3: 121.9}, bound_ns=50,
-                      source="proj020 P-7（F-2、2026-10-08）: 全帯域の生サンプルで 1PPS の縁がコアに入った T − スタンプ（TRIG 系統）を 4 ADC、"
-                             "ADC に入れるケーブルを A↔C・B↔D に入れ替えて 2 回（Overlay も 2 回）。値は各回 5 試行の中央値の 2 回の平均"
-                             "（A 31.62・32.25 / B 31.69・32.25 / C 31.12・31.38 / D 31.12・31.31 ビート）。"
-                             "2 回目は 4 ADC とも +0.19〜+0.63 ビート大きく、共通の分 ≒ +0.41 ビート（1.6 ns）は Overlay ごとのずれ、"
-                             "A・C と B・D で逆向きの分 ±0.19 ビートはケーブルの差。タイル 226（A・B）が 224（C・D）より 2.6〜3.0 ns 遅い（proj017 と同じ向き）。"
-                             "上限 50 ns は proj016 と同じ見当（45m の配線のケーブルの差は未測）"),
-    # proj017: adc_to_core_ns は ADC ごと（chans の添字 0..3 = ADC_A..D）。F-2 で 4 本とも測るまで None（未較正）。
-    #   proj016 の ADC_A の 121.2 ns は別の Overlay・別の配置なので持ち込まない
-    0x0017_7101: dict(pps_det_ns=0.0, adc_to_core_ns={0: 126.8, 1: 126.4, 2: 122.4, 3: 123.3}, bound_ns=50,
-                      source="proj017 F-2（2026-10-05）: 全帯域の生サンプルで 1PPS の縁がコアに入った T − スタンプ（TRIG 系統）を 4 ADC 同時に、"
-                             "ADC に入れるケーブルを A↔C・B↔D に入れ替えて 2 回（Overlay も 2 回）。値は 2 回の平均"
-                             "（A 32.62・32.29 / B 32.55・32.15 / C 31.27・31.39 / D 31.40・31.74 ビート）。"
-                             "タイル 226（A・B）が 224（C・D）より A−C 1.13・B−D 0.78 ビート（4.4・3.0 ns）遅い（ケーブルと Overlay の差が消える組み合わせ）。"
-                             "上限 50 ns は proj016 と同じ見当（45m の配線のケーブルの差は未測）"),
-    0x0016_7101: dict(pps_det_ns=0.0, adc_to_core_ns=121.2, bound_ns=50,
-                      source="proj016 T-2（2026-10-02）: 全帯域の生サンプルで 1PPS の縁がコアに入った T − スタンプ = +31.04 ビート"
-                             "（+121.2 ns、5 回で σ 0.2 ns、TRIG 系統）。1 エポック（Overlay 1 回）だけ。"
-                             "上限 50 ns の内訳の見当: エポックごとのギアボックスの整数ビート（proj007 では Overlay ごとに数ビート動いた。未測）"
-                             "＋ T-2 の配線の PPS と ADC のケーブルの長さの差（未測）"),
 }
 # 窓の PFB・DDC の遅れ（win_core の入口のビート → そのインパルスの |z|² の重心が wspec に入るまで、ビート）。NS → 値。
 #   make sim-wdelay（2026-10-02、iverilog・k = 5・Δφ = 0）。線形位相なので重心 = 群遅延 ＋ 経路の遅れ。**RTL を変えたら出し直す**
@@ -116,7 +91,7 @@ class TimeCore:
     """time_core_0 のレジスタ（src/common/time_core.v の冒頭の表）。mmio は pynq.MMIO か、read(off) / write(off, v) を持つもの。"""
     ID = 0x0202_0302              # proj021 2-5: IF_ID（IF_VER 2・BIT_KIND 2 = SAM45-Fine・BIT_REV 3・CORE_KIND 2）。2-2d〜2-4 は 0x0202_0202、2-1〜2-2c は 0x0202_0102、旧 0x0021_7101
     IDS = (0x0202_0102, 0x0202_0202, 0x0202_0302)   # BIT_REV 1（2-1〜2-2c）・2（2-2d〜2-4）・3（2-5〜）。time_core の中身は同じ
-    PROJ = 0x0021_0200            # 0x5C。CAL の鍵
+    PROJ = 0x0021_0200            # 0x5C。記録だけ（M5a から CAL の鍵は IF_ID の (BIT_KIND, BIT_REV)）
     CTRL_ARM, CTRL_CANCEL, CTRL_ASET, CTRL_ACLR, CTRL_NCLR = 1, 2, 8, 16, 256
 
     def __init__(self, mmio):
@@ -127,6 +102,7 @@ class TimeCore:
         if idv not in self.IDS:
             raise TimebaseError(f"time_core の IF_ID 0x{idv:08x}（期待 0x{self.ID:08x}: BIT_KIND・BIT_REV が違う）")
         self.proj = self.rd(0x5C)
+        self.bit_kind, self.bit_rev = (idv >> 16) & 0xFF, (idv >> 8) & 0xFF   # M5a: CAL の鍵
         if self.rd(0x04) != BEATS_PER_SEC:
             raise TimebaseError(f"time_core の 1 秒のビート数 {self.rd(0x04)}（期待 {BEATS_PER_SEC}）")
 
@@ -182,9 +158,9 @@ class Timebase:
     def __init__(self, tc, path="trig", cal=None):
         self.tc = tc
         cal = CAL if cal is None else cal
-        key = getattr(tc, "proj", TimeCore.PROJ)
+        key = (tc.bit_kind, tc.bit_rev)                                 # M5a: (BIT_KIND, BIT_REV)
         if key not in cal:
-            raise TimebaseError(f"PROJ 0x{key:08x} の較正定数を持っていない")
+            raise TimebaseError(f"BIT_KIND {key[0]}・BIT_REV {key[1]} の較正定数を持っていない（未較正。F-2 で測って CAL に足す）")
         self.cal = dict(cal[key])
         self.path = path
         self._anchor = None

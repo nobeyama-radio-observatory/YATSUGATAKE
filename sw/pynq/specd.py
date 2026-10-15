@@ -305,7 +305,7 @@ class Server:
                 c = r.get("cal")
                 if not c:
                     return kv_line(dict(cal="none", msg=r.get("msg")))
-                d = dict(file=c.get("file"), bit=c.get("bit_id_win"), unit=c.get("unit"))
+                d = dict(file=c.get("file"), bits=c.get("bits"), unit=c.get("unit"))
                 for a, v in sorted(c["adc"].items()):
                     d[f"{a}.k"] = round(v["k_db"], 3); d[f"{a}.prov"] = bool(v.get("provisional")); d[f"{a}.date"] = v.get("date")
                 return kv_line(d)

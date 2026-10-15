@@ -100,7 +100,8 @@ def main():
     judge(all(c.bit_rev == 3 for c in cores), "BIT_REV 3（2-5）")
     # time_core
     tc = TB.TimeCore(tmm)
-    judge(tc.proj == 0x0021_0200 and tc.proj in TB.CAL, "time_core の PROJ と CAL の鍵")
+    judge(tc.proj == 0x0021_0200, "time_core の PROJ（記録だけ）")
+    judge((tc.bit_kind, tc.bit_rev) == (2, 3) and (tc.bit_kind, tc.bit_rev) in TB.CAL, "time_core の (BIT_KIND, BIT_REV) と CAL の鍵（M5a）")
     print(f"test_regmap: {nchk} 項目")
     print("test_regmap: 結果: " + ("全部通過" if ng == 0 else f"失敗（{ng} 件）"))
     return 0 if ng == 0 else 1

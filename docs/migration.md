@@ -188,6 +188,46 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 
 **M4 は合格**。ID・時刻・窓・PS の取得と送りが、移植先の置き場所（ボードのディレクトリ・bits.json・hwh）で移植元と同じに動いた。
 
+## M5 ID を製品の形に（決めたこと、2026-10-15）
+
+[`release.md`](release.md) の「決めること」と INTERFACE v2 の 5.2（較正は (BIT_KIND, BIT_REV) ごと、PROJ は記録だけ）から、M5 を一度に一つの変更に分ける:
+
+| | 何を | bit | 回帰 |
+|---|---|---|---|
+| **M5a** | PS の較正の鍵を PROJ から **(BIT_KIND, BIT_REV)** に替える（timebase の CAL・TP の較正ファイル） | 変わらない | sim-regmap（PS の読み手）・test_fake・実機の ID-1・F-1 |
+| **M5b** | **USR_ACCESS** に commit を焼き、time_core に読む番地を 1 つ足す | 変わる | M2〜M4 をもう一度（同じ RTL で USR_ACCESS だけ違う 2 本の WNS が一致することも） |
+
+決めたこと:
+- **PROJ（コア 0x04・time_core 0x5C・リング 0x2C）は 0x0021_0200 のまま残す**。「どの試行から来たか」の固定値で、照合にも較正にも使わない（INTERFACE v2 の約束どおり）。リリースごとに RTL の定数を変えない（配置が組み替わる。ADR 0018）
+- **BIT_REV は 3 のまま**最初のリリースにする。F-2 の較正（adc_to_core）と sim の遅れの表が (2, 3) にそのまま当たる。RTL を変えたら上げる規則は続ける
+- **USR_ACCESS の 32 bit は [31:4] commit の短いハッシュ 7 桁・[0] 作業ツリーの汚れ・[3:1] 0**（M5b）
+
+## M5a 較正の鍵を (BIT_KIND, BIT_REV) に（2026-10-15、書く前）
+
+**今**: `timebase.CAL` は time_core の PROJ（0x5C）が鍵（0x0021_0200 ほか、study-rfsoc の過去の bit の 4 件）。TP の較正ファイル `tp_cal.json` は `bit_id_win`（proj017・proj020 の窓の ID）と、載っている bit の PROJ を照らす。proj021（PROJ 0x0021_0200）は一覧に無いので、**今の bit では TP の較正は使われていない**（STATUS の tp_dbm が `-`）。
+
+**変えること**（PS だけ。bit・RTL は変えない）:
+1. `timebase.py`: `TimeCore` が IF_ID から `bit_kind`・`bit_rev` を出す。`CAL` の鍵を `(BIT_KIND, BIT_REV)` にし、**(2, 3) の 1 件だけ**にする（値は今の 0x0021_0200 の F-2 の値そのまま）。過去の proj の 3 件は IF_ID の無い bit のもので、製品の道具では載せられないので持ってこない（study-rfsoc に残る）
+2. `s45cal.py`: 較正ファイルの鍵を `bits`（`[[BIT_KIND, BIT_REV], …]`）にし、載っている bit の IF_ID（コア 0、START の `ids.adc`）と照らす。`tp_cal.json` は `bits: []`（**どの製品の bit でも使わない** = 今と同じ振る舞い）にし、測った bit は `measured_on` に記録として残す。`s45lin.py` の暫定の較正の書き出しも `bits` で書く
+3. `specd.py` の GET CAL・`test_regmap.py` の照合・注釈を合わせる
+
+**予言**:
+1. `make sim-regmap` が通過（test_regmap の「time_core の (BIT_KIND, BIT_REV) と CAL の鍵」が (2, 3)）、陽性対照 `sim-regmap-p` は今までどおり落ちる
+2. `bash test_fake.sh all` が 13 試験とも通過（偽物は ID を照らさない）
+3. 陽性対照（PC で）: `Timebase` に (2, 2) の time_core を渡すと「較正定数を持っていない」で止まる。`s45cal.check` は `bits: [[2, 2]]` と IF_ID 0x0202_0301 で「使えない」、`[[2, 3]]` で「使える」
+4. 実機: ID-1 の表は今と同じ。F-1 の錨の行の較正（adc_to_core 146.0・146.3・147.4・147.5、bound 50）が今と同じ。specd の STATUS の tp_dbm は今と同じ `-`
+
+**PC での結果（2026-10-15、作業用の環境で）**:
+- 予言 2: **当たり**。`test_fake.sh all` の 13 試験とも通過
+- 予言 3: **当たり**。偽の time_core で (2, 3) は較正あり（adc_to_core 146.0・146.3・147.4・147.5、bound 50）、(2, 2) は「BIT_KIND 2・BIT_REV 2 の較正定数を持っていない（未較正…）」で止まった。`s45cal.check`（IF_ID 0x0202_0301）: `tp_cal.json`（bits 空）は使えない、`[[2, 2]]` は使えない、`[[2, 3]]` は使える、bits の無い旧い形は使えない、偽物は照らさない
+
+**Vivado サーバとボードでの結果（2026-10-15）: 予言 1・4 当たり。M5a は合格**
+- 予言 1: `make sim-regmap` は 78 項目とも通過（新しい「time_core の (BIT_KIND, BIT_REV) と CAL の鍵（M5a）」を含む）。陽性対照 `sim-regmap-p` は NG 98 件 / 193 で落ちるべきところで落ちた
+- 予言 4（M4 の bit をそのまま、PS だけ差し替えたボードのディレクトリで）:
+  - ID-1: `bit: SAM45-Fine（BIT_KIND 2）rev 3 / PROJ 0x00210200`・time_core IF_ID 0x0202_0302・4 コアの行は M4 と同じ
+  - F-1: 錨の行の精度 `uncalibrated: []`・bound 50 ns・source は proj021 2-5 の F-2（M4 と同じ。4 ADC とも較正あり）、T-1 通過
+  - specd: GET CAL は「bit が違う（較正 なし・載っている (BIT_KIND, BIT_REV) = (2, 3)）」で使わない、START n=50 の後の STATUS は miss 0・tp_dbfs −12.54・−12.53・−12.50・−12.50・**tp_dbm `-`（M4 と同じ）**
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。

@@ -1,6 +1,7 @@
 {
  "version": 1,
- "bit_id_win": [
+ "bits": [],
+ "measured_on": [
   "00170100",
   "00200100"
  ],

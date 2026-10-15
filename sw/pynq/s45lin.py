@@ -38,6 +38,12 @@ KEYS = [f"{a}{w}" for a in "ABCD" for w in "01"]
 ADCS = "ABCD"
 
 
+def _bit_of(adc_id):
+    """ID の adc_id（コア 0 の IF_ID、16 進 8 桁）→ [BIT_KIND, BIT_REV]（YATSUGATAKE M5a: 較正ファイルの bits の 1 件）"""
+    v = int(str(adc_id), 16)
+    return [v >> 16 & 0xFF, v >> 8 & 0xFF]
+
+
 def default_steps(lo=0, hi=60, step=2, off=100.0, every=8):
     """床 → hi から lo へ → 床 → lo から hi へ（**同じ設定を往復で 2 回**）→ 床。
     同じ設定の 2 回の差 = 時間の揺らぎ、2 回に共通の残差 = 設定ごとの（アッテネータの段の・周波数特性の）ずれ、と分けられる
@@ -334,7 +340,7 @@ def make_cal(path, out="tp_cal.json", fs_dbm=5.9, note=""):
         adc[a] = dict(k_db=round(k, 3), provisional=True, valid_dbfs=[-47.0, -7.0], date=time.strftime("%Y-%m-%d"),
                       source=f"{os.path.basename(path)}: 0 dBFS = {fs_dbm:+.1f} dBm（3 GHz の正弦波、proj010）の見積もり",
                       lin_dbfs_minus_pm_db=None if c is None else round(c, 3))
-    cal = dict(version=1, bit_id_win=str(head.get("server", {}).get("win_id", "")).zfill(8), unit="dBm at ADC input (SMA)",
+    cal = dict(version=1, bits=[_bit_of(head.get("server", {}).get("adc_id", ""))], unit="dBm at ADC input (SMA)",
                adc=adc, note=note or f"暫定: {os.path.basename(path)} から。PM を ADC の口で測って置き換える")
     if os.path.exists(out):
         raise SystemExit(f"{out} がもうある（上書きしない。消すか別の名前に）")
