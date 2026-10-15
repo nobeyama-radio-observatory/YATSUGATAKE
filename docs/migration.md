@@ -220,7 +220,13 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 **PC での結果（2026-10-15、作業用の環境で）**:
 - 予言 2: **当たり**。`test_fake.sh all` の 13 試験とも通過
 - 予言 3: **当たり**。偽の time_core で (2, 3) は較正あり（adc_to_core 146.0・146.3・147.4・147.5、bound 50）、(2, 2) は「BIT_KIND 2・BIT_REV 2 の較正定数を持っていない（未較正…）」で止まった。`s45cal.check`（IF_ID 0x0202_0301）: `tp_cal.json`（bits 空）は使えない、`[[2, 2]]` は使えない、`[[2, 3]]` は使える、bits の無い旧い形は使えない、偽物は照らさない
-- 予言 1（sim-regmap）と 4（実機）は Vivado サーバとボードで（未）
+
+**Vivado サーバとボードでの結果（2026-10-15）: 予言 1・4 当たり。M5a は合格**
+- 予言 1: `make sim-regmap` は 78 項目とも通過（新しい「time_core の (BIT_KIND, BIT_REV) と CAL の鍵（M5a）」を含む）。陽性対照 `sim-regmap-p` は NG 98 件 / 193 で落ちるべきところで落ちた
+- 予言 4（M4 の bit をそのまま、PS だけ差し替えたボードのディレクトリで）:
+  - ID-1: `bit: SAM45-Fine（BIT_KIND 2）rev 3 / PROJ 0x00210200`・time_core IF_ID 0x0202_0302・4 コアの行は M4 と同じ
+  - F-1: 錨の行の精度 `uncalibrated: []`・bound 50 ns・source は proj021 2-5 の F-2（M4 と同じ。4 ADC とも較正あり）、T-1 通過
+  - specd: GET CAL は「bit が違う（較正 なし・載っている (BIT_KIND, BIT_REV) = (2, 3)）」で使わない、START n=50 の後の STATUS は miss 0・tp_dbfs −12.54・−12.53・−12.50・−12.50・**tp_dbm `-`（M4 と同じ）**
 
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
