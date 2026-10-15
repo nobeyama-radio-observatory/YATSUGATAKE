@@ -1607,7 +1607,9 @@ puts "OOC 合成   : [llength $ooc_names] 個すべて完了"
 
 # ---- YATSUGATAKE M5b: USR_ACCESS に commit を焼く（Makefile の USR_ACCESS）。write_bitstream の前のフックで設定するだけで、
 #      配置・配線には触れない（RTL も変えない）。make が書き出した .bit を sw/pynq/bitinfo.py で読み返して照らす ----
-set usr_access [expr {[info exists ::env(USR_ACCESS)] ? $::env(USR_ACCESS) : ""}]
+# **expr で受けない**: expr の ? : は 0x… を数として読み、10 進の文字列にして返す（2026-10-15 の 1 回目で、下の形の照合が止めた）
+set usr_access ""
+if {[info exists ::env(USR_ACCESS)]} { set usr_access $::env(USR_ACCESS) }
 if {$usr_access eq ""} { puts "ERROR: USR_ACCESS が来ていない（make から回す。焼かないなら USR_ACCESS=none）"; exit 1 }
 if {[string tolower $usr_access] eq "none"} {
     puts "USR_ACCESS (焼く): なし（USR_ACCESS=none。比べのためのビルド）"
