@@ -228,6 +228,24 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
   - F-1: 錨の行の精度 `uncalibrated: []`・bound 50 ns・source は proj021 2-5 の F-2（M4 と同じ。4 ADC とも較正あり）、T-1 通過
   - specd: GET CAL は「bit が違う（較正 なし・載っている (BIT_KIND, BIT_REV) = (2, 3)）」で使わない、START n=50 の後の STATUS は miss 0・tp_dbfs −12.54・−12.53・−12.50・−12.50・**tp_dbm `-`（M4 と同じ）**
 
+## M5b USR_ACCESS に commit を焼く（2026-10-15、書く前）
+
+**形を変えた（2026-10-15）**: time_core に USR_ACCESSE2 を読む番地を足すと RTL が変わり、規則（RTL を変えたら BIT_REV を上げ、F-2 を測り直す）と「BIT_REV 3 のまま」が両立しない。そこで **RTL は変えず、ビルドで焼くだけ**にし、**PS が載せる .bit の構成の流れから USR_ACCESS の語を読む**。FPGA の中からは読まない（動いている bit との結び付きは今どおり bits.json・LOAD の sha256）。RTL で読むのは、次に RTL を変えて BIT_REV を上げるときに一緒に足す。
+
+**変えること**（RTL・制約は変えない）:
+1. `Makefile`: `USR_ACCESS` を git から作って `build.tcl` に渡す。値は `[31:4]` = `git rev-parse --short=7 HEAD`・`[0]` = 追跡しているファイルに未コミットの変更がある（`git status --porcelain --untracked-files=no` が空でない）・`[3:1]` = 0。`USR_ACCESS=none` で焼かない（比べのため）
+2. `build.tcl`: `STEPS.WRITE_BITSTREAM.TCL.PRE` のフックで `BITSTREAM.CONFIG.USR_ACCESS` を設定し、焼いた値を `vivado.log` に出す（`USR_ACCESS (焼く): 0x…`）
+3. `sw/pynq/bitinfo.py`（新）: .bit のヘッダを読み飛ばし、構成の流れのパケット（type 1・type 2）をたどって USR_ACCESS（レジスタ 0x0D）への書き込みを拾う。FDRI（構成のフレームのデータ）の sha256 も出す。`make` は書き出した .bit をこれで読み返し、焼くはずの値と違えば失敗にする（在るかと、値が合うかの両側）
+4. PS: `s45acq` が載せた .bit の USR_ACCESS を `ids.usr` に入れる（START・LOAD の EVENT に載る）。specd の ID に `usr`、`s45core --list` に 1 行
+
+**確かめた前提**（書く前に、移植元の bit `a99b7a96…` を手で読んだ）: 今の bit には USR_ACCESS への書き込みが無い。構成の流れは同期語の後に type 1 の書き込み 17 個（IDCODE 0x04AA5093 など）、FDRI の type 2 が 1 個（8,608,824 語、sha256 `e095fa97…`）、最後に CRC など
+
+**予言**:
+1. 焼いた bit を `bitinfo.py` で読むと、USR_ACCESS = 作ったときの commit と汚れの bit（`make` の読み返しが通る）。M3 の bit（焼いていない）を読むと「なし」
+2. **配置・配線は変わらない**: `-1` の WNS / WHS は M3 と小数 6 桁まで同じ（+0.044057 / +0.009766）、資源・CDC の分類ごとの件数・.hwh の IP と番地も同じ。**FDRI の sha256 は M3 と同じ**（`e095fa977cf9ebaa6f980a7a0f5f8bc0212ae6bed469ecdb047b6e18dfbc29f9`）。構成の流れで違うのは USR_ACCESS の書き込みの 2 語（と CRC の値）だけ
+3. sim は RTL が同じなので回さない（M2 の結果がそのまま）
+4. 実機: M4 と同じ判定（ID-1・F-1・W-0・V2-b 300 s）が通る。specd の ID と START の EVENT に `usr` が出て、1 と同じ値
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
