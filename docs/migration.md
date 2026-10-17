@@ -352,6 +352,32 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 - ID-1 の「番地の幅 64 KiB（.hwh）」は `s45core --list` の表示に出ない（移植元の判定でも同じ形で通過にしている）。.hwh の番地は M5b で M3 と diff が空
 - W 8 の W-G で FLAGS [4]（IP に待たされた）が立つのは判定の除外どおり（狭い窓で FFT IP がフレームごとに 1 クロック待たせる: 560 フレームで 560 クロック）
 
+### M6 の結果: 塊 N2（2026-10-17、配線 N、specd）
+
+specd は `--bits bits.json`（`sam45-fine`・`m4`・`proj020` の 3 件）で起こした。ID は `usr=8eba3480`・adc_id 02020301・time_id 02020302・proto 2。記録は制御 PC の `~/m2/m6/`。
+
+| 判定 | 合格の条件 | 測った値 |
+|---|---|---|
+| V2-a | 4 ADC × 100 組で中身・nacc の不一致 0・k の飛び 0、r = 524,426、照合の欠け 0、ずらすと一致 0 / 99 | 4 ADC とも 100 組で不一致 0・nacc 2560・k の飛び 0、ずらすと 0 / 99、bund_r 524,426、SPEC 800・CRC・欠け・kgap・tdev 0、版 2 だけ、pl_dumps 2000・bdrop・r_bad・miss 0。**通過** |
+| S | 4 ADC とも 16 塊・間隔・中身（下位 2 bit 0・振り切れ 0・≒ −12.5 dBFS）・UTC の刻み 20 ms、CRC・欠け 0 | 4 ADC とも OK: 16 塊・−12.45 / −12.47 / −12.42 / −12.42 dBFS・振り切れ 0・間隔 True/True・刻み 20,000,000 ns。SNAP 64・CRC・欠け 0。**通過** |
+| PS-1 | 組 400・不一致 0・最大 0.5 ulp・版 2、欠け 0、束の間隔 40,960,000 ns・e の幅 0、e(窓 0) − e(窓 1) = −1.1 ± 2 ns、補正なしで +746,697 ns | 組 400・不一致 0・最大 0.5 ulp・版 {2: 1006}・CRC・欠け・kgap・tdev 0。8 窓とも間隔 40,960,000 ns・e の幅 0.0 ns。4 ADC とも −1.1 ns、補正なしで +746,697 ns（陽性対照）。**通過** |
+| PS-2（600 s） | 受け側の欠け 0・照合 通過、STATUS の miss などが 0・loop_slow 0・loop_p99 ≦ 11.5 ms、tp_ovr 0・tp_dbfs ≒ −12.5、tp_jump は数えるだけ | SPEC 118,048・TP 59,027・CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap 0、版 2 だけ。STATUS（受けの後）: miss・kgap・bdrop・r_bad・pl_drop・pl_crc・tp_lost・tp_rec_lost 0、**loop_slow 0・loop_p99 11 ms**（loop_max 21.25 ms）、tp_ovr 0、tp_dbfs −12.46・−12.46・−12.42・−12.42、**tp_jump 0,0,0,0**、drop 0。**通過** |
+| V2-d | 下の表 | **通過**（受け側の SPEC の数は下の注のとおり、START ごとに数えた） |
+
+**V2-d**（相手 `m4`、`v2d.txt`・`v2d_recv.txt`・`v2d.json`）:
+
+| 条件 | 測った値 |
+|---|---|
+| LOAD ≦ 30 s、EVENT LOAD の sha256 | `m4` 20.6 s（`4f491488…909eae`）・`sam45-fine` 21.3 s（`ed6bcf78…7bce6`）。bits.json と同じ |
+| `m4` のとき ID・usr・time_ok | adc_id 02020301・time_id 02020302・**usr none**、STATUS time_ok=1 |
+| 戻ったとき ID・usr・pl_*・START の EVENT | 同じ adc_id・time_id・**usr 8eba3480**、time_ok=1、pl_drop・pl_crc 0、START の EVENT に proto 2・fmt f32・read ring・ids.usr 8eba3480（`m4` の START は ids.usr none） |
+| どの START も n に達した・8 窓 × 50・miss 0、TP の anch_dev・gap 0 | 2 回とも「n に達した」・dumps 50 × 8・miss 0、4 ADC とも anch_dev 0・gap 0 |
+| 受け側: SPEC 800・版 2 だけ・欠け 0・照合 通過 | 2 回の START の中の SPEC は **400 ＋ 400 = 800**（受けた全体は 832）、版 {2: 1264} だけ、CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap 0、照合 通過 |
+
+- **受けた SPEC が 832 になったのは、直前の PS-2 の残り**（測った後に記録を開いて確かめた）: 受けの頭に、seq 179362〜179405 の SPEC 32 個（8 窓 × 4 ダンプ、n_sum 4）・TP 17 個と、PS-2 の STOP（why「命令」、dumps 14,760）がある。PS-2 の specrecv が 600 s で閉じてから STOP までの間に溜まった記録で、specd は次につないだ受け手（V2-d の specrecv）に送った。PS-2 の受けの last_seq 179360 から V2-d の受けが 179361 で続き、**番号は受け手をまたいでも欠けていない**。V2-d の条件の「SPEC 800」は 2 回の START の分を言っているので、START ごとに数えて判定した
+- seq は LOAD をまたいで続く（STOP 179410 → START 179411、STOP 180016 → START 180017）。LOAD の EVENT は通信の側の seq 0
+- 判定のファイルの手順は、前の運転の溜まりが空のことを前提にしている。次からは手順の頭で受けを 1 度つないで溜まりを捨てるか、START ごとに数える（判定のファイルに測った後の注として書いた）
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
