@@ -264,7 +264,7 @@ class Server:
         if cmd == "ID":
             r = self.acq_cmd(dict(op="id"))
             return self._rep(r, lambda r: kv_line(dict(version=r["version"], win_id=r["ids"]["win"], adc_id=r["ids"]["adc"],
-                                                       time_id=r["ids"]["time"], lmx_vco=r["ids"].get("lmx_vco", "-"), lmx_pwr=r["ids"].get("lmx_pwr", "-"),
+                                                       time_id=r["ids"]["time"], usr=r["ids"].get("usr", "-"), lmx_vco=r["ids"].get("lmx_vco", "-"), lmx_pwr=r["ids"].get("lmx_pwr", "-"),
                                                        adcs=r["adcs"], nw=r["nw"], fake=r["fake"],
                                                        proto=P.VERSION)))
         if cmd == "STATUS":

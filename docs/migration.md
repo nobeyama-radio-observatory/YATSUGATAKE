@@ -79,7 +79,7 @@ bit そのものは git に入れない（[ADR 0018](decisions/0018-release-on-g
 | M2 | sim を全部回す | proj021 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**済み 2026-10-14**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、proj021 と同じ実装の戦略） | 下の「同一性の判定」（**済み 2026-10-14**: 下の「M3 の結果」。構成データまで移植元と同じ） |
 | M4 | 実機で短い回帰 | ID の読み出し・F-1（RUN_T）・W-0・V2-b を短く（5 分）。proj021 と同じ値（**済み 2026-10-15**: 下の「M4 の結果」） |
-| M5 | ここで初めて ID を製品の形に変える（別の PR） | [`release.md`](release.md) の手順。変えた後に M2〜M4 をもう一度 |
+| M5 | ここで初めて ID を製品の形に変える（別の PR） | [`release.md`](release.md) の手順。変えた後に M2〜M4 をもう一度（**済み 2026-10-17**: M5a・M5b、下の「M5」） |
 | M6 | 判定を全部通し、最初の性能評価を書く | `docs/performance/sam45-fine/<版>.md` |
 | M7 | spec・design・user を書き、最初のリリース | [`release.md`](release.md) |
 
@@ -227,6 +227,56 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
   - ID-1: `bit: SAM45-Fine（BIT_KIND 2）rev 3 / PROJ 0x00210200`・time_core IF_ID 0x0202_0302・4 コアの行は M4 と同じ
   - F-1: 錨の行の精度 `uncalibrated: []`・bound 50 ns・source は proj021 2-5 の F-2（M4 と同じ。4 ADC とも較正あり）、T-1 通過
   - specd: GET CAL は「bit が違う（較正 なし・載っている (BIT_KIND, BIT_REV) = (2, 3)）」で使わない、START n=50 の後の STATUS は miss 0・tp_dbfs −12.54・−12.53・−12.50・−12.50・**tp_dbm `-`（M4 と同じ）**
+
+## M5b USR_ACCESS に commit を焼く（2026-10-15、書く前）
+
+**形を変えた（2026-10-15）**: time_core に USR_ACCESSE2 を読む番地を足すと RTL が変わり、規則（RTL を変えたら BIT_REV を上げ、F-2 を測り直す）と「BIT_REV 3 のまま」が両立しない。そこで **RTL は変えず、ビルドで焼くだけ**にし、**PS が載せる .bit の構成の流れから USR_ACCESS の語を読む**。FPGA の中からは読まない（動いている bit との結び付きは今どおり bits.json・LOAD の sha256）。RTL で読むのは、次に RTL を変えて BIT_REV を上げるときに一緒に足す。
+
+**変えること**（RTL・制約は変えない）:
+1. `Makefile`: `USR_ACCESS` を git から作って `build.tcl` に渡す。値は `[31:4]` = `git rev-parse --short=7 HEAD`・`[0]` = 追跡しているファイルに未コミットの変更がある（`git status --porcelain --untracked-files=no` が空でない）・`[3:1]` = 0。`USR_ACCESS=none` で焼かない（比べのため）
+2. `build.tcl`: `STEPS.WRITE_BITSTREAM.TCL.PRE` のフックで `BITSTREAM.CONFIG.USR_ACCESS` を設定し、焼いた値を `vivado.log` に出す（`USR_ACCESS (焼く): 0x…`）
+3. `sw/pynq/bitinfo.py`（新）: .bit のヘッダを読み飛ばし、構成の流れのパケット（type 1・type 2）をたどって USR_ACCESS（レジスタ 0x0D）への書き込みを拾う。FDRI（構成のフレームのデータ）の sha256 も出す。`make` は書き出した .bit をこれで読み返し、焼くはずの値と違えば失敗にする（在るかと、値が合うかの両側）
+4. PS: `s45acq` が載せた .bit の USR_ACCESS を `ids.usr` に入れる（START・LOAD の EVENT に載る）。specd の ID に `usr`、`s45core --list` に 1 行
+
+**確かめた前提**（書く前に、移植元の bit `a99b7a96…` を手で読んだ）: 今の bit には USR_ACCESS への書き込みが無い。構成の流れは同期語の後に type 1 の書き込み 17 個（IDCODE 0x04AA5093 など）、FDRI の type 2 が 1 個（8,608,824 語、sha256 `e095fa97…`）、最後に CRC など
+
+**予言**:
+1. 焼いた bit を `bitinfo.py` で読むと、USR_ACCESS = 作ったときの commit と汚れの bit（`make` の読み返しが通る）。M3 の bit（焼いていない）を読むと「なし」
+2. **配置・配線は変わらない**: `-1` の WNS / WHS は M3 と小数 6 桁まで同じ（+0.044057 / +0.009766）、資源・CDC の分類ごとの件数・.hwh の IP と番地も同じ。**FDRI の sha256 は M3 と同じ**（`e095fa977cf9ebaa6f980a7a0f5f8bc0212ae6bed469ecdb047b6e18dfbc29f9`）。構成の流れで違うのは USR_ACCESS の書き込みの 2 語（と CRC の値）だけ
+3. sim は RTL が同じなので回さない（M2 の結果がそのまま）
+4. 実機: M4 と同じ判定（ID-1・F-1・W-0・V2-b 300 s）が通る。specd の ID と START の EVENT に `usr` が出て、1 と同じ値
+
+**PC での確かめ（2026-10-15、作業用の環境で）**: `bitinfo.py` で移植元の bit を読むと USR_ACCESS なし・FDRI 8,608,824 語・sha256 `e095fa97…`・欄 e の sha256 `f042da9f…`（M3 と同じ）。`--expect none` は通過、`--expect 0x12345670` は失敗（終了状態 1）、.bit でないファイルは「読めない」。陽性対照: 移植元の bit の同期語の直後に USR_ACCESS の書き込み（0xabcdef10）を差し込んだ偽の bit は `commit abcdef1（汚れなし）` と読め、FDRI の sha256 は変わらない。`make -n` で `USR_ACCESS` が git から作られ（`0x` ＋ commit 7 桁 ＋ 汚れ）、vivado の後に読み返しが走ること。`test_fake.sh basic` 通過（s45acq の import）
+
+**ビルドの 1 回目（2026-10-15）: build.tcl の照合で止まった**。`ERROR: USR_ACCESS 1278564400 が 0x と 16 進 8 桁でない`（合成の前、OOC の後）。1278564400 = 0x4C355830 で、make が渡した値そのもの。build.tcl で環境変数を `expr {… ? $::env(USR_ACCESS) : ""}` で受けたため、Tcl の expr が `0x…` を数として読み、10 進の文字列にして返した（tclsh で再現）。`if` で受けるように直した（tclsh で、直した節を切り出して `0x4c355830` と `none` の両方で回し、フックの中身が `set_property BITSTREAM.CONFIG.USR_ACCESS 0x4c355830 [current_design]` になることを確かめた）。形の照合を置いていたので、黙って違う値を焼かずに止まった
+
+**ビルドの 2 回目（2026-10-15、commit 8eba348、汚れなし）: 予言 1・2 当たり**
+
+| 項目 | M3（移植元と同じ） | M5b |
+|---|---|---|
+| USR_ACCESS（bitinfo） | なし | **8eba3480 = commit 8eba348（汚れなし）**。make の読み返しの照合 通過、vivado.log と impl_1 の runme.log にも `USR_ACCESS: 0x8eba3480` |
+| `-1` の WNS / WHS | +0.044057 / +0.009766 ns | **同じ（小数 6 桁まで）** |
+| LUT / FF / DSP / BRAM / URAM | 168,982 / 256,455 / 2,096 / 233.5 / 56 | 同じ |
+| CDC-3 / CDC-6 / CDC-15 | 105 / 5 / 3,137 | 同じ |
+| vivado.log の要点（CRITICAL WARNING を含む）・.hwh の IP と番地 | | diff が空 |
+| **FDRI（構成のフレームのデータ）の sha256** | `e095fa977cf9ebaa6f980a7a0f5f8bc0212ae6bed469ecdb047b6e18dfbc29f9`（8,608,824 語） | **同じ** |
+| 構成の流れ（欄 e）の sha256 | `f042da9f…` | `de33b5bc…`（USR_ACCESS の書き込みと CRC の分だけ違う。長さは同じ 34,437,476 B の .bit） |
+| `.bit` / `.hwh` の sha256 | `4f491488…` / `8ddd7f42…`（M3） | `ed6bcf787e4f821364f04b036d855ae742a6aae6f817b8387b174cc384d7bce6` / `0a40365e25e0488ae4fe4ff4c099a3c5429fa774efd8324d4fbc37deee28ce4b` |
+
+- **FDRI が同じ = 配置・配線は M3 とビットまで同じ**。USR_ACCESS を焼いても配置に触れない（ADR 0018 の「確かめること」）を、WNS より強い形で確かめた
+- OOC の合成で `system_s45_core_0_0_synth_1` が 1 回落ち、build.tcl の回し直し（Vivado が落ちた run だけを回し直す既存の仕組み）で通った。M3 では落ちていない。結果の値には効いていない（上の表）
+
+**実機（2026-10-17、配線 N、ボードの新しいディレクトリに bit `ed6bcf78…`・hwh `0a40365e…` と `sw/pynq/`）: 予言 4 当たり。M5b は合格**
+
+| 判定 | 結果 |
+|---|---|
+| ID-1 | 4 コア・time_core の IF_ID、RAW の流れの行は M4 と同じ。`USR_ACCESS（proj021.bit）: 8eba3480 = commit 8eba348（汚れなし）` |
+| F-1（120 s） | 13 コアとも RUN_T = START_AT ＋ 1、9 流れ × 2,930 ダンプでずれ +0〜+0、健全性の印なし、T-1 通過 |
+| W-0 | A0 窓 0・D3 窓 1 とも FLAGS 0・飽和 0・ダンプ 3 個 × 6,250 フレーム、RESULT OK |
+| specd の ID | `usr=8eba3480`（adc_id 02020301・time_id 02020302） |
+| V2-b（300 s） | SPEC 237,657・TP 27,264・3.8 GB、CRC・欠け・説明のない欠け・逆戻り・重複・kgap・tdev・tp_gap 0、版 2、照合 通過。START の EVENT の `ids.usr` = `8eba3480`。STATUS（受けの後）: miss・kgap・bdrop・r_bad・pl_drop・pl_crc・tp_lost・tp_rec_lost 0、tp_dbfs −12.46・−12.45・−12.41・−12.41、tp_ovr 0、tp_jump 0,0,0,0、loop_p99 19.2 ms。drop 72,095 は受けが終わってから STOP までの間に溜まりが溢れた分（M4 と同じ扱い） |
+
+- 載せる .bit から読んだ commit が、specd の ID・START の EVENT（受け側の記録）まで届いた。動いている bit との結び付きは bits.json の sha256（`ed6bcf78…`）で、起動の照合は通っている
 
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 

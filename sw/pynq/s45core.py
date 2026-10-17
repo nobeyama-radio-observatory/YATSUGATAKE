@@ -250,6 +250,13 @@ def main():
     except S45Error as e:
         print(f"ERROR: {e}"); sys.exit(1)
     print(table(cores, tmm))
+    import bitinfo                     # YATSUGATAKE M5b: .bit の構成の流れの USR_ACCESS（FPGA の中からは読まない）
+    try:
+        v = bitinfo.usr_access(a.bitfile)
+        print(f"USR_ACCESS（{a.bitfile}）: {bitinfo.fmt(v)} = {bitinfo.describe(v)}"
+              f"{'。--no-load なので、載っている bit と同じとは限らない' if a.no_load else ''}")
+    except (OSError, bitinfo.BitError) as e:
+        print(f"USR_ACCESS（{a.bitfile}）: 読めない（{e}）")
 
 
 if __name__ == "__main__":
