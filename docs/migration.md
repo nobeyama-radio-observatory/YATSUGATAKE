@@ -332,6 +332,26 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 - 判定のファイルの「記録」に、製品の bit で通った日と記録の名前を 1 行足す（移植元の記録は消さない）
 - 全部が通ったら `docs/performance/sam45-fine/v1.0.0.md` を `docs/performance/README.md` の節で書く
 
+### M6 の結果: 塊 N1（2026-10-17、配線 N、ボード直）: 予言 1 当たり、10 判定とも通過
+
+外部 10 MHz と 1PPS、PLL は 2 タイルともロック。記録は制御 PC の `~/m2/m6_board/`（ボードの `~/sam45-fine-m5b/m6/` の写し）。
+
+| 判定 | 合格の条件 | 測った値 |
+|---|---|---|
+| ID-1 | IF_ID 0x0202_0301 × 4・time_core 0x0202_0302・リング 0x0202_0303、RAW の流れ、FULL なし、窓の流れ各 2 本 | 4 コアとも 0x0202_0301、time_core 0x0202_0302（リング 0x0202_0303 は V2-c・V2-e・V2-g の表示）。RAW ADC_A2: SID 0x0204_0200・NCH 0・FRAME_BEATS 512・PARAM 13。DDC 各 2 本、FULL なし。`USR_ACCESS（proj021.bit）: 8eba3480 = commit 8eba348（汚れなし）`。**通過** |
+| F-0（30 s） | PLL ロック、間隔 − 1 s が ±1 ビート、GLITCH・BAD・MISS 0 | trig 30 個 +0〜+0、comp 30 個 −1〜+1 ビート、GLITCH 0・0・BAD 0・MISS 0。**通過** |
+| F-1（120 s） | 13 コアとも RUN_T = START_AT ＋ 1、9 流れのずれ 0、印なし | 13 コアとも +1、9 流れ × 2,930 ダンプでずれ +0〜+0、健全性の印なし。錨の較正 `uncalibrated: []`・bound 50 ns。**通過** |
+| T-4 | DUMP_CFG 0x1234・RUN_SHIFT 4 が RUN の後の書き換えに動かない | 窓（A0）・RAW とも 8 ダンプ DUMP_CFG 0x1234、RUN_SHIFT 4、和の比 1.0。**通過** |
+| W-0 | ダンプ 3 個 × 6,250 フレーム、FLAGS 0（[4] を除く）、飽和 0 | A0 窓 0・D3 窓 1 とも ダンプ 3 個 × 6,250、FLAGS 0、飽和 pfb 0・ddc 0、RESULT OK。**通過** |
+| W-G | 許容を超えた ch 0、SNAP_F = DUMP_F0 | W 256: 超えた ch 0（許容 2.8、最悪の差 1.4）・17920 = 17920。W 8: 超えた ch 0（許容 2.1、最悪の差 1.4）・556 = 556。**通過** |
+| V2-c | 8 窓とも SHIFT 7 で超えた ch 0、RAW は飛ばす、DROP 0 | 8 窓とも 超えた ch 0（許容 2.8〜3.0、最悪の差 1.4）、RAW は飛ばした、REC_CNT 17・DROP_CNT 0・ERR 0。**通過** |
+| V2-e | 4 ADC とも TP のレコード ≒ 300・照らした個 ≧ 500・不一致 0、SEQ の飛び・式の外れ 0 | 4 ADC とも レコード 304・照らした個 509〜511・不一致 0・SEQ の飛び 0・式の外れ 0・CRC 0、DROP_CNT 0。**通過** |
+| V2-f | r − G = 138 / 188 / 277 / 450 / 788 / 1454 / 2776 / 5410 が 2 回の RUN と Overlay のやり直しで同じ、RAW のずれ 0、陽性対照で A0 だけ r_bad 1 | 2 回（それぞれ 60 s × 2 RUN）とも予言の値で RUN の間も同じ、RAW のずれ 0・SEQ の飛び 0、DROP_CNT 0。`--posctl`: A0 だけ m の飛び 1・r_bad 1・束ねを止めた、他の 7 窓は r_bad 0。**通過** |
+| V2-g | soak: 13 流れで飛び・DROP・LATE・CRC・尾 0、PEAK ≦ 5 %。`--pause 3`: 飛び = DROP > 0。`--no-inval`: 古い行 > 0 | soak 60 s: 13 流れとも飛び 0・DROP 0・LATE 0・CRC 0・尾 0、PEAK 0.9 %、1 回の読み p99 1.55 ms。`--pause 3`: 飛び 2,507 = DROP_CNT 2,507、CRC 0。`--no-inval`: 頭の magic の不一致 1（古い行を読んだ）。**通過** |
+
+- ID-1 の「番地の幅 64 KiB（.hwh）」は `s45core --list` の表示に出ない（移植元の判定でも同じ形で通過にしている）。.hwh の番地は M5b で M3 と diff が空
+- W 8 の W-G で FLAGS [4]（IP に待たされた）が立つのは判定の除外どおり（狭い窓で FFT IP がフレームごとに 1 クロック待たせる: 560 フレームで 560 クロック）
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。

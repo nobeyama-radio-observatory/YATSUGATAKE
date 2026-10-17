@@ -14,4 +14,4 @@ python3 plring.py --clkin 0 --ref 10 --soak 20 --no-inval    # 陽性対照: キ
   - `--pause 3`: **SEQ の飛び = DROP_CNT > 0**、CRC の不一致 0
   - `--no-inval`: CRC の不一致（または古い行）> 0
 - **陽性対照**: 上の 2 つ（`--pause`・`--no-inval`）がこの判定の陽性対照
-- **記録**: soak は proj021 README「手順 2-5 → 実機（S25-3）」の `plring --soak 60` の行（2026-10-14 通過、PEAK 0.9 %）。**陽性対照 2 つも最終の bit で通過（2026-10-14）**: `--pause 3` で SEQ の飛び 2,544 = DROP_CNT 2,544・PEAK 100 %・CRC 0。`--no-inval` で古い行 1（頭の magic の不一致、0x0）。2-2a の bit では飛び 2,211 = DROP 2,211（2026-10-10）
+- **記録**: **YATSUGATAKE M6 で通過（2026-10-17、M5b の bit `ed6bcf78…`・usr 8eba3480、`~/m2/m6_board/v2g_*.txt`）**: soak 飛び 0・PEAK 0.9 %、`--pause 3` 飛び = DROP 2,507、`--no-inval` 古い行 1。 soak は proj021 README「手順 2-5 → 実機（S25-3）」の `plring --soak 60` の行（2026-10-14 通過、PEAK 0.9 %）。**陽性対照 2 つも最終の bit で通過（2026-10-14）**: `--pause 3` で SEQ の飛び 2,544 = DROP_CNT 2,544・PEAK 100 %・CRC 0。`--no-inval` で古い行 1（頭の magic の不一致、0x0）。2-2a の bit では飛び 2,211 = DROP 2,211（2026-10-10）
