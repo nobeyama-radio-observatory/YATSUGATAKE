@@ -378,6 +378,16 @@ specd は `--bits bits.json`（`sam45-fine`・`m4`・`proj020` の 3 件）で�
 - seq は LOAD をまたいで続く（STOP 179410 → START 179411、STOP 180016 → START 180017）。LOAD の EVENT は通信の側の seq 0
 - 判定のファイルの手順は、前の運転の溜まりが空のことを前提にしている。次からは手順の頭で受けを 1 度つないで溜まりを捨てるか、START ごとに数える（判定のファイルに測った後の注として書いた）
 
+**N2 の続き（2026-10-17）**:
+
+| 判定 | 合格の条件 | 測った値 |
+|---|---|---|
+| V2-d の陽性対照 | sha256 を 1 文字変えた bits.json で LOAD が止まり、元の bit のまま | specd を `--bits bits_bad.json` で起こし、`LOAD bit=m4` → `ERR LOAD m4 の sha256 が bits.json と違う（4f491488…）`、その後の ID は `usr=8eba3480`（M5b の bit のまま）。**通過** |
+| V2-b（1,800 s、10.24 ms） | SPEC ≒ 8 × 175,800、CRC・欠け・説明のない欠け・kgap・tdev・tp_gap 0、版 2 だけ、照合 通過。STATUS の miss・bdrop・r_bad・pl_drop・pl_crc・tp_lost・tp_rec_lost 0。STATUS の行を残す | SPEC 1,406,015（8 × 175,752）・TP 164,634・22.3 GB、CRC・欠け・説明のない欠け・逆戻り・dup・kgap・tdev・tp_gap 0、版 {2: 1,570,650} だけ、START の EVENT の ids.usr 8eba3480・tint 0.01024。STATUS（受けの後、`v2b_status.txt`）: dumps 175,767・miss・kgap・bdrop・r_bad・pl_drop・pl_crc・pl_err・tp_lost・tp_bad・tp_rec_lost 0、tp_ovr 0・tp_jump 0,0,0,0・tp_dbfs −12.47・−12.45・−12.41・−12.41、**drop 0**（受けの後すぐに STOP した）、loop_p99 16.6 ms（30 s 時点 22.9 ms）・loop_slow 84,613 / 113,119 周（数えるだけ）。**通過** |
+
+- V2-b の drop が 0 になったのは、受けが終わってすぐ `STATUS STOP` を打ったため（M4・M5b は 72,000〜81,000）。手順の型（受けの後すぐ STOP）が効いた
+- これで塊 N1・N2 の 16 判定（V2-d の陽性対照を含む）が通過
+
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
 **問題**: `sw/pynq/test_fake.sh` の `t_load`（proj021 2-3d、LOAD で bit を往復）は、往復の相手に study-rfsoc の `../../proj020/pynq`（s45proto 版 1 の道具）を使う。YATSUGATAKE には無いので、`bash test_fake.sh load`・`all` が NG になる（2026-10-14 に確かめた: `cd: ../../proj020/pynq: No such file or directory`・「判定: NG」）。
