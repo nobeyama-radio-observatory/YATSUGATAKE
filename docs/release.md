@@ -30,16 +30,16 @@ PS のソフト（specd）と較正ファイルはソースから入れる（版
 
 | どこで | 何で |
 |---|---|
-| .bit の中 | USR_ACCESS（32 bit）に commit の短いハッシュなど（**案**。配置を変えない方法なので「同じ RTL の作り直しは WNS まで再現する」が保たれる） |
+| .bit の中 | USR_ACCESS（32 bit）: [31:4] commit の短いハッシュ 7 桁・[3:1] 0・[0] 作業ツリーの汚れ（**M5b で入れた**。`make` が git から作って焼き、`sw/pynq/bitinfo.py` で読み返す。FPGA の中からは読まず、PS が載せる .bit から読む。配置は変わらない: FDRI が焼かない bit と同じ） |
 | 自己記述のレジスタ | IF_ID の BIT_KIND・BIT_REV（較正の表を引く鍵） |
 | ボードの `bits.json` | 名前 → .bit・.hwh・sha256・期待する IF_ID・較正ファイル |
 | s45proto の EVENT LOAD | bit の名前・sha256・IF_ID |
 
 決めること（proj021 と最初のリリースで）:
 
-- [ ] USR_ACCESS に何を入れるか（commit の 28 bit ＋ 汚れの 1 bit など）
-- [ ] 同じ RTL で USR_ACCESS だけ違う 2 本の WNS が一致することを確かめる
-- [ ] BIT_REV と bit ごとの版の対応
+- [x] USR_ACCESS に何を入れるか → commit の 28 bit ＋ 汚れの 1 bit（2026-10-15、[migration.md](migration.md) の M5）
+- [x] 同じ RTL で USR_ACCESS だけ違う 2 本の WNS が一致することを確かめる → WNS・WHS が小数 6 桁まで、FDRI の sha256 まで一致（2026-10-15、M5b）
+- [ ] BIT_REV と bit ごとの版の対応（最初のリリースは BIT_REV 3 のまま。RTL を変えたら上げる。bit ごとのタグとの対応は未）
 - [ ] ビルドを誰がどこで行い、ログから環境に依る値をどう除くか
 
 ## リリースの手順（案）

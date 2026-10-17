@@ -79,7 +79,7 @@ bit そのものは git に入れない（[ADR 0018](decisions/0018-release-on-g
 | M2 | sim を全部回す | proj021 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**済み 2026-10-14**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、proj021 と同じ実装の戦略） | 下の「同一性の判定」（**済み 2026-10-14**: 下の「M3 の結果」。構成データまで移植元と同じ） |
 | M4 | 実機で短い回帰 | ID の読み出し・F-1（RUN_T）・W-0・V2-b を短く（5 分）。proj021 と同じ値（**済み 2026-10-15**: 下の「M4 の結果」） |
-| M5 | ここで初めて ID を製品の形に変える（別の PR） | [`release.md`](release.md) の手順。変えた後に M2〜M4 をもう一度 |
+| M5 | ここで初めて ID を製品の形に変える（別の PR） | [`release.md`](release.md) の手順。変えた後に M2〜M4 をもう一度（**済み 2026-10-17**: M5a・M5b、下の「M5」） |
 | M6 | 判定を全部通し、最初の性能評価を書く | `docs/performance/sam45-fine/<版>.md` |
 | M7 | spec・design・user を書き、最初のリリース | [`release.md`](release.md) |
 
@@ -265,6 +265,18 @@ proj021 の手順 1a（同じリポジトリの中でディレクトリだけ分
 
 - **FDRI が同じ = 配置・配線は M3 とビットまで同じ**。USR_ACCESS を焼いても配置に触れない（ADR 0018 の「確かめること」）を、WNS より強い形で確かめた
 - OOC の合成で `system_s45_core_0_0_synth_1` が 1 回落ち、build.tcl の回し直し（Vivado が落ちた run だけを回し直す既存の仕組み）で通った。M3 では落ちていない。結果の値には効いていない（上の表）
+
+**実機（2026-10-17、配線 N、ボードの新しいディレクトリに bit `ed6bcf78…`・hwh `0a40365e…` と `sw/pynq/`）: 予言 4 当たり。M5b は合格**
+
+| 判定 | 結果 |
+|---|---|
+| ID-1 | 4 コア・time_core の IF_ID、RAW の流れの行は M4 と同じ。`USR_ACCESS（proj021.bit）: 8eba3480 = commit 8eba348（汚れなし）` |
+| F-1（120 s） | 13 コアとも RUN_T = START_AT ＋ 1、9 流れ × 2,930 ダンプでずれ +0〜+0、健全性の印なし、T-1 通過 |
+| W-0 | A0 窓 0・D3 窓 1 とも FLAGS 0・飽和 0・ダンプ 3 個 × 6,250 フレーム、RESULT OK |
+| specd の ID | `usr=8eba3480`（adc_id 02020301・time_id 02020302） |
+| V2-b（300 s） | SPEC 237,657・TP 27,264・3.8 GB、CRC・欠け・説明のない欠け・逆戻り・重複・kgap・tdev・tp_gap 0、版 2、照合 通過。START の EVENT の `ids.usr` = `8eba3480`。STATUS（受けの後）: miss・kgap・bdrop・r_bad・pl_drop・pl_crc・tp_lost・tp_rec_lost 0、tp_dbfs −12.46・−12.45・−12.41・−12.41、tp_ovr 0、tp_jump 0,0,0,0、loop_p99 19.2 ms。drop 72,095 は受けが終わってから STOP までの間に溜まりが溢れた分（M4 と同じ扱い） |
+
+- 載せる .bit から読んだ commit が、specd の ID・START の EVENT（受け側の記録）まで届いた。動いている bit との結び付きは bits.json の sha256（`ed6bcf78…`）で、起動の照合は通っている
 
 ## M1 から持ち越した直し: `test_fake.sh` の `load` が proj020 の道具を要る（2026-10-14）
 
