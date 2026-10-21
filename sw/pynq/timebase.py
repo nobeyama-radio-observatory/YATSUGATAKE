@@ -37,19 +37,22 @@ NS_NUM, NS_DEN = 125, 32          # 1 ビート = 125/32 ns（厳密）
 #   adc_to_core_ns: ADC のサンプル → ギアボックスの出口（コアの入口）。proj007/008 の L_adc − D_pps = 213 ns は fs が違うので使えない
 #   **どちらも T-2（1PPS を ADC にも入れる閉ループ）で測るまで未較正。** 上限の見当（bound_ns）だけ持つ
 #   **T-2（閉ループ）で測れるのは差 M = adc_to_core − pps_det（＋ 2 本のケーブルの差）の 1 つだけ**なので、M を adc_to_core_ns に入れ、
-#   pps_det_ns = 0 とする（式の上では引く量は M で同じ）。
+#   pps_det_ns = 0 とする（式の上では引く量は M で同じ: サンプルの時刻 = 錨 ＋ (B − スタンプ) ＋ pps_det − adc_to_core）。
+#   2026-10-21（study-rfsoc proj026）: 1PPS の入口に LPF を常設。**形 (b)**: LPF の遅れ（設置の性質）を pps_det_ns に、adc_to_core_ns は bit の値。
+#   このとき式の符号が効く（pps_det を引いていた誤りを直した。test_cal_b.py が (a)・(b) で同じサンプルの時刻になることを見る）
 CAL = {
     # YATSUGATAKE M5a（INTERFACE v2 の 5.2）: 鍵は (BIT_KIND, BIT_REV)。PROJ（0x5C）は記録だけで、較正には使わない。
     #   値は study-rfsoc の proj021 2-5（BIT_KIND 2・BIT_REV 3、PROJ 0x0021_0200）の F-2。
     #   IF_ID の無い過去の proj の bit（0x0021_7101・0x0020_7101・0x0017_7101・0x0016_7101 の鍵）の値は study-rfsoc に残る
     #   **RTL を変えて BIT_REV を上げたら、F-2 で測り直して新しい鍵で足す**（古い値は新しい REV に当たらない = 黙って使われない）
-    (2, 3): dict(pps_det_ns=0.0, adc_to_core_ns={0: 146.0, 1: 146.3, 2: 147.4, 3: 147.5}, bound_ns=50,
-                      source="proj021 2-5 の F-2（2026-10-14、BIT_REV 3）: RAW の流れの生サンプルで 1PPS の縁がコアに入った T − スタンプ（TRIG 系統）を 4 ADC、"
-                             "ADC に入れるケーブルを A↔C・B↔D に入れ替えて 2 回（Overlay も 2 回）。値は各回 5 試行の平均の 2 回の平均"
-                             "（A 36.96・37.80 / B 37.01・37.88 / C 37.30・38.19 / D 37.27・38.24 ビート）。"
-                             "2 回目は 4 ADC とも +0.84〜+0.97 ビート大きく、共通の分 ≒ +0.89 ビート（3.5 ns）は Overlay ごとのずれ、"
-                             "ケーブルの差は 0.05 ビート以下。proj020 より +21.3〜+25.6 ns（1b の群 C のスキッド ≒ +6 ビート = +23 ns）。"
-                             "タイル 224（C・D）が 226（A・B）より 1.2 ns 遅い（proj020・017 と逆の向き）"),
+    (2, 3): dict(pps_det_ns=71.6, adc_to_core_ns={0: 141.6, 1: 141.7, 2: 141.3, 3: 141.3}, bound_ns=5,
+                      source="形 (b)（2026-10-21、YATSUGATAKE M6 の塊 P・study-rfsoc proj026）: 1PPS・10 MHz の入口に LPF（Mini-Circuits BLP-10.7+）を常設。"
+                             "配線 P（LPF は分配器の後の PPS Clk の枝）で F-2 を LPF ありで 2 回（ケーブルをまっすぐ / A↔D・B↔C、Overlay も 2 回）: "
+                             "M = A 17.54・18.32 / B 17.49・18.39 / C 17.40・18.27 / D 17.41・18.29 ビート、平均 70.04・70.08・69.67・69.73 ns。"
+                             "同じ日に LPF なしで 1 回: 36.26・36.23・36.16・36.21 ビート（141.3〜141.7 ns）→ LPF の遅れ 71.4〜71.7 ns、平均 71.6 ns を pps_det_ns に。"
+                             "adc_to_core_ns = M（LPF あり）＋ 71.6。前の値（10-14、LPF なし、146.0〜147.5 ns）より 4.3〜6.1 ns 小さい（Overlay か配線 P の違いか分けられない）。"
+                             "F-2 の 2 回の差（≒ 0.8 ビート）は PPS のスタンプの 1 ビートの量子化と見ている（未確認）ので bound_ns は 5 ns（±0.5 ビート ＋ LPF の分の ±2 ns）。"
+                             "LPF を外す・替えるときは pps_det_ns だけを測り直す"),
 }
 # 窓の PFB・DDC の遅れ（win_core の入口のビート → そのインパルスの |z|² の重心が wspec に入るまで、ビート）。NS → 値。
 #   make sim-wdelay（2026-10-02、iverilog・k = 5・Δφ = 0）。線形位相なので重心 = 群遅延 ＋ 経路の遅れ。**RTL を変えたら出し直す**
@@ -206,7 +209,8 @@ class Timebase:
         """ビート `beat`（time_core の T）がコアに入った時刻の UTC（整数 ns）。遅れの補正はしない（`sample_utc_ns`）。"""
         self.check()
         a = self._anchor
-        return a["utc_sec"] * 10**9 + beats_to_ns(int(beat) - a["stamp"]) - int(round(self.cal["pps_det_ns"] or 0))
+        # スタンプは本当の縁より pps_det 後に打たれる → ビートの時刻は pps_det を**足す**（2026-10-21 まで引いていた。pps_det 0 の間は表に出なかった。test_cal_b.py）
+        return a["utc_sec"] * 10**9 + beats_to_ns(int(beat) - a["stamp"]) + int(round(self.cal["pps_det_ns"] or 0))
 
     def _a2c(self, adc):
         v = self.cal["adc_to_core_ns"]
