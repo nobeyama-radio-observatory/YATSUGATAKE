@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画
 
-- 状態: **M6 済み**（2026-10-21）。次は M7（spec・design・user を書き、最初のリリース）
+- 状態: **M7 のリリースの前まで済み**（2026-10-21。M7a 使い方・M7b 仕様の値・M7c 設計・M7d のリリースの規則）。次はタグの commit でのビルドとリリース
 - 決定: [ADR 0002](decisions/0002-migrate-from-proj021-restructure-only.md)（proj021 を土台にし、構成替えだけを行う）
 
 ## 原則

@@ -1,6 +1,6 @@
 # リリースと版
 
-- 状態: **案**（[ADR 0018](decisions/0018-release-on-github-releases.md)、提案）。最初のリリースまでに確定する
+- 状態: **確定**（2026-10-21、最初のリリース SAM45-Fine v1.0.0 の前に。[ADR 0018](decisions/0018-release-on-github-releases.md)）
 
 ## 何を配るか
 
@@ -11,12 +11,16 @@ GitHub Releases に、bit ごとに次を添付する。**git の履歴には入
 | `<bit>-<版>.bit`・`<bit>-<版>.hwh` | PYNQ の Overlay で読む組 |
 | `<bit>-<版>.timing.txt` | `-1` の WNS / WHS と最悪経路の要約 |
 | `<bit>-<版>.utilization.txt` | 資源 |
-| `<bit>-<版>.build.log` | ビルドのログ（環境に依る値を除いたもの） |
+| `<bit>-<版>.cdc.txt` | `report_cdc` の分類ごとの件数 |
+| `<bit>-<版>.bitinfo.txt` | USR_ACCESS（commit・汚れ）と FDRI の sha256 |
+| `<bit>-<版>.build.log` | `vivado.log` の**要約**（TIMING・ERROR・CRITICAL WARNING・NOTE の行、絶対パスは `<path>`）。**生のログは配らない** |
 | `SHA256SUMS` | 全ファイルの sha256 |
+
+この組は `tools/release_files.py` が作る（USR_ACCESS・FDRI を照らし、公開してはいけない形が無いことを確かめてから書く）。
 
 PS のソフト（specd）と較正ファイルはソースから入れる（版のタグで固定）。
 
-## 版の付け方（案）
+## 版の付け方
 
 | 版 | 例 | 上げるとき |
 |---|---|---|
@@ -39,15 +43,24 @@ PS のソフト（specd）と較正ファイルはソースから入れる（版
 
 - [x] USR_ACCESS に何を入れるか → commit の 28 bit ＋ 汚れの 1 bit（2026-10-15、[migration.md](migration.md) の M5）
 - [x] 同じ RTL で USR_ACCESS だけ違う 2 本の WNS が一致することを確かめる → WNS・WHS が小数 6 桁まで、FDRI の sha256 まで一致（2026-10-15、M5b）
-- [ ] BIT_REV と bit ごとの版の対応（最初のリリースは BIT_REV 3 のまま。RTL を変えたら上げる。bit ごとのタグとの対応は未）
-- [ ] ビルドを誰がどこで行い、ログから環境に依る値をどう除くか
+- [x] BIT_REV と bit ごとの版の対応 → **対応表を bit の README に持つ**（2026-10-21）。下の「BIT_REV と版」
+- [x] ビルドを誰がどこで行い、ログから環境に依る値をどう除くか → **開発者が Vivado の計算機で、リリースの commit を GitHub から pull してビルドする。ログは要約だけを配る**（`tools/release_files.py`。2026-10-21）
 
-## リリースの手順（案）
+## BIT_REV と版
 
-1. main の commit を決める。作業ツリーが汚れていないこと
-2. `-1` でビルドし、タイミング・CDC・資源を確かめる
-3. 判定（`test/acceptance/`）を通す
-4. 性能評価 `docs/performance/<bit>/<版>.md` を書く
-5. CHANGELOG を更新する
-6. `python3 tools/prepublish_scan.py` を通す
-7. タグを付けて push し、Release を作ってファイルを添付する
+- **RTL・係数・制約を変えたら BIT_REV を上げ、bit の版は minor 以上を上げる**（較正の表 CAL・tp_cal は (BIT_KIND, BIT_REV) で引くので、古い較正が新しい bit に黙って当たらない）
+- PS（specd・較正）だけの変更では bit の版を上げない（リポジトリ全体の版を上げる）
+- **同じ RTL の作り直し**（リリースの commit で焼き直すなど）は BIT_REV も bit の版も変えない。FDRI の sha256 が前と同じであることで同じものと言う（USR_ACCESS だけが違う。M5b）
+- 対応表（版 ↔ BIT_REV ↔ USR_ACCESS ↔ FDRI の sha256）は `hw/bits/<bit>/README.md` に置き、リリースごとに 1 行足す
+
+## リリースの手順
+
+**タグはビルドした commit に付ける**（USR_ACCESS = タグの commit になる）。だからビルドの前に、CHANGELOG と性能評価を main に入れておく。ビルドで初めて決まる値（.bit の sha256）は Release の `SHA256SUMS` が正で、文書には後から足す。
+
+1. CHANGELOG の版の節と性能評価 `docs/performance/<bit>/<版>.md` を書き、PR で main に入れる
+2. その main の commit で、Vivado の計算機で GitHub から pull する。作業ツリーが汚れていないこと
+3. `-1` でビルドし、タイミング・CDC・資源を確かめる
+4. `tools/release_files.py <build> <bit> <版> --out dist/<bit>-<版> --commit <7 桁> [--fdri <前の FDRI>]` で添える組を作る（照合が通ること）
+5. 判定（`test/acceptance/`）を通す。**同じ RTL の作り直しで FDRI が前と同じなら、前の判定を引き継ぐ**（実機では ID-1 と F-0 だけ確かめる）
+6. その commit にタグ（`<bit>/<版>`）を付けて push し、Release を作って 4. の組を添付する
+7. 後の PR で、bit の README の対応表に 1 行足し、性能評価に配った .bit の sha256・USR_ACCESS を書く（`python3 tools/prepublish_scan.py` を通す）
