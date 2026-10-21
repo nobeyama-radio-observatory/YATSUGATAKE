@@ -15,4 +15,4 @@ python3 specctl.py --host $B STATUS STOP
   - tp_ovr 0・tp_dbfs ≒ −12.5
   - tp_jump は**数を記録するだけ**（合格の条件にしない。入力の安定さに依る。2026-10-14 に測った後で外した: 10 分で 4 ADC 計 43 回の跳ねが、B2b の前の見張りで読み直しても 40 回中 37 回同じ個に出て、入力の山と分かった）
 - **陽性対照**: なし（跳ねの見張りの陽性対照は [PS-3](PS-3.md)）
-- **記録**: **最終の bit・B2b の後の PS で通過（2026-10-14、`ps2`）**: SPEC 118,841・欠け・CRC 0、miss・pl_drop・pl_crc・tp_lost 0、loop_p99 11.0 ms・loop_slow 0・tp_ovr 0、tp_jump 8,14,6,15（入力の山、proj021 README「最終の bit で未だった判定を回す」）
+- **記録**: **YATSUGATAKE M6 で通過（2026-10-17、M5b の bit `ed6bcf78…`・usr 8eba3480、`~/m2/m6/ps2.json`・`ps2_status.txt`）**: SPEC 118,048・欠け 0、miss などすべて 0、loop_slow 0・loop_p99 11 ms、tp_dbfs −12.42〜−12.46、tp_jump 0,0,0,0。 **最終の bit・B2b の後の PS で通過（2026-10-14、`ps2`）**: SPEC 118,841・欠け・CRC 0、miss・pl_drop・pl_crc・tp_lost 0、loop_p99 11.0 ms・loop_slow 0・tp_ovr 0、tp_jump 8,14,6,15（入力の山、proj021 README「最終の bit で未だった判定を回す」）

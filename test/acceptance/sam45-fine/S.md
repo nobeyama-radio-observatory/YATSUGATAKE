@@ -11,4 +11,4 @@ python3 s45snap.py --host $B --adc ABCD --n 16 --every 20 --out snap_xxx
   - 4 ADC とも道具の判定が OK: 16 塊、S-1 間隔（dump_t の差）、S-2 中身（下位 2 bit が 0・振り切れ 0・dBFS ≒ −12.5）、S-4 UTC の刻み 20 ms
   - 受けた記録の照合: CRC・欠け 0
 - **陽性対照**: S-3（`--sg` に SG の周波数、配線 S）で SG の山が予言の周波数に出る（任意）
-- **記録**: proj021 README「手順 2-5 → 実機（S25-3）」の SNAP の行（2026-10-14 通過: −12.4〜−12.6 dBFS・振り切れ 0）
+- **記録**: **YATSUGATAKE M6 で通過（2026-10-17、M5b の bit `ed6bcf78…`・usr 8eba3480、`~/m2/m6/s.txt`）**: 4 ADC とも 16 塊・−12.42〜−12.47 dBFS・振り切れ 0・刻み 20 ms、CRC・欠け 0。 proj021 README「手順 2-5 → 実機（S25-3）」の SNAP の行（2026-10-14 通過: −12.4〜−12.6 dBFS・振り切れ 0）

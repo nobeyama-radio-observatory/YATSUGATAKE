@@ -26,7 +26,7 @@ import numpy as np
 
 import spectrometer as S
 import window as W
-from timebase import BEATS_PER_SEC, TimeCore, Timebase, TimebaseError, beats_to_ns
+from timebase import BEATS_PER_SEC, NS_DEN, NS_NUM, TimeCore, Timebase, TimebaseError, beats_to_ns
 
 import s45core as SC
 import rectap as RT
@@ -364,7 +364,10 @@ def t2(tc, tb, wins, full, wms, path="trig", n_trial=5, if_c=2200.0, out=None, a
     while full.rd(W.R_SEQ) == seq0 and time.time() < t_e:
         time.sleep(0.001)
     phi = full.meta()["t"] % 512
-    L0 = 55                                  # 縁 → コアの入口の見当（ビート）。外れていても縁はフレームの中に入る（± 100 ビートまで）
+    # 縁 → コアの入口の見当（ビート）= M = adc_to_core − pps_det を CAL から（2026-10-21: 決め打ち 55 は LPF ありの M ≒ 18 と
+    # 37 ビート離れ、縁がフレームの前に出ることがあった。study-rfsoc proj026 の b1）。CAL が無ければ 55
+    _m = tb._a2c(adc)
+    L0 = int(round((_m - (tb.cal["pps_det_ns"] or 0)) * NS_DEN / NS_NUM)) if _m else 55
     offs_f, raws = [], []
     for k in range(n_trial):
         p = tb.check()
