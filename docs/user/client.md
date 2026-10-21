@@ -60,4 +60,4 @@ s.plot("A0"); s.check(); s.close()
 
 ## 記録の中身
 
-記録の形（s45proto v2）は [`../spec/interface.md`](../spec/interface.md) の 6.。時刻（`utc_ns`）は較正込み（同 5.2）で、ADC の口に入った時刻。値の単位は [`../spec/interface.md`](../spec/interface.md) の 4.5。
+記録の形（s45proto v2）は [`../spec/interface.md`](../spec/interface.md) の 6.。時刻（`utc_ns`）は較正込みで、ADC の口に入った時刻を基にした区間の始まり（[`../spec/timing.md`](../spec/timing.md)）。値の単位と dBm への換算は [`../spec/units.md`](../spec/units.md)。
