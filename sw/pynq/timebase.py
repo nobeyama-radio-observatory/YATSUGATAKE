@@ -37,7 +37,8 @@ NS_NUM, NS_DEN = 125, 32          # 1 ビート = 125/32 ns（厳密）
 #   adc_to_core_ns: ADC のサンプル → ギアボックスの出口（コアの入口）。proj007/008 の L_adc − D_pps = 213 ns は fs が違うので使えない
 #   **どちらも T-2（1PPS を ADC にも入れる閉ループ）で測るまで未較正。** 上限の見当（bound_ns）だけ持つ
 #   **T-2（閉ループ）で測れるのは差 M = adc_to_core − pps_det（＋ 2 本のケーブルの差）の 1 つだけ**なので、M を adc_to_core_ns に入れ、
-#   pps_det_ns = 0 とする（式の上では引く量は M で同じ）。
+#   pps_det_ns = 0 とする（式の上では引く量は M で同じ: サンプルの時刻 = 錨 ＋ (B − スタンプ) ＋ pps_det − adc_to_core）。
+#   pps_det_ns を 0 から動かすときは式の符号が効く（2026-10-21 に pps_det を引いていた誤りを直した。test_cal_b.py）
 CAL = {
     # YATSUGATAKE M5a（INTERFACE v2 の 5.2）: 鍵は (BIT_KIND, BIT_REV)。PROJ（0x5C）は記録だけで、較正には使わない。
     #   値は study-rfsoc の proj021 2-5（BIT_KIND 2・BIT_REV 3、PROJ 0x0021_0200）の F-2。
@@ -206,7 +207,8 @@ class Timebase:
         """ビート `beat`（time_core の T）がコアに入った時刻の UTC（整数 ns）。遅れの補正はしない（`sample_utc_ns`）。"""
         self.check()
         a = self._anchor
-        return a["utc_sec"] * 10**9 + beats_to_ns(int(beat) - a["stamp"]) - int(round(self.cal["pps_det_ns"] or 0))
+        # スタンプは本当の縁より pps_det 後に打たれる → ビートの時刻は pps_det を**足す**（2026-10-21 まで引いていた。pps_det 0 の間は表に出なかった。test_cal_b.py）
+        return a["utc_sec"] * 10**9 + beats_to_ns(int(beat) - a["stamp"]) + int(round(self.cal["pps_det_ns"] or 0))
 
     def _a2c(self, adc):
         v = self.cal["adc_to_core_ns"]
