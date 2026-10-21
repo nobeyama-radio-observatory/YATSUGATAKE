@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M1**（2026-10-21、ブランチ `sam45-wide/m1-place`）。次は M2（sim を全部回す）
+- 状態: **M2 済み**（2026-10-21、ブランチ `sam45-wide/m1-place`）。次は M3（ビルド）
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -74,7 +74,7 @@ Fine の M1（10ecff8）と同じ型。中身は変えない:
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録） | 全ファイルに行き先がある（**済み 2026-10-21**） |
 | M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-21**: 下の「M1 の結果」） |
-| M2 | sim を全部回す（sim-wpfb 3・wch 6・wsp 9・wco 4・ws45 3・wds 2、model-wide） | proj023 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
+| M2 | sim を全部回す（sim-wpfb 3・wch 6・wsp 9・wco 4・ws45 3・wds 2、model-wide） | proj023 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**済み 2026-10-21**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、**Performance_Explore**） | **FDRI が移植元と同じ**（Fine の M3 は構成データまで同じだった）。WNS は移植元と小数 6 桁まで同じ |
 | M4 | 実機の短い回帰 | ID（`wide.py --list`）・起動の見張り（FLAGS 0・IP の位相）・雑音の 7 本・V2-b（5 分）が proj023 と同じ値 |
 | M5 | Fine の M5a・M5b を Wide に当て、`sw/pynq-wide/` を `sw/pynq/` に一本化 | 下の「M5」 |
@@ -88,6 +88,15 @@ Fine の M1（10ecff8）と同じ型。中身は変えない:
 - **在ってはいけない側**: Wide の Makefile・build.tcl が `hw/common/cmul.v`・`rec_fr.v` を指す行は 0（直す前の版に当てると 2・22 行を拾う = 照合が働いている）。build.tcl が読むファイル（コメントの行を除く）はすべて在る。Wide の sim の目標（WPFB・WCH・WSP・WCO・WDS・WS45）の RTL もすべて在る
 - **動かして確かめたこと**（作業用の環境。iverilog と Vivado は使っていない）: `make model-wide`（check_wide.py の自己検査、模型を `../../../model/` から読む）が全部通過。`tools/gen_wide_coef.py`・`gen_wide_tw.py` の出力が `src/wide_coef.hex`・`wide_tw.hex` とバイト単位で同じ。Tcl 10 個が `info complete` で完結、`sw/pynq-wide/` の 44 個が `py_compile` を通る
 - **動かないままにしたもの**: Makefile の Fine の目標（sim-win・sim-ddc・sim-spec-all・sim-ring など、`sim-all` も）は、移していないファイル（Fine の試験台・`src/sam45fine/pfb4_rom.v` など）を指すので動かない。外すのは M1 の後の別の PR（「M1 の後にすること」の 1）
+
+### M2 の結果（2026-10-21）
+
+Vivado サーバで、移植先（`hw/bits/sam45-wide/`、66523e8）の `make sim-wpfb sim-wch sim-wsp sim-wco sim-ws45 sim-wds` を回し（27 本、≒ 20 分）、study-rfsoc の proj023 の作業ツリーに残っている同じ変種の出力と比べた:
+
+- **27 本とも「結果: 全部通過」**。陽性対照 10 本（wpfb-p・wpfb-nm・wch-p・wch-skew・wsp-pa・wsp-pg・wsp-stlp・wco-p・ws45-p・wds-p）は落ちるべきところで落ちた（wds-p は D_S +1）
+- **`build-sim-logs/*.log` の 27 個がバイト単位で同じ**（ログにパスが入らない書き方なので、Fine の M2 と違って読み替えも要らない）
+- **`build-sim-w*/` の出力 151 個のうち 124 個がバイト単位で同じ**。違う 27 個は iverilog のコンパイル物 `tb` だけで、**パス（`src/common/` ↔ `../../common/`・`src/` の写しと hex）と、コンパイルごとに変わる番地（`0x…` のポインタ）を読み替えると 27 個とも同じ**（中の設計は同じ）
+- 比べの相手について: 移植元の出力は proj023-m0 を回し直したものではなく、proj023 の作業ツリーに残っていた最後の実行（sim-wpfb 10-14・wch 10-15・wsp・wco・ws45 10-16・wds 10-17）。その後に変わったのは照合の道具 `check_wide.py`（wpfb・wch の後）と Makefile（ほかの目標）だけで、RTL と試験台は変わっていない（git の履歴で確かめた）。移植先は proj023-m0 の照合の道具で回して同じ出力なので、比べは成り立つ
 
 ### M3 の心配
 
