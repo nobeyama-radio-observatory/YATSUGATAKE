@@ -9,7 +9,7 @@
 | Board files | RealDigitalOrg/RFSoC4x2-BSP `board_files/rfsoc4x2/1.0`、commit `40e6814a3b62eead76e41a29fdabc43030f89b6c` |
 | Part | `xczu48dr-ffvg1517-1-e` でビルドする（[ADR 0004](../decisions/0004-build-with-speed-grade-1.md)）。board file の宣言は `-2` |
 
-版の決定は [ADR 0003](../decisions/0003-platform-rfsoc4x2-pynq.md)。正確な表は移植時に `docs/spec/hardware.md` に置く。
+版の決定は [ADR 0003](../decisions/0003-platform-rfsoc4x2-pynq.md)。正の表は [`../spec/hardware.md`](../spec/hardware.md)。
 
 ## 三か所で作業する
 
