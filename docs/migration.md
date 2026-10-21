@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画
 
-- 状態: **M2 済み**（2026-10-14）。次は M3（ビルドして移植元の bit と比べる）
+- 状態: **M6 済み**（2026-10-21）。次は M7（spec・design・user を書き、最初のリリース）
 - 決定: [ADR 0002](decisions/0002-migrate-from-proj021-restructure-only.md)（proj021 を土台にし、構成替えだけを行う）
 
 ## 原則
@@ -80,7 +80,7 @@ bit そのものは git に入れない（[ADR 0018](decisions/0018-release-on-g
 | M3 | ビルド（`-1`、proj021 と同じ実装の戦略） | 下の「同一性の判定」（**済み 2026-10-14**: 下の「M3 の結果」。構成データまで移植元と同じ） |
 | M4 | 実機で短い回帰 | ID の読み出し・F-1（RUN_T）・W-0・V2-b を短く（5 分）。proj021 と同じ値（**済み 2026-10-15**: 下の「M4 の結果」） |
 | M5 | ここで初めて ID を製品の形に変える（別の PR） | [`release.md`](release.md) の手順。変えた後に M2〜M4 をもう一度（**済み 2026-10-17**: M5a・M5b、下の「M5」） |
-| M6 | 判定を全部通し、最初の性能評価を書く | `docs/performance/sam45-fine/<版>.md`（設計と予言: 下の「M6」） |
+| M6（**済み 2026-10-21**） | 判定を全部通し、最初の性能評価を書く | `docs/performance/sam45-fine/<版>.md`（設計と予言: 下の「M6」） |
 | M7 | spec・design・user を書き、最初のリリース | [`release.md`](release.md) |
 
 ## M2 の結果（2026-10-14）
@@ -457,6 +457,8 @@ CAL は adc_to_core_ns を bit の値（LPF なし）のまま、LPF の分を p
   `Clock.beat_of_utc_ns`（逆の式）も pps_det を戻すように。**`sw/pynq/test_cal_b.py`**: (a)（pps 0・M）と (b)（pps P・M ＋ P）でサンプルの時刻が同じ・ビートの時刻は +P・逆の式。直す前に回して −143〜−144 ns で落ちる（陽性対照）、直した後は全部通過。test_fake の basic・f32・tpjump・idle も通過
 - timetest の T-2 の L0 を CAL から（M = adc_to_core − pps_det をビートに、今は 18）。CAL が無ければ 55
 - 実機での確かめは次に配線 P にするとき（F-2 の見当の位置）と specd の運転（utc_ns が前の CAL と M の差 ≒ +76 ns だけ動く）。study-rfsoc の proj023・proj024 の pynq にも同じ直しと test_cal_b.py を入れた（proj021 は移植元で触らない）
+
+**性能評価の 1 本目を書いた（2026-10-21）**: [`performance/sam45-fine/v1.0.0.md`](performance/sam45-fine/v1.0.0.md)（案。版の名前は M7 で確定）。M6 はこれで済み、次は M7
 
 **測り A の形を改めた（2026-10-17、測る前）**: 1 時間の予定を **8 時間**（`START n=703125`、40.96 ms、P-8 と同じ 8 窓を 256 MHz で 2048〜4096 MHz に敷き詰め、PATT 13 dB 固定、SG の出力は切った、PM はつないでいない）にした。夜の空き時間に回せたため。最初の 1 時間は元の測り A と同じものとして読める。記録は ≒ 93 GB（`~/m2/m6/allan.s45`）、STATUS は 30 s・4 時間・終わりに残す。
 
