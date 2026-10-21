@@ -36,7 +36,7 @@ import sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "model"))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "..", "model"))
 import wide_model as WM                                    # noqa: E402  原型と係数（設計の唯一の正）
 
 N = 32768            # 実際の FFT（N_PHYS）

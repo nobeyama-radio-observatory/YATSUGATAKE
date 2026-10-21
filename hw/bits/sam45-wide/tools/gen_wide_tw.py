@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
-"""proj023 — SAM45-Wide のひねり係数 ROM の中身 src/sam45wide/wide_tw.hex を生成する。
+"""proj023 — SAM45-Wide のひねり係数 ROM の中身 src/wide_tw.hex を生成する。
 
-    python3 tools/gen_wide_tw.py > src/sam45wide/wide_tw.hex
+    python3 tools/gen_wide_tw.py > src/wide_tw.hex
 
 1 行 = 番地 k1（0..2047）の 576 bit = 16 レーン × 36 bit（レーン p が [36p +: 36]）。レーンの 36 bit = {im[17:0], re[17:0]}（tw_rom と同じ並び）。
 値は W_32768^(p·k1) = round(2^16·cos(2πpk1/32768)), round(−2^16·sin(…))。sim/check_wide.py の TWR・TWI と**同じ式**（_tw）。**手で直さない**。
