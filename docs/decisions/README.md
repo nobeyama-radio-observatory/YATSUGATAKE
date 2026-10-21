@@ -59,3 +59,4 @@
 | [0018](0018-release-on-github-releases.md) | .bit は git に入れず GitHub Releases に。版は 2 段 | 提案 | 2026-10-08 |
 | [0019](0019-license-bsd-3-clause.md) | ライセンスは BSD-3-Clause、著作権者は国立天文台 | 採用 | 2026-10-08 |
 | [0020](0020-documentation-language.md) | ドキュメントは日本語で書き、英語版は後で足す | 採用 | 2026-10-08 |
+| [0021](0021-spec-canonical-in-yatsugatake.md) | 仕様の正典は YATSUGATAKE の docs/spec に置き、全 bit の約束をここで持つ | 採用 | 2026-10-21 |
