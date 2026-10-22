@@ -65,7 +65,7 @@ Fine の M1（10ecff8）と同じ型。中身は変えない:
 ### M1 の後にすること（それぞれ別の PR）
 
 1. **Makefile から Fine の目標を外す**（ブランチ `sam45-wide/makefile-trim`、2026-10-22）: proj023 の Makefile には proj021 から引き継いだ Fine の目標（sim-win・sim-ddc・sim-spec-all・sim-ring など、`sim-all` も Fine の 3 つを回す）が残っている。M1 では移さないファイルを指して動かないので、外して `sim-all` を Wide の sim に替える。外した後に M2 をもう一度
-2. **`cmul.v`・`rec_fr.v` を `hw/common/` に一本化**（Fine の v1.0.0 のタグの後）: proj023 の版で `hw/common/` を替え、Wide の写しを消す。合格は、Fine の sim（sim-ring・sim-raw を含む）の回帰と、**Fine を作り直して FDRI が M5b の bit と同じ**こと（既定では同じ式なので同じはず。違えば一本化しない）
+2. **`cmul.v`・`rec_fr.v` を `hw/common/` に一本化**（Fine の v1.0.0 のタグの後。ブランチ `sam45-wide/common-unify`、2026-10-22。下の「一本化の手順と予言」）: proj023 の版で `hw/common/` を替え、Wide の写しを消す。合格は、Fine の sim（sim-ring・sim-raw を含む）の回帰と、**Fine を作り直して FDRI が M5b の bit と同じ**こと（既定では同じ式なので同じはず。違えば一本化しない）
 3. **`sw/pynq-wide/` を `sw/pynq/` に一本化** → Wide の M5 で行う（下）
 
 ## 手順
@@ -149,6 +149,20 @@ Vivado サーバで、移植先（b87dab3）を `make IMPL=Performance_Explore`�
   - TP_JUMP 82 回（ADC ごとに 26・23・20・13）。**全部が START から 264.8〜269.3 s の 4.5 s に、4 ADC そろって**、大きさ 0.012〜0.015 dB（σ 0.002 dB）。4 ADC で同時なので分光計ではなく入力の側（10-17 の V2-b の 2 回、−0.019 dB と同じ型。今回は短い間に続いた）。原因は確かめていない
 - **起こし方の誤り（PS の不具合）**: 初めは手順の誤りで `--wide` を付けずに specd を起こし、Fine の取得で起動して止まった（`ERROR: --ns は 4 ADC × 0 窓`）。bits.json の `"kind": "wide"` が効かない不具合（M5 の項目に入れた）。10-17 と同じく `--wide` を付けて起こし直した
 - 記録は制御 PC の `~/m2/m4w_v2b.json`・`m4w_v2b_status.txt`（`.s45` は 900 MB、照合が済んだので消してよい）
+
+### 一本化（cmul.v・rec_fr.v）の手順と予言（2026-10-22、回す前）
+
+**変えたもの**: `hw/common/cmul.v`・`rec_fr.v` を proj023 の版（= M1〜M4 の Wide の写し）に替え、写しを消し、Wide の Makefile・build.tcl（7 行）を `../../common/` に向けた。違いは口を足しただけ:
+- `cmul.v`: パラメータ SH（既定 16）。丸めと右シフトの 16 を SH に
+- `rec_fr.v`: パラメータ W7HI（既定 0）と入力 `w7hi`。語 7 の上位 32 bit を `W7HI ? w7hi[…] : 0` に（今までは 64 bit の定数 32768 の上位で 0）。Fine のセルは `w7hi` を繋がない
+
+**合格**（4 つとも。1 つでも外れたら一本化しない）:
+1. **Fine の sim**: `hw/bits/sam45-fine` で `make sim-all sim-ring` を、一本化の前（`sam45-wide/makefile-trim`）と後の 2 つの木で回し、出力がバイト単位で同じ（コンパイル物はパスと番地の読み替えで）。陽性対照が立つ
+2. **Wide の sim**: `make sim-all` が 28 個とも通過し、sim のログ 27 個が M2 と同じ
+3. **Fine のビルド**: 既定の戦略で作り直し、**FDRI が v1.0.0 と同じ**（`e095fa97…29f9`、hw/bits/sam45-fine/README の表）
+4. **Wide のビルド**: `IMPL=Performance_Explore` で作り直し、**FDRI が M3 と同じ**（`abc66e72…4d4736`）
+
+**予言**: 4 つとも同じ。既定のパラメータでは式が同じなので、合成は同じネットリストを作る。外れるとしたら、Fine の `rec_fr` に繋がない入力 `w7hi` が増えたことで、合成が名前・順番の違う部品を作り、配置のタイブレークが動くこと（式は同じでも FDRI が違いうる。proj023 の知見「定数や名前の変更だけで配置が動く」）。そのときは sim は 1・2 で通り、3・4 だけが外れる
 
 ### M3 の心配（M3 の前に書いた）
 
