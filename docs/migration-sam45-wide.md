@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M3 済み**（2026-10-22、ブランチ `sam45-wide/m1-place`）。次は M4（実機の短い回帰）
+- 状態: **M4 済み**（2026-10-22、ブランチ `sam45-wide/m1-place`）。次は M5（Fine の M5a・M5b を当て、PS を一本化する。Fine の v1.0.0 の後）
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -76,7 +76,7 @@ Fine の M1（10ecff8）と同じ型。中身は変えない:
 | M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-21**: 下の「M1 の結果」） |
 | M2 | sim を全部回す（sim-wpfb 3・wch 6・wsp 9・wco 4・ws45 3・wds 2、model-wide） | proj023 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**済み 2026-10-21**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、**Performance_Explore**） | **FDRI が移植元と同じ**（Fine の M3 は構成データまで同じだった）。WNS は移植元と小数 6 桁まで同じ（**済み 2026-10-22**: 下の「M3 の結果」） |
-| M4 | 実機の短い回帰 | ID（`wide.py --list`）・起動の見張り（FLAGS 0・IP の位相）・雑音の 7 本・V2-b（5 分）が proj023 と同じ値 |
+| M4 | 実機の短い回帰 | ID（`wide.py --list`）・起動の見張り（FLAGS 0・IP の位相）・雑音の 7 本・V2-b（5 分）が proj023 と同じ値（**済み 2026-10-22**: 下の「M4 の結果」） |
 | M5 | Fine の M5a・M5b を Wide に当て、`sw/pynq-wide/` を `sw/pynq/` に一本化 | 下の「M5」 |
 | M6 | Wide の判定を `test/acceptance/sam45-wide/` に書き、全部通し、性能評価を書く | `docs/performance/sam45-wide/<版>.md` |
 | M7 | spec・design・user の Wide の分を書き、リリース | `release.md` |
@@ -131,6 +131,25 @@ Vivado サーバで、移植先（b87dab3）を `make IMPL=Performance_Explore`�
 
 **予言**: 構成データも PS も移植元とバイト単位で同じなので、4 つとも proj023 の 10-17 の値（上の「合格」の欄）と同じになる。外れるとしたら置き場所（ボードのディレクトリ・bits.json・hwh の名前の組）か、その日の配線・クロック。外れたら同じ日に移植元の proj023 のディレクトリでも同じ判定を回し、どちらに付いた外れかを分ける
 
+### M4 の結果（2026-10-22）: 合格
+
+ボードの `~/sam45-wide-m4/`（M3 の bit `216b36ed…`、`sw/pynq-wide/`）で回した。
+
+**配線**: 始めは P（1PPS を ADC にも分配、F-2 の配線）のまま回し、雑音の 7 本の最大の ch が帯域の端（IF 4096.0・3072.0 MHz）に出たので、N に戻して回し直した（ノイズソース → BPF → 分配器 → ADC、SG は出力 OFF、1PPS・10 MHz は PPS・CLK の入口へ LPF あり）。下の値は N のもの。ID と起動の見張りは P と N で同じだった
+
+| 判定 | 結果 | 10-17 の proj023 |
+|---|---|---|
+| ID・自己記述 | IF_ID・PROJ・time_core・NSTREAM 3/2/2/2・CAPS 3・BASE_BEATS・BUILD・SID・NCH・FRAME_BEATS・PARAM・NFFT_MIN_MAX・S0_CUR・FFT_N 15 | **同じ** |
+| 起動の見張り | 4 コアとも 0x00 → 0x00・待たされた 1・待ち行列 2・IP の位相 入口 8・出口 155・遅れ 147（P と N の 2 回の起動とも） | **同じ** |
+| 雑音の 7 本 | 結果: 全部通過、FLAGS・SAT 0、IF の範囲は式どおり。B1（B 2）と C0（B 4）が同じ線を 2670.94・2670.81 MHz に出した | 同じ形（10-17 は 2072.69・2072.81 MHz の線。雑音の中の最大の線は日で変わる） |
+| V2-b（300 s、specd `--wide`） | 受け側: SPEC 52,213・TP 29,837・859 MB、CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap 0、health・flags・sat 0、版 2 だけ。STATUS: miss・bdrop・r_bad・pl_drop・pl_crc・pl_err・tp_lost・tp_rec_lost・drop 0、**bund_r は 7 本とも 1,048,576（2·G）**、loop_slow 0・loop_max 22.51 ms・loop_p99 7.3 ms・**pl_peak 694,656 B**、time_ok 1・forced 0 | 同じ（loop_max 22.5・loop_p99 6.9・pl_peak 694,656 B） |
+
+- **予言との違い（判定の外）**:
+  - 入力の電力 tp_dbfs −31.3〜−31.5 dBFS（10-17 は −12.5）。配線 N の中の減衰が 10-17 と違うと見ている（H-1 で入れた PATT・分配器・減衰器が入ったままの見込み。確かめていない）。sat 0 で、判定には効かない
+  - TP_JUMP 82 回（ADC ごとに 26・23・20・13）。**全部が START から 264.8〜269.3 s の 4.5 s に、4 ADC そろって**、大きさ 0.012〜0.015 dB（σ 0.002 dB）。4 ADC で同時なので分光計ではなく入力の側（10-17 の V2-b の 2 回、−0.019 dB と同じ型。今回は短い間に続いた）。原因は確かめていない
+- **起こし方の誤り（PS の不具合）**: 初めは手順の誤りで `--wide` を付けずに specd を起こし、Fine の取得で起動して止まった（`ERROR: --ns は 4 ADC × 0 窓`）。bits.json の `"kind": "wide"` が効かない不具合（M5 の項目に入れた）。10-17 と同じく `--wide` を付けて起こし直した
+- 記録は制御 PC の `~/m2/m4w_v2b.json`・`m4w_v2b_status.txt`（`.s45` は 900 MB、照合が済んだので消してよい）
+
 ### M3 の心配（M3 の前に書いた）
 
 移植元の WNS は +0.0007 ns で、作り直して閉じる保証は無い（proj023 の凍結の決め）。置き場所が変わるだけで配置のタイブレークが動けば負に落ちうる。
@@ -141,6 +160,7 @@ Fine の M3 は「ディレクトリだけ違う」作り直しで構成デー�
 Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が .bit から読む」形にした（migration.md の M5b）。Wide も同じ形にすれば **FDRI は M3 と同じ**で、タイミングの詰め直しは要らない。M5 でするのは:
 - Makefile・build.tcl に Fine の M5b のフック（`USR_ACCESS` を作って焼く・`bitinfo.py` で読み返す）を写す
 - `sw/pynq-wide/` を `sw/pynq/` に一本化する: s45core・s45acq・specd・timebase・test_fake.sh は proj023 と Fine の両方が変えているので、中身のマージになる（s45core の既定は今は Wide。bit の BIT_KIND で選ぶ形に）
+- **specd の `load_bits()` が bits.json の `"kind"` を捨てる**のを直す（proj023 の README は「bits.json の項目なら `"kind": "wide"`」と書いているが実装されていない。M4 で `--wide` を付けずに起こし、Fine の取得で起動して止まった）。直したら、bits.json だけで Wide が起動することと、`kind` の無い項目が今までどおり Fine で起動することの両方を見る
 - 較正の鍵を (BIT_KIND, BIT_REV) = (1, 1) に。timebase の CAL に F-2 の値を入れる: **pps_det_ns ≒ 71.5**・**adc_to_core_ns = A 143.0・B 142.9・C 141.5・D 141.4**（proj026 の (b) の形、proj023 F-2）
 - BIT_REV は 1 のまま（Fine の「BIT_REV 3 のまま」と同じ考え）
 
