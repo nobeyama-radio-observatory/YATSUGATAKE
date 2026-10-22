@@ -64,7 +64,7 @@ Fine の M1（10ecff8）と同じ型。中身は変えない:
 
 ### M1 の後にすること（それぞれ別の PR）
 
-1. **Makefile から Fine の目標を外す**: proj023 の Makefile には proj021 から引き継いだ Fine の目標（sim-win・sim-ddc・sim-spec-all・sim-ring など、`sim-all` も Fine の 3 つを回す）が残っている。M1 では移さないファイルを指して動かないので、外して `sim-all` を Wide の sim に替える。外した後に M2 をもう一度
+1. **Makefile から Fine の目標を外す**（ブランチ `sam45-wide/makefile-trim`、2026-10-22）: proj023 の Makefile には proj021 から引き継いだ Fine の目標（sim-win・sim-ddc・sim-spec-all・sim-ring など、`sim-all` も Fine の 3 つを回す）が残っている。M1 では移さないファイルを指して動かないので、外して `sim-all` を Wide の sim に替える。外した後に M2 をもう一度
 2. **`cmul.v`・`rec_fr.v` を `hw/common/` に一本化**（Fine の v1.0.0 のタグの後）: proj023 の版で `hw/common/` を替え、Wide の写しを消す。合格は、Fine の sim（sim-ring・sim-raw を含む）の回帰と、**Fine を作り直して FDRI が M5b の bit と同じ**こと（既定では同じ式なので同じはず。違えば一本化しない）
 3. **`sw/pynq-wide/` を `sw/pynq/` に一本化** → Wide の M5 で行う（下）
 
