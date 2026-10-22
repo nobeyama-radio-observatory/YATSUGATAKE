@@ -17,6 +17,8 @@ build-*/
 # ---- ビットストリームとハンドオフ ----
 # リリースする .bit・.hwh は GitHub Releases に添付する（docs/release.md）。git には入れない
 *.bit
+# tools/release_files.py が作る Release の組
+/dist/
 *.hwh
 *.ltx
 *.bin

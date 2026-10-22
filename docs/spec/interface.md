@@ -52,7 +52,7 @@
 | 設定の取り込み | proj016 | 窓の設定（WK・WDPHI・WNS）は WRST で、N_ACC・N_DUMP・SHIFT・CFG_ID は RUN で取り込む |
 | ダンプの帳簿 | proj014・016 | SEQ・DUMP_K・DUMP_F0・DUMP_N・DUMP_SAT・DUMP_T・DUMP_H・DUMP_CFG は同じ commit で切り替わる（seqlock: SEQ → 中身 → SEQ） |
 | 健全性 | proj016・017 | DUMP_H の [0..15]・窓の FLAGS（[5] は proj020 の PFB の飽和）・TP の FLAGS[4] |
-| 単位 | proj019 | abs = (Σp/N_ACC − 2/3)·4^SHIFT·4^(4−G)/2³¹（14 bit の LSB²）。窓の和 = TP |
+| 単位 | proj019（正は [`units.md`](units.md)） | abs = (Σp/N_ACC − 2/3)·4^SHIFT·4^(4−G)/2³¹（14 bit の LSB²）。窓の和 = TP |
 | 窓の区切り | proj017・020 | DUMP_T − D(NS) − X(NS) が幅の違う窓で揃う。PFB（T = 4）の重心は 1.5·L 前（proj020。v2 では utc_ns に含める、5.2） |
 
 **v2 でもレジスタの名前と意味は変えない。** 番地は流れのブロック（2.5）にそろえ直す（今は spec_core と win_core で同じ意味のレジスタの番地が違う）。変えるのは番地と読み出しの道だけ。
@@ -426,6 +426,8 @@ TP のレコード（type 2）:
 5. 束ね方: 中身は u64 の和（溢れない: 1 ダンプ ≦ 2^48 程度 × n_sum）→ ネットワークでは float32 に丸める（4.5）。DUMP_SAT は和、FLAGS・DUMP_H は OR、dump_t は最初のダンプの DUMP_T、n_sum を記録。**単位の式（1.）の N_ACC は束の総フレーム数 ΣDUMP_N に読み替える**
 
 ### 5.2 時刻の補正（決定、2026-10-08）
+
+> 式と定数の今の値は [`timing.md`](timing.md) が正（2026-10-21 に pps_det の符号を直した。ここの式の beat_utc は pps_det を足したもの）。
 
 状態: **決定**（2026-10-08）
 - **決定**: 受け側へ送る utc_ns は**実効の区間の始まり**（区間の重心 = utc_ns + tint/2 になる時刻）。PFB の重心のずれ（矩形より 1.5·L 前）も PS が引く。生の dump_t（ビート）も残す
