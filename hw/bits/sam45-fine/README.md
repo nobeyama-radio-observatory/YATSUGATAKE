@@ -12,4 +12,4 @@
 
 | 版 | BIT_REV | USR_ACCESS（タグの commit） | FDRI の sha256 | 性能評価 |
 |---|---|---|---|---|
-| v1.0.0 | 3 | （リリースで記入） | `e095fa977cf9ebaa6f980a7a0f5f8bc0212ae6bed469ecdb047b6e18dfbc29f9` | [v1.0.0](../../../docs/performance/sam45-fine/v1.0.0.md) |
+| v1.0.0 | 3 | `79528880` = commit 7952888 | `e095fa977cf9ebaa6f980a7a0f5f8bc0212ae6bed469ecdb047b6e18dfbc29f9` | [v1.0.0](../../../docs/performance/sam45-fine/v1.0.0.md) |
