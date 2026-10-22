@@ -115,6 +115,22 @@ Vivado サーバで、移植先（b87dab3）を `make IMPL=Performance_Explore`�
 - build.tcl の照合: ROM の中身（OOC の run 5 個で $readmemh の失敗 0）・ドライバの無いネット（自作のセル 20 個で Synth 8-3848 0）・coef_q 1,185 / 1,152 / 1,152 / 1,152・tw_q 576 × 4・CRITICAL WARNING 5 件（移植元も 5 件）
 - 移植元の作業ツリーも同じサーバの上にあるので、比べは同じ Vivado・同じボードのファイルで行った
 
+### M4 の手順と予言（2026-10-22、実機の前）
+
+**載せるもの**（ボードの新しいディレクトリ `~/sam45-wide-m4/`。study-rfsoc の proj023 の道具のディレクトリとは混ぜない）:
+- 移植先の `hw/bits/sam45-wide/build-PE/` の `proj023.bit`・`proj023.hwh`（M3 で構成データが移植元と同じ。ID は変えていないので名前も proj023 のまま）
+- `sw/pynq-wide/` の `*.py`・`*.json`・`*.sh`（移植元の proj023 の `pynq/` とバイト単位で同じ）
+- `bits.json`: proj023 の 1 件だけ（`"kind": "wide"`）、`sha256` に移植先の bit の値（`216b36ed0273f70c9628f218e791d93828f290c3a0656d952ff3afd847a43a4f`）
+
+| 判定 | 道具 | 合格 |
+|---|---|---|
+| ID・自己記述 | `wide.py --list` | IF_ID 0x02010101・PROJ 0x00230100・time_core 0x02010102・NSTREAM 3/2/2/2・CAPS 3・NCH 4096・FRAME_BEATS 2048・FFT_N 15 |
+| 起動の見張り | `wide.py --list` の表の後 | 4 コアとも FLAGS 0x00 → 0x00、待たされた 1・待ち行列 2 語、IP の位相 入口 8・出口 155 |
+| 雑音の 7 本 | `wide.py --mode A=1,B=2,C=4,D=1 --s0 A0=0,A1=12288,B0=0,B1=4096,D1=6000 --nacc 1250 --ndump 3` | 結果: 全部通過、FLAGS 0 |
+| V2-b の短縮 | specd `--wide`（proj023 4d と同じ設定: A B 1・B B 2・C B 4・D B 1・SHIFT 7・tint 40.96 ms・float32） | **300 s**。CRC・欠け・kgap・tdev 0、STATUS の miss・bdrop・pl_drop 0、bund_r は 7 本とも 1,048,576（2·G） |
+
+**予言**: 構成データも PS も移植元とバイト単位で同じなので、4 つとも proj023 の 10-17 の値（上の「合格」の欄）と同じになる。外れるとしたら置き場所（ボードのディレクトリ・bits.json・hwh の名前の組）か、その日の配線・クロック。外れたら同じ日に移植元の proj023 のディレクトリでも同じ判定を回し、どちらに付いた外れかを分ける
+
 ### M3 の心配（M3 の前に書いた）
 
 移植元の WNS は +0.0007 ns で、作り直して閉じる保証は無い（proj023 の凍結の決め）。置き場所が変わるだけで配置のタイブレークが動けば負に落ちうる。
