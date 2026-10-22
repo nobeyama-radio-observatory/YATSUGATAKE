@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M2 済み**（2026-10-21、ブランチ `sam45-wide/m1-place`）。次は M3（ビルド）
+- 状態: **M3 済み**（2026-10-22、ブランチ `sam45-wide/m1-place`）。次は M4（実機の短い回帰）
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -75,7 +75,7 @@ Fine の M1（10ecff8）と同じ型。中身は変えない:
 | M0 | 置き場所の表（この文書と付録） | 全ファイルに行き先がある（**済み 2026-10-21**） |
 | M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-21**: 下の「M1 の結果」） |
 | M2 | sim を全部回す（sim-wpfb 3・wch 6・wsp 9・wco 4・ws45 3・wds 2、model-wide） | proj023 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**済み 2026-10-21**: 下の「M2 の結果」） |
-| M3 | ビルド（`-1`、**Performance_Explore**） | **FDRI が移植元と同じ**（Fine の M3 は構成データまで同じだった）。WNS は移植元と小数 6 桁まで同じ |
+| M3 | ビルド（`-1`、**Performance_Explore**） | **FDRI が移植元と同じ**（Fine の M3 は構成データまで同じだった）。WNS は移植元と小数 6 桁まで同じ（**済み 2026-10-22**: 下の「M3 の結果」） |
 | M4 | 実機の短い回帰 | ID（`wide.py --list`）・起動の見張り（FLAGS 0・IP の位相）・雑音の 7 本・V2-b（5 分）が proj023 と同じ値 |
 | M5 | Fine の M5a・M5b を Wide に当て、`sw/pynq-wide/` を `sw/pynq/` に一本化 | 下の「M5」 |
 | M6 | Wide の判定を `test/acceptance/sam45-wide/` に書き、全部通し、性能評価を書く | `docs/performance/sam45-wide/<版>.md` |
@@ -98,7 +98,24 @@ Vivado サーバで、移植先（`hw/bits/sam45-wide/`、66523e8）の `make si
 - **`build-sim-w*/` の出力 151 個のうち 124 個がバイト単位で同じ**。違う 27 個は iverilog のコンパイル物 `tb` だけで、**パス（`src/common/` ↔ `../../common/`・`src/` の写しと hex）と、コンパイルごとに変わる番地（`0x…` のポインタ）を読み替えると 27 個とも同じ**（中の設計は同じ）
 - 比べの相手について: 移植元の出力は proj023-m0 を回し直したものではなく、proj023 の作業ツリーに残っていた最後の実行（sim-wpfb 10-14・wch 10-15・wsp・wco・ws45 10-16・wds 10-17）。その後に変わったのは照合の道具 `check_wide.py`（wpfb・wch の後）と Makefile（ほかの目標）だけで、RTL と試験台は変わっていない（git の履歴で確かめた）。移植先は proj023-m0 の照合の道具で回して同じ出力なので、比べは成り立つ
 
-### M3 の心配
+### M3 の結果（2026-10-22）
+
+Vivado サーバで、移植先（b87dab3）を `make IMPL=Performance_Explore`（`build-PE/`、OOC から書き出しまで ≒ 2 時間）で作り、study-rfsoc の proj023 の `build-PE/`（移植元の bit）と比べた。**予言どおり、構成データまで移植元と同じ**:
+
+| 項目 | 移植先 | 移植元 |
+|---|---|---|
+| FDRI（`sw/pynq/bitinfo.py`） | 8,608,824 語・sha256 `abc66e72…4d4736` | **同じ** |
+| 構成の流れ全体（欄 e）の sha256 | `f5cd867f…4dbffb` | **同じ** |
+| `.bit` のファイルの sha256 | `216b36ed…a43a4f` | `473911e5…3c5178`。違うのはヘッダの日付と時刻の 7 バイトだけ |
+| `.hwh` | `b9b98a47…ff245f` | `32759af1…bf769a`。違う 6 行は作った時刻 1 行と、ROM の中身の絶対パス（COEF_FILE 1・TW_FILE 4）だけ |
+| `-1` の WNS / WHS | **+0.000716 ns / +0.009500 ns** | 同じ（小数 6 桁まで） |
+| USR_ACCESS | なし（焼いていない。M5 で） | なし |
+
+- **報告 15 個が、日付などの行を除いて同じ**: utilization（全体・階層）・cdc・net_check（結線の照合）・ROM 2 種・lane_fft・raw_core・timing・clock_interaction・address_map・xfft_params・rfdc_params・clocks。違ったのは drc.rpt の 2 行だけで、RTSTAT-10（ロードの無いネット 46 本、件数は同じ）が「最初の 15 本」を挙げるときの並びが 1 本入れ替わったもの
+- build.tcl の照合: ROM の中身（OOC の run 5 個で $readmemh の失敗 0）・ドライバの無いネット（自作のセル 20 個で Synth 8-3848 0）・coef_q 1,185 / 1,152 / 1,152 / 1,152・tw_q 576 × 4・CRITICAL WARNING 5 件（移植元も 5 件）
+- 移植元の作業ツリーも同じサーバの上にあるので、比べは同じ Vivado・同じボードのファイルで行った
+
+### M3 の心配（M3 の前に書いた）
 
 移植元の WNS は +0.0007 ns で、作り直して閉じる保証は無い（proj023 の凍結の決め）。置き場所が変わるだけで配置のタイブレークが動けば負に落ちうる。
 Fine の M3 は「ディレクトリだけ違う」作り直しで構成データまで同じになったので、Wide も同じになる見込みが高い。**負に落ちたら RTL も制約も直さずに止め、どうするかを決め直す**（直すと移植ではなくなる）。
