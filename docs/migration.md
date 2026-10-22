@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画
 
-- 状態: **M7 のリリースの前まで済み**（2026-10-21。M7a 使い方・M7b 仕様の値・M7c 設計・M7d のリリースの規則）。次はタグの commit でのビルドとリリース
+- 状態: **M7 済み・移植は完了**（2026-10-22、最初のリリース `sam45-fine/v1.0.0`・`v1.0.0` を commit 7952888 で出した。配る .bit は判定した .bit と FDRI が同じ）
 - 決定: [ADR 0002](decisions/0002-migrate-from-proj021-restructure-only.md)（proj021 を土台にし、構成替えだけを行う）
 
 ## 原則

@@ -12,6 +12,8 @@ study-rfsoc で実際に踏んだもの。カッコ内は詳しい記録のあ�
 - **ボードプリセットは使わない AXI マスタも有効にする。** 使わないものも明示的に 0 にしないと、クロックの無いピンで `validate_bd_design` が落ちる（proj002）
 - **.hwh の basename を .bit とそろえる。** PYNQ は同じベース名の .hwh を探す（proj002）
 - **Vivado 2024.1 の合成で、OOC の run が「0 errors の後の segfault」で落ちることがある。** 落ちた run だけ回し直す（proj013・proj015）
+- **OOC の run が落ちずに固まることもある。** 2026-10-21、SAM45-Fine の `system_smc_ctrl_0`（SmartConnect）の合成が「Unisim Transformation completed」の後で CPU ≒ 1 % のまま 13 時間止まり、本体の `wait_on_runs` が待ち続けた。`build.tcl` の回し直しは落ちた run しか拾わない。ビルドの最中は `ls -lt build/vivado/*.runs` で最後に書かれた run の時刻を見て、30 分動かなければ固まりを疑う（YATSUGATAKE M7d）
+- **同じ計算機で 2 本のビルドを重ねない。** 2026-10-22、SAM45-Wide のビルドと重なった SAM45-Fine の impl_1 が、2 回とも opt_design の後の `write_checkpoint`（タイミングのデータの書き出し、`librdi_timing.so` の並列の中）で segfault した。何も重ねずに回すと同じ RTL がそのまま通り、FDRI も前と同じだった。原因の切り分けはしていない（重なりとの関係は見立て）（YATSUGATAKE M7d）
 - `-1` のビルドで board_part を使えない理由は [ADR 0004](../decisions/0004-build-with-speed-grade-1.md)
 
 ## RFDC（RF Data Converter）
