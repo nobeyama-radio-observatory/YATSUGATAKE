@@ -59,7 +59,7 @@ PS のソフト（specd）と較正ファイルはソースから入れる（版
 
 1. CHANGELOG の版の節と性能評価 `docs/performance/<bit>/<版>.md` を書き、PR で main に入れる
 2. その main の commit で、Vivado の計算機で GitHub から pull する。作業ツリーが汚れていないこと
-3. `-1` でビルドし、タイミング・CDC・資源を確かめる
+3. `-1` でビルドし、タイミング・CDC・資源を確かめる。**ほかのビルドと重ねない**（[`knowledge/pitfalls.md`](knowledge/pitfalls.md)）。make の出力を残すなら作業ツリーの外か `build/` の中に書く（例: `make clean && nohup make JOBS=16 > ~/sam45-fine-build.out 2>&1 &`。作業ツリーに置くと、ホームパスを含むので公開前スキャンが push を止める）
 4. `tools/release_files.py <build> <bit> <版> --out dist/<bit>-<版> --commit <7 桁> [--fdri <前の FDRI>]` で添える組を作る（照合が通ること）
 5. 判定（`test/acceptance/`）を通す。**同じ RTL の作り直しで FDRI が前と同じなら、前の判定を引き継ぐ**（実機では ID-1 と F-0 だけ確かめる）
 6. その commit にタグ（`<bit>/<版>`）を付けて push し、Release を作って 4. の組を添付する

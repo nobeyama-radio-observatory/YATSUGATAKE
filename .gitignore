@@ -19,6 +19,8 @@ build-*/
 *.bit
 # tools/release_files.py が作る Release の組
 /dist/
+# ビルドの出力を受けたファイル（ホームパスを含む）
+make.out
 *.hwh
 *.ltx
 *.bin
