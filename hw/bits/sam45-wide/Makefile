@@ -200,7 +200,7 @@ wide-coef:
 #   wch-b1・b2・b4: 束ね B 1・2・4（SHIFT 7、飽和なし）/ wch-sat: B 4・SHIFT 4（強い線が飽和、束ごとの飽和の数を比べる）/
 #   wch-p: ROM の番地を 1 ずらす（tw_mis が立ち A2 が落ちるべき）/ wch-skew: 束ねの区切りを 1 ずらす（B 4。A2 が落ちるべき）
 # **成否は各ログの「結果: 全部通過」で読む**
-WCH_RTL := src/cmul.v ../../common/dft16.v ../../common/wide_tw_rom.v ../../common/wide_chain.v sim/tb_wide_chain.v
+WCH_RTL := ../../common/cmul.v ../../common/dft16.v ../../common/wide_tw_rom.v ../../common/wide_chain.v sim/tb_wide_chain.v
 WCH_TW  := src/wide_tw.hex
 WCH_VARIANTS ?= wch-b1:0:7:: wch-b2:1:7:: wch-b4:2:7:: wch-sat:2:4:: wch-p:2:7:-DPOSCTL:posctl wch-skew:2:7:-DBIN_SKEW:posctl
 .PHONY: sim-wch wide-tw
@@ -234,7 +234,7 @@ wide-tw:
 #   定義を 2 つ以上渡すときは __ でつなぐ（空白の代わり）
 # **成否は各ログの「結果: 全部通過」で読む**。Vivado サーバで流すときは WSP_VARIANTS を全部（既定）、手元で急ぐときは 1 本ずつ
 WSP_RTL := ../../common/wide_coef_rom.v ../../common/wide_tw_rom.v ../../common/wide_spec.v ../../common/wide_pfb.v ../../common/wide_chain.v \
-           ../../common/wide_acc.v src/cmul.v ../../common/dft16.v sim/lane_fft_w_model.v sim/tb_wide_spec.v
+           ../../common/wide_acc.v ../../common/cmul.v ../../common/dft16.v sim/lane_fft_w_model.v sim/tb_wide_spec.v
 WSP_VARIANTS ?= wsp-b1:0:100:12288:7:: wsp-b2:1:1000:4096:7:: wsp-b4:2:0:0:7:: wsp-sat:2:0:0:4:: \
                 wsp-pg:2:0:0:7:-DPOSCTL_GRID:posctl wsp-pa:0:100:12288:7:-DACC_POSCTL:posctl \
                 wsp-rdy:1:1000:4096:7:-DFFT_READY_DELAY=5000: wsp-stl:1:1000:4096:7:-DFFT_STALL_AT=7: \
@@ -259,7 +259,7 @@ sim-wsp:
 #   wco-b1: B 1、S0 100・12288、時刻の健全性をダンプ 1 にだけ立てる（DUMP_H）/ wco-b2: B 2、出口をときどき止める（rec_fr の FIFO）/
 #   wco-b4: B 4（流れ 1 は空: NCH 0・レコードを出さない）/ wco-p: 語 7 の S0_CUR を入れない（陽性対照。頭の照合が落ちるべき）
 WCO_RTL := ../../common/wide_coef_rom.v ../../common/wide_tw_rom.v ../../common/wide_core.v ../../common/wide_spec.v ../../common/wide_pfb.v \
-           ../../common/wide_chain.v ../../common/wide_acc.v src/cmul.v ../../common/dft16.v src/rec_fr.v ../../common/adc_ev.v \
+           ../../common/wide_chain.v ../../common/wide_acc.v ../../common/cmul.v ../../common/dft16.v ../../common/rec_fr.v ../../common/adc_ev.v \
            sim/lane_fft_w_model.v sim/tb_wide_core.v
 WCO_VARIANTS ?= wco-b1:0:100:12288:7:-DTEV: wco-b2:1:1000:4096:7:-DSTALL: wco-b4:2:0:0:7:: wco-p:1:1000:4096:7:-DW7_POSCTL:posctl
 .PHONY: sim-wco
@@ -282,7 +282,7 @@ sim-wco:
 #   wds: 実機の配線（D_S = 0 のはず）/ wds-p: RAW の口を遅らせない（陽性対照。D_S = +1 で落ちるべき）
 WDS_RTL := ../../common/wide_coef_rom.v ../../common/wide_tw_rom.v ../../common/wide_s45_core.v ../../common/core_cmn.v ../../common/tp_core.v \
            ../../common/raw_core.v ../../common/rec_arb.v ../../common/wide_core.v ../../common/wide_spec.v ../../common/wide_pfb.v ../../common/wide_chain.v \
-           ../../common/wide_acc.v src/cmul.v ../../common/dft16.v src/rec_fr.v ../../common/adc_ev.v sim/lane_fft_w_model.v sim/tb_wide_ds.v
+           ../../common/wide_acc.v ../../common/cmul.v ../../common/dft16.v ../../common/rec_fr.v ../../common/adc_ev.v sim/lane_fft_w_model.v sim/tb_wide_ds.v
 WDS_VARIANTS ?= wds:: wds-p:-DDS_NODELAY:posctl
 .PHONY: sim-wds
 sim-wds:
@@ -303,7 +303,7 @@ sim-wds:
 #   ws45-p: コアの FFT_N（0x80）の書きを wide_core に渡さない（陽性対照。束ねが既定のまま → FFT_N・頭・A2 が落ちるべき）
 WS45_RTL := ../../common/wide_coef_rom.v ../../common/wide_tw_rom.v ../../common/wide_s45_core.v ../../common/core_cmn.v ../../common/tp_core.v \
             ../../common/raw_core.v ../../common/rec_arb.v ../../common/wide_core.v ../../common/wide_spec.v ../../common/wide_pfb.v ../../common/wide_chain.v \
-            ../../common/wide_acc.v src/cmul.v ../../common/dft16.v src/rec_fr.v ../../common/adc_ev.v sim/lane_fft_w_model.v sim/tb_wide_s45.v
+            ../../common/wide_acc.v ../../common/cmul.v ../../common/dft16.v ../../common/rec_fr.v ../../common/adc_ev.v sim/lane_fft_w_model.v sim/tb_wide_s45.v
 WS45_VARIANTS ?= ws45-b2:1:1000:4096:7:-DTEV: ws45-b4:2:0:0:7:-DSTALL: ws45-p:1:1000:4096:7:-DFFTN_POSCTL:posctl
 .PHONY: sim-ws45
 sim-ws45:

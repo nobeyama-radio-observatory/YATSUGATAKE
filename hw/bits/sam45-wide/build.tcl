@@ -396,9 +396,9 @@ if {$use_board} {
 
 # proj023 3b: コア（wide_s45_core）とその中身。窓（win_core 一式）・spec_core は足さない。FULL の位置は RAW（コア 0）だけ
 add_files -norecurse [list ../../common/wide_s45_core.v ../../common/core_cmn.v ../../common/wide_core.v ../../common/wide_spec.v \
-                           ../../common/wide_pfb.v ../../common/wide_chain.v ../../common/wide_acc.v ./src/cmul.v ../../common/dft16.v \
+                           ../../common/wide_pfb.v ../../common/wide_chain.v ../../common/wide_acc.v ../../common/cmul.v ../../common/dft16.v \
                            ../../common/wide_coef_rom.v ../../common/wide_tw_rom.v ../../common/raw_core.v ../../common/tp_core.v \
-                           ./src/rec_fr.v ../../common/rec_arb.v ../../common/adc_ev.v]
+                           ../../common/rec_fr.v ../../common/rec_arb.v ../../common/adc_ev.v]
 # proj016〜: 時刻・リング・ギアボックスの見張り・RAW の入力の選び
 add_files -norecurse [list ../../common/time_core.v ../../common/s45_ring.v ../../common/gb_adc.v ../../common/gb_gate.v ../../common/axis_sel4.v]
 # ROM の中身（$readmemh）。プロジェクトにも載せておく（CONFIG には絶対パスを与える。上の wide_coef_hex）
