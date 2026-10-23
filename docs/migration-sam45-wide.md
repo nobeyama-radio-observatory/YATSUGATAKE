@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M4 済み**（2026-10-22、ブランチ `sam45-wide/m1-place`）。次は M5（Fine の M5a・M5b を当て、PS を一本化する。Fine の v1.0.0 の後）
+- 状態: **M5 の途中**（2026-10-23、ブランチ `sam45-wide/m5`）。PS の一本化と M5b のフックを書いた。次は Wide の焼き直しと実機の回帰（下の「M5 の手順と予言」）
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -172,6 +172,35 @@ Vivado サーバで、一本化の後（c56caf6）と前（main の 927bfc9 を�
 2. **Wide の sim**（`make sim-all`）: 28 個とも通過、sim のログ 27 個が M2（= 移植元）とバイト単位で同じ
 3. **Fine の作り直し**（既定の戦略・`JOBS=8`）: **FDRI `e095fa97…29f9` が v1.0.0 と同じ**。WNS / WHS +0.044057 / +0.009766 ns（M3・M5b と同じ）。USR_ACCESS は c56caf6（汚れなし）。utilization・cdc・timing・net_check が M7 の作業ツリーの v1.0.0 の build と日付の行を除いて同じ。`JOBS=8` でも FDRI が変わらないことも確かめた
 4. **Wide の作り直し**（`IMPL=Performance_Explore JOBS=8`）: `impl_1` は配置・配線・`write_bitstream` まで完走（配線後 WNS 0.001・WHS 0.010 ns）し、**その bit の FDRI `abc66e72…4d4736` と構成の流れの sha256 が M3 と同じ**。ただし build.tcl が報告のために配線後の設計を開き直すところ（`open_run impl_1`）で **Vivado が segfault** した（空きメモリ 91 GB、ネットリストを組む途中。proj023 で配線後の dcp を開いて落ちたのと同じ型）。そのため build.tcl の後半の報告（timing・資源・CDC・`build-PE/` の直下の bit と hwh）は出ていない。構成データがビットまで同じなので、出ていない報告も M3 と同じと見る。落ちる前の照合（結線・番地・RFDC の設定・ROM の中身・ドライバの無いネット）は M3 と同じだった
+
+### M5 の手順と予言（2026-10-23）
+
+**PS の一本化**（`sw/pynq-wide/` を消し、`sw/pynq/` に入れた）。proj021-m0 を土台に、Fine（M1 の後の変更）と Wide（proj023）の両側を比べて分けた:
+
+| 分け | ファイル | 扱い |
+|---|---|---|
+| 同じ | acqboot・extref・instr・rectap・s45allan・s45pn・s45proto・s45resp・s45ring・s45snap・s45snapplot・s45spur・s45tastar・s45v2a・s45v2c・s45v2f・specctl・test_cal_b・test_tpjump・tpjump・window・bits.example.json | そのまま（bits.example.json に Wide の例を 1 件足した） |
+| Fine だけ変えた | s45cal・s45lin・test_regmap・timetest・tp_cal.json | Fine のまま |
+| Wide だけ変えた | s45client（v2 の df_hz で IF の軸）・specrecv（SLICE のフレーム 2048 ビート）・sg（unleveled なら止める） | Wide の版に。**sg.py の変更は Fine にも効く**: SG の出力が unleveled（E8257D は 3.94 GHz で −10 dBm 以下）なら止まる。Fine の手順で低いレベルを使うなら SG の出口に固定減衰器 |
+| | plring・spectrometer | Wide の変更は既定の bit の名前（proj023.bit）だけなので、Fine のまま（Wide の道具は自分で bit を渡す） |
+| 両方変えた | s45acq・s45core・specd・test_fake.sh・timebase | 3 方向のマージ。衝突 4 か所（コメント 2・timebase の CAL の表・time_core の ID の一覧）は Fine の形に Wide の分を足した |
+| Wide だけ | wide・wide_v2・widef2・wideresp・h2peek・sgstat | 足した。gbboot は Fine と同じく移さない（Wide の手順も使っていない） |
+| Fine だけ | bitinfo | そのまま（Wide も使う） |
+
+足した直し:
+- **s45core**: 既定（`discover()` の BIT_KIND・BIT_REV の下限・`--bitfile`）は Fine のまま（proj023 は既定を Wide にしていた）。Wide の道具は `bit_kind=1, bit_rev_min=1` を渡す（proj023 のまま）。`--list` はどちらの bit も読む（BIT_KIND ごとの下限 {1: 1, 2: 2}）
+- **specd**: `load_bits()` が bits.json の `kind` を捨てていたのを直した（M4 で踏んだ）。`test_fake.sh widekind` を足した: `kind: wide` だけで Wide の取得が起き、`kind` の無い項目へ LOAD すると Fine に戻る。**直す前の specd ではこの試験が NG になる**（陽性対照）
+- **s45acq**: Wide の取得の ID にも `usr`（M5b の USR_ACCESS）
+- **timebase**: CAL に **(1, 1)**: pps_det_ns 71.5・adc_to_core_ns A 143.0・B 142.9・C 141.5・D 141.4・bound_ns 5（proj023 の F-2、(2, 3) と同じ形 (b)）。time_core の ID の一覧に 0x0201_0102
+
+作業用の環境で通したもの: `test_fake.sh all` **17 試験とも通過**（Fine 13・Wide 4）・`wide.py --selftest`・`wide_v2.py --selftest`・`test_cal_b.py`・`test_tpjump.py`・`py_compile`、Fine の sim-regmap の regs.txt（一本化の結果のときの Fine の sim の出力）に当てた `test_regmap.py` が 78 項目で全部通過
+
+**M5b のフック**: Fine の Makefile・build.tcl（4c35583・8eba348）の USR_ACCESS の部分を、そのまま Wide に写した（Makefile 13 行・build.tcl 22 行）。RTL・制約・配置には触れない
+
+**残り（予言）**:
+1. **Wide の焼き直し**（`make IMPL=Performance_Explore`）: USR_ACCESS に commit が焼かれ、`bitinfo.py` の読み返しが通る。**FDRI は M3 と同じ**（`abc66e72…`）。BIT_REV は 1 のまま（release.md: 同じ RTL の作り直し）
+2. **実機（Wide、一本化した `sw/pynq/`）**: `wide.py --list`（M4 と同じ値）、specd を **`--wide` なしで bits.json の `kind` だけで**起こし、V2-b 300 s（M4 と同じ）。START の EVENT の `ids.usr` が 1 の commit、錨の較正が (1, 1) で「未較正」でない
+3. **実機（Fine、同じ `sw/pynq/`）**: PS が変わったので短い回帰（ID-1・`s45core --list`・V2-b 300 s）。Fine の M4 と同じ値
 
 ### M3 の心配（M3 の前に書いた）
 

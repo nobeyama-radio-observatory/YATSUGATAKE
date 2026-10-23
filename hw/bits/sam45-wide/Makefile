@@ -65,7 +65,14 @@ endif
 # コア数やメモリの少ない機械では `make JOBS=8` に下げること。
 JOBS ?= 30
 
-export BOARD_REPO PART OUTDIR FFT_OPT GB_K GB_SLOW GB_SLOW_SITE IMPL
+# YATSUGATAKE M5b: .bit の USR_ACCESS に焼く値（docs/migration.md の M5）。[31:4] commit の短いハッシュ 7 桁・[3:1] 0・
+#   [0] 追跡しているファイルに未コミットの変更がある。make を始めた時点で 1 回だけ決める。USR_ACCESS=none で焼かない（比べのため）
+ifeq ($(origin USR_ACCESS),undefined)
+  USR_ACCESS := $(shell h=$$(git rev-parse --short=7 HEAD 2>/dev/null | cut -c1-7); \
+                  [ $${#h} = 7 ] && printf '0x%s%s' $$h $$(git status --porcelain --untracked-files=no | grep -q . && echo 1 || echo 0))
+endif
+
+export BOARD_REPO PART OUTDIR FFT_OPT GB_K GB_SLOW GB_SLOW_SITE IMPL USR_ACCESS
 
 # ---- シミュレーション（Vivado もライセンスも要らない。RTL を触ったらまずこれ。下の sim-all）----
 IVERILOG  ?= iverilog
@@ -75,7 +82,11 @@ PYTHON    ?= python3
 .PHONY: all sim-all gb-cdc worst-paths survey prog id timing-check ps-preset clean
 
 all: $(OUTDIR)
+	@test -n "$(USR_ACCESS)" || { echo "USR_ACCESS を git から作れない（git の作業ツリーの中で make する。焼かないなら USR_ACCESS=none）"; exit 1; }
+	@echo "USR_ACCESS: $(USR_ACCESS)"
 	$(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado.log -source build.tcl -tclargs $(JOBS)
+	@# M5b: 書き出した .bit を読み返し、焼くはずの値と照らす（在るかと、値が合うかの両側。none なら「無いこと」）
+	@$(PYTHON) ../../../sw/pynq/bitinfo.py $(OUTDIR)/$(PROJ).bit --expect $(USR_ACCESS) > $(OUTDIR)/bitinfo.txt; s=$$?; cat $(OUTDIR)/bitinfo.txt; exit $$s
 
 # ---- 配置配線後の dcp で gb_fifo の gray ポインタの乗り換えをビットごとに測る（rev6。ビルド不要、数分）----
 # DCP を指定しなければ build/ の dcp。結果は dcp と同じ場所の gb_cdc.txt
