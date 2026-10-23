@@ -44,7 +44,7 @@
 |---|---|---|
 | FULL | 0（矩形の FFT。フレームの最初のビート） | 決定 |
 | RAW | 0（生サンプルのフレームの最初のビート） | 決定 |
-| DDC（PFB T = 4、SAM45-Fine の窓） | D(NS) ＋ 1.5·L(NS) | D(NS) は今 `timebase.WIN_DELAY_BEATS`（proj017 の矩形の sim）。**PFB の RTL で出し直すのは持ち越し**（下） |
+| DDC（PFB T = 4、SAM45-Fine の窓） | D(NS) ＋ 1.5·L(NS) | 決定。D(NS) は `timebase.WIN_DELAY_BEATS`（`hw/bits/sam45-fine` の `make sim-wdelay`）。窓の PFB は wspec の中（z の後）にあるので D(NS) に入らず、そのずれは 1.5·L(NS) で足す |
 | SLICE（PFB T = 4、SAM45-Wide） | D_S ＋ 1.5·L = 0 ＋ 3072 ビート = 12 µs | 決定（proj023 の sim-wds） |
 
 TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初のフレームの頭）。
@@ -70,6 +70,6 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 
 ## 持ち越し
 
-- DDC の D(NS) を PFB の入った RTL の sim で出し直し、(BIT_KIND, BIT_REV) の表に移す（今は全 bit 共通の `WIN_DELAY_BEATS`。[`interface.md`](interface.md) の 5.2）
+- DDC の D(NS) を (BIT_KIND, BIT_REV) の表に移す（今は全 bit 共通の `WIN_DELAY_BEATS`。DDC の窓を持つ bit が SAM45-Fine だけの間は値が当たる。[`interface.md`](interface.md) の 5.2）
 - 幅の違う窓の区切りの差 X(NS)（NS 1 と 6 で 2.4 µs）は受け入れている（utc_ns はそれを含んだ正しい時刻）
 - 起こした直後の 1PPS の取り込みの異常・PPS のスタンプの量子化（±0.5 ビート）の見立ては調べている途中
