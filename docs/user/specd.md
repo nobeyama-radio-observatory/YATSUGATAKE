@@ -7,7 +7,7 @@ specd はボードの上で動く分光計のサーバー。制御の口（TCP 5
 ```bash
 ssh xilinx@<board>
 cd ~/sam45-fine-<版>
-ls /dev/shm                       # 前の specd の残り（psm_*）があれば消す: sudo rm /dev/shm/psm_*
+ls /dev/shm                       # 前の specd の残り（psm_*）があれば消す: sudo rm /dev/shm/psm_*（kill -9 で落としたときなど）
 sudo -E $(which python3) specd.py --clkin 0 --ref 10 --bits bits.json
 ```
 
@@ -60,7 +60,7 @@ sudo -E $(which python3) specd.py --clkin 0 --ref 10 --bits bits.json
 python3 specctl.py --host <board> "SHUTDOWN confirm=1"    # 制御 PC から
 ```
 
-ボードの上で Ctrl-C でもよい。止めた後に `/dev/shm` に `psm_*` が残っていたら消す（次に起こすときに邪魔をする）。
+ボードの上で Ctrl-C・`kill <PID>` でもよく、ssh が切れたときも specd は片付けてから止まる。`kill -9` で落としたときだけ `/dev/shm` に `psm_*` が残るので消す（次に起こすときに邪魔をする）。v1.0.0 の specd は普通に止めても残ることがある（既知の制限 3）
 
 ## 困ったとき
 

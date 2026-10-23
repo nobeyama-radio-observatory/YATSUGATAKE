@@ -535,9 +535,11 @@ class Server:
                     time.sleep(0.002)
                     continue
                 mv, seq, end = r
-                s.sendall(mv)
                 n = len(mv)
-                mv.release()
+                try:
+                    s.sendall(mv)
+                finally:
+                    mv.release()                       # 送れずに抜けても溜まりへの参照を残さない（残ると片付けで共有メモリが消えなかった）
                 with self.dlock:
                     if self.dsock is s:
                         self.ring.advance(end)
@@ -560,7 +562,7 @@ class Server:
                 log("取得のプロセスが止まった")
         except KeyboardInterrupt:
             log("止める（Ctrl-C / TERM）。もう一度 Ctrl-C ですぐ抜ける")
-            signal.signal(signal.SIGINT, lambda *_: os._exit(1))
+            signal.signal(signal.SIGINT, lambda *_: (self.ring.unlink(), os._exit(1)))   # すぐ抜けても溜まりの名前は消す
         self._shutdown()
 
     def _shutdown(self):
@@ -587,7 +589,7 @@ class Server:
                 self.inflight.clear()
             self.ring.close()
         except BufferError:
-            log("共有メモリの片付け: 送信の途中の参照が残っていた（OS が片付ける）")
+            log("共有メモリの片付け: 溜まりへの参照が残っていた（名前は消した。写像はプロセスの終わりに返る）")
         log("止めた")
 
 
@@ -655,6 +657,7 @@ def main():
     # SIGINT も明示して受ける（起動のされ方で SIGINT が無視の状態で引き継がれていると、Python は Ctrl-C を受けない）。TERM も同じに片付ける
     signal.signal(signal.SIGINT, _on_sig)
     signal.signal(signal.SIGTERM, _on_sig)
+    signal.signal(signal.SIGHUP, _on_sig)          # ssh が切れたときも片付けてから止まる（既定の動作では片付けずに落ち、溜まりが残る）
     log(f"specd の PID {os.getpid()}（止める: Ctrl-C・kill {os.getpid()}・制御の口の SHUTDOWN confirm=1）")
     cal_path, a.tp_cal = a.tp_cal, None
     if cal_path and os.path.exists(cal_path):

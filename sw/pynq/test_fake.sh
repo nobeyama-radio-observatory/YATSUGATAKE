@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # proj018 — PL なし（specd.py --fake）での通信・溜まり・照合の試験と陽性対照。どこの Linux でも回る（numpy だけ）
 #   bash test_fake.sh all          # 全部（≒ 2 分）
-#   bash test_fake.sh basic|corrupt|gap|drop|skip|reconnect|stall
+#   bash test_fake.sh basic|corrupt|gap|drop|skip|reconnect|stall|shm
 # 判定は各試験の最後の「判定: OK / NG」。全部の終わりに「test_fake: 全部通過」
 cd "$(dirname "$0")"
 OUT=${OUT:-/tmp/s45test}; mkdir -p "$OUT"
@@ -234,8 +234,23 @@ t_widekind() {    # SAM45-Wide の M5: bits.json の項目の "kind": "wide" だ
     "kind wide: $(echo "$r1" | grep -o 'A0.b=[0-9]*' | head -1)（期待 A0.b=2）・kind なしへ LOAD した後の A.b: $(echo "$r2" | grep -o 'ERR[^>]*' | head -1 | cut -c1-40)・A0.bw: $(echo "$r3" | grep -o '^OK' | head -1)"
 }
 
+t_shm() {     # 既知の制限 3: 送信が時間切れで抜けた後に specd を止めても、溜まり（/dev/shm/psm_*）を残さない（参照が残って close が BufferError → unlink に届かなかった）
+  echo "== shm"
+  local before=$(ls /dev/shm | grep '^psm_' | sort)
+  srv shm --send-timeout 2
+  local mine=$(comm -13 <(echo "$before") <(ls /dev/shm | grep '^psm_' | sort))
+  ctl "START n=0" "SEND ON" > /dev/null
+  # 読まない受け手: つないだまま黙る → specd の sendall が時間切れの OSError で抜ける
+  python3 -c "import socket,time; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096); s.connect(('127.0.0.1', $PORTD)); time.sleep(5)"
+  local to=$(grep -c '送れない' "$OUT/shm.specd.log")
+  stop_srv
+  local left=0; [ -n "$mine" ] && [ -e "/dev/shm/$mine" ] && left=1
+  [ -n "$mine" ] && rm -f "/dev/shm/$mine"
+  judge $([ -n "$mine" ] && [ "$to" -ge 1 ] && [ $left = 0 ] && echo 1 || echo 0) "溜まり ${mine:-（見つからない）}・送信の時間切れ $to 回・止めた後に $([ $left = 1 ] && echo 残った || echo 消えた)"
+}
+
 case "${1:-all}" in
-  all) t_basic; t_corrupt; t_gap; t_drop; t_skip; t_reconnect; t_stall; t_f32; t_f32p; t_v1; t_load; t_tpjump; t_idle; t_wide; t_widep; t_widesnap; t_widekind ;;
+  all) t_basic; t_corrupt; t_gap; t_drop; t_skip; t_reconnect; t_stall; t_f32; t_f32p; t_v1; t_load; t_tpjump; t_idle; t_shm; t_wide; t_widep; t_widesnap; t_widekind ;;
   *) "t_$1" ;;
 esac
 if [ $NG = 0 ]; then echo "test_fake: 全部通過"; else echo "test_fake: NG $NG 件"; exit 1; fi
