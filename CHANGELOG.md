@@ -5,6 +5,8 @@
 
 ## 未リリース
 
+- **PS（specd）**: 止めた後に共有メモリの溜まり `/dev/shm/psm_*` が残る件を直した（v1.0.0 の既知の制限 3）。送信が時間切れ・切断で抜けたときに記録の memoryview を放さず、片付けの `release` が BufferError になって `unlink` に届いていなかった。Python 3.10 では取得の子が resource_tracker の登録を外すので、残りを誰も消さない。名前を先に消す・SIGHUP でも片付ける形にした。SAM45-Wide（`sw/pynq-wide/`）も同じ。`test_fake.sh` に `shm` を足した（直す前の道具では落ちる）
+
 ## v1.0.0（`v1.0.0`・`sam45-fine/v1.0.0`、2026-10-22）— 最初のリリース
 
 study-rfsoc の proj021（手順 2-5）を移した SAM45-Fine を、最初の版として出す。

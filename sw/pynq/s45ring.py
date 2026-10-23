@@ -31,15 +31,21 @@ class Ring:
         self.lock = lock or mp.Lock()
         self._r = 0           # 読み手の手元の位置（peek で進め、commit で確定）
 
-    def close(self):
-        self.ctl = None
-        self._ctl_mv.release()
-        self.buf.release()
-        self.shm.close()
+    def unlink(self):
+        """/dev/shm の名前を消す（写像はつないでいるプロセスが閉じるか終わるまで残る。何度呼んでもよい）"""
         try:
             self.shm.unlink()
         except FileNotFoundError:
             pass
+
+    def close(self):
+        # 名前を先に消す。中身への参照が残っていて release が BufferError でも、/dev/shm に溜まりを残さない
+        # （Python 3.10 では取得の子が resource_tracker の登録を外すので、終わりに誰も消さない。YATSUGATAKE の既知の制限 3）
+        self.unlink()
+        self.ctl = None
+        self._ctl_mv.release()
+        self.buf.release()
+        self.shm.close()
 
     # ---- 共通
     def positions(self):
