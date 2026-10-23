@@ -354,6 +354,7 @@ def main():
     p.add_argument("--bitfile", default="proj023.bit")
     p.add_argument("--clkin", default="stock")
     p.add_argument("--ref", type=float, default=10.0)
+    p.add_argument("--lmx-pwr", type=int, default=3, help="LMX2594 の出力の強さ（specd と同じ既定 3。出荷時は 31）")
     p.add_argument("--settle", type=float, default=5.0)
     p.add_argument("--size-mib", type=int, default=32)
     p.add_argument("--v2a", action="store_true")
