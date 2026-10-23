@@ -14,4 +14,4 @@ sudo -E $(which python3) wide.py --clkin 0 --ref 10 --list
   - **起動の見張り**: 4 コアとも FLAGS 0x00 → 0x00（Overlay から今まで → 消して 0.5 s 後）、go 1・have_first 1、待たされた 1・待ち行列 2 語、IP の位相 入口 8・出口 155・遅れ 147
   - ログに LMX2594 を PWR 3 で書いた行
 - **陽性対照**: なし（起動の見張りの FLAGS は、直す前の RTL で 0x30 / 0x32 が立ったことがある: proj023 手順 4b の 4〜6 回目。sim の wsp-rdy・wsp-stlp が同じ形で落ちる）
-- **記録**: proj023 手順 4b の 7 回目（2026-10-17、ビルド 11）: 4 コアとも 0x00 → 0x00・入口 8・出口 155・遅れ 147、Overlay の読み直し 5 回とも同じ。YATSUGATAKE M4（2026-10-22）・M5（2026-10-23、`w_list.txt`）で同じ値（PWR 31）
+- **記録**: **YATSUGATAKE M6 で通過（2026-10-23、bit `54b0dbea…`・usr ba456e10・PWR 3、`~/m2/m6w/n1/n1_id1.txt`）: 予言どおり。N1 の Overlay 9 回とも起動の見張り 0x00 → 0x00・入口 8・出口 155**。 proj023 手順 4b の 7 回目（2026-10-17、ビルド 11）: 4 コアとも 0x00 → 0x00・入口 8・出口 155・遅れ 147、Overlay の読み直し 5 回とも同じ。YATSUGATAKE M4（2026-10-22）・M5（2026-10-23、`w_list.txt`）で同じ値（PWR 31）
