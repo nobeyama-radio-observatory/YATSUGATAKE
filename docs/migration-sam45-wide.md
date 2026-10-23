@@ -266,6 +266,12 @@ Vivado サーバで、一本化の後（c56caf6）と前（main の 927bfc9 を�
 - **結論は変えない（PWR 3 にする）**: 下がる側の線は 5〜13 dB 下がり、r の最大は約 1/3。上がるのは 2621・3604 の 2 本（+2〜4 dB）だけで、proj019 と同じ。Fine と同じ強さにする理由（bit で状態を替えない・M6 の前）も残る
 - 記録: 制御 PC の `~/m2/lmx/c{1..4}_*`（.s45 は 1 本 ≒ 200 MB）
 
+**2 の結果（2026-10-23、配線 N）: 予言どおり**
+- Wide（PWR 3、既定）: ID `lmx_pwr=3`・`usr=ba456e10`、START の EVENT の ids も `lmx_pwr: 3`。V2-b 300 s（M5 と同じ設定）: 受け側 SPEC 51,191・TP 29,253・842 MB、CRC・欠け・説明のない欠け・kgap・tdev・tp_gap・sat 0、版 2 だけ。STATUS: miss・bdrop・r_bad・pl_drop・pl_crc・pl_err・tp_lost・tp_rec_lost・drop 0、**bund_r は 7 本とも 1,048,576**、time_ok 1・forced 0、loop_max 22.64 ms・loop_p99 7.2 ms・loop_slow 0・pl_peak 694,656 B。**M5（SPEC 51,191）・M4 と同じ**。tp_dbfs −31.33〜−31.50（M5 と ±0.02 dB）
+- Fine（`--bit proj021`）: ID `adc_id=02020301`・`usr=c56caf60`・**`lmx_pwr=3`**、`GET CAL` は (2, 3)。LMX を書く部分を共有の関数にした後も Fine は同じ
+- 判定の外: TP_JUMP 6 回（1・4・1・0）。M5 の 189 回・Fine の 133 回より少ない（入力の側の揺れの日内の違い。PWR とは結び付けない）
+- 記録: `~/m2/lmx/l2w_*`・`l2f_id.txt`
+
 ### M3 の心配（M3 の前に書いた）
 
 移植元の WNS は +0.0007 ns で、作り直して閉じる保証は無い（proj023 の凍結の決め）。置き場所が変わるだけで配置のタイブレークが動けば負に落ちうる。
