@@ -2,7 +2,7 @@
 
 | bit | ディレクトリ | 状態 |
 |---|---|---|
-| SAM45-Wide | `sam45-wide/` | 未着手 |
+| SAM45-Wide | [`sam45-wide/`](sam45-wide/) | 移植中（[docs/migration-sam45-wide.md](../../docs/migration-sam45-wide.md)） |
 | SAM45-Fine | [`sam45-fine/`](sam45-fine/) | study-rfsoc proj021 で開発中 |
 | 2G | `2g/` | 未着手 |
 | 512M | `512m/` | 未着手 |
