@@ -22,8 +22,8 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 
 | 名前 | 中身 | ADC での強さ |
 |---|---|---|
-| 配線 N | ノイズソース → 2 分配器 A（SG の口は出力 OFF）→ PATT 13 dB → BPF 2.1〜3.9 GHz → 2 分配器 B →（ATT 20 dB → PM）・（ATT 3 dB → 4 分配器 → ADC_A〜D） | ≒ −31.4 dBFS |
-| 配線 NS | 配線 N のまま SG の口を出力 ON（ノイズは入ったまま。雑音は P_off を引いて消す） | SG 0 dBm で CW が ch の中央値の ≒ 25 dB 上（B 1） |
+| 配線 N | ノイズソース → BPF 2.1〜3.9 GHz → 2 分配器 A（もう一方の口に SG、出力 OFF）→ PATT 13 dB → 2 分配器 B →（ATT 20 dB → PM）・（ATT 3 dB → 4 分配器 → ADC_A〜D）。**SG は BPF を通らない**（2026-10-23 に実験者が確かめた。はじめ BPF を PATT の後に書いていたのは誤り） | ≒ −31.4 dBFS |
+| 配線 NS | 配線 N のまま SG の口を出力 ON（ノイズは入ったまま）。**H-1 だけはノイズソース OFF・PATT 0 dB**（P_off で消えるのは雑音の平均だけで、CW × 雑音の交差項の揺れが残る。H-1 の前提の改め、2026-10-23） | SG 0 dBm で CW が ch の中央値の 21.9・13.9・10.3 dB 上（H-2 の B 1・2・4、2026-10-23。proj023 の 10-17 は分配器を替える前で 25.0・20.5・16.1） |
 | 配線 P | 1PPS を分配して PPS Clk と ADC_A〜D に | — |
 
 - BPF の通過域の肩（2.1 GHz・3.9 GHz の近く）は、床の推定に幅のある形として出る（2130 MHz、2026-10-23 の櫛の比べで踏んだ）。線を数える判定では肩を避けるか、そうと書く
@@ -44,8 +44,8 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 | [V2-b](V2-b.md) | specd の 40.96 ms で 30 分 | specd | N | 通過 |
 | [V2-d](V2-d.md) | LOAD で Wide ⇄ Fine を往復（`kind`・usr） | specd | N | なし（M5 で LOAD の片道だけ） |
 | [S](S.md) | specd の SNAP（RAW の生サンプル） | specd | N | 通過 |
-| [P-8](P-8.md) | TP の線形性・流れ / TP・Wide の tp_cal | specd | N（＋ PM・ATT） | 通過 |
-| [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | 通過 |
+| [P-8](P-8.md) | TP の線形性・流れ / TP・Wide の tp_cal | specd | N（＋ PM・ATT） | なし（新しく） |
+| [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | なし（Fine で通過。TP の作りは同じ） |
 
 **Wide では回さない判定**:
 - V2-c（窓の W-G をレコードの道で）: Wide には DDC の窓が無い。SLICE の中身は sim の A2（模型と bit 単位）・H-2・H-0 で見ている（proj023 の手順 4c）
