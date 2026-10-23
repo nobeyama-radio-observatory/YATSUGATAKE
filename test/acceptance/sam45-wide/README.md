@@ -44,8 +44,8 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 | [V2-b](V2-b.md) | specd の 40.96 ms で 30 分 | specd | N | 通過 |
 | [V2-d](V2-d.md) | LOAD で Wide ⇄ Fine を往復（`kind`・usr） | specd | N | なし（M5 で LOAD の片道だけ） |
 | [S](S.md) | specd の SNAP（RAW の生サンプル） | specd | N | 通過 |
-| [P-8](P-8.md) | TP の線形性・流れ / TP・Wide の tp_cal | specd | N（＋ PM・ATT） | なし（新しく） |
-| [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | なし（Fine で通過。TP の作りは同じ） |
+| [P-8](P-8.md) | TP の線形性・流れ / TP・Wide の tp_cal | specd | N（＋ PM・ATT） | 通過 |
+| [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | 通過 |
 
 **Wide では回さない判定**:
 - V2-c（窓の W-G をレコードの道で）: Wide には DDC の窓が無い。SLICE の中身は sim の A2（模型と bit 単位）・H-2・H-0 で見ている（proj023 の手順 4c）
