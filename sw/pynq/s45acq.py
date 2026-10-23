@@ -355,6 +355,20 @@ class HwBackend:
         except (OSError, bitinfo.BitError):
             return "?"
 
+    def _setup_lmx(self):
+        """proj019: LMX の VCO・出力の強さを動かす（既定は specd の --lmx-pwr 3、櫛 n × 163.84 MHz を下げる）。出力 491.52 は同じ。
+        setup_clocks の後、Overlay() の前に呼ぶ。SAM45-Wide も同じ（YATSUGATAKE: Wide の裏が写し漏れて 31 のままだった）"""
+        self.lmx = None
+        chdiv = getattr(self.o, "lmx_chdiv", 16)
+        pwr = getattr(self.o, "lmx_pwr", None)
+        if chdiv != 16 or pwr is not None:
+            import extref
+            self.lmx = extref.rewrite_lmx(chdiv, pwr)
+
+    def _lmx_ids(self):
+        return dict(lmx_vco=f"{self.lmx['vco_mhz']:.2f}" if self.lmx else "7864.32",
+                    lmx_pwr=str(self.lmx.get("outa_pwr", 31)) if self.lmx else "31")
+
     def open(self):
         import spectrometer as S
         import timetest as T
@@ -364,12 +378,7 @@ class HwBackend:
         from pynq import Overlay
         import xrfdc                               # Overlay() より前に import する（VERSIONS.md）
         S.setup_clocks(self.o.clkin, self.o.ref)
-        self.lmx = None
-        chdiv = getattr(self.o, "lmx_chdiv", 16)
-        pwr = getattr(self.o, "lmx_pwr", None)
-        if chdiv != 16 or pwr is not None:         # proj019: LMX の VCO・出力の強さを動かす（櫛の出どころの試験）。出力 491.52 は同じ
-            import extref
-            self.lmx = extref.rewrite_lmx(chdiv, pwr)
+        self._setup_lmx()
         self.ol = Overlay(self.o.bitfile)
         if not isinstance(self.ol.rfdc, xrfdc.RFdc):
             raise RuntimeError("RFDC に xrfdc のドライバが当たっていない")
@@ -390,8 +399,7 @@ class HwBackend:
         self.ids = dict(win=f"{self.wins[0].rd(W.R_ID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",   # proj021 2-2d: 載っている time_core の IF_ID（BIT_REV 1 / 2）
                         proj=f"{c0.proj:08x}",
                         usr=self._usr_access(),                                   # YATSUGATAKE M5b: 載せた .bit の USR_ACCESS（commit）
-                        lmx_vco=f"{self.lmx['vco_mhz']:.2f}" if self.lmx else "7864.32",
-                        lmx_pwr=str(self.lmx.get("outa_pwr", 31)) if self.lmx else "31")
+                        **self._lmx_ids())
         self.clock = Clock(None, TB.WIN_DELAY_BEATS)
         if self.use_ring:
             self._open_ring()
@@ -840,7 +848,7 @@ class WideBackend(HwBackend):
         from pynq import Overlay
         import xrfdc                               # Overlay() より前に import する（VERSIONS.md）
         S.setup_clocks(self.o.clkin, self.o.ref)
-        self.lmx = None
+        self._setup_lmx()
         self.ol = Overlay(self.o.bitfile)
         if not isinstance(self.ol.rfdc, xrfdc.RFdc):
             raise RuntimeError("RFDC に xrfdc のドライバが当たっていない")
@@ -865,7 +873,7 @@ class WideBackend(HwBackend):
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(SC.S_SID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",
                         proj=f"{c0.proj:08x}", kind="wide", usr=self._usr_access(),   # YATSUGATAKE M5b（Wide も同じ）
-                        lmx_vco="7864.32", lmx_pwr="31")
+                        **self._lmx_ids())
         self.clock = Clock(None, {})
         self._open_ring()
         self.ids["read"] = "ring"

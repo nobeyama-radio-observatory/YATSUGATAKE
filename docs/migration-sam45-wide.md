@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M5 済み**（2026-10-23、ブランチ `sam45-wide/m5`）。Wide の焼き直し・Wide と Fine の実機の回帰とも予言どおり（下の「M5 の手順と予言」）。次は M6（その前に Wide の LMX の出力の強さを決める）
+- 状態: **M5 済み**（2026-10-23、ブランチ `sam45-wide/m5`）。Wide の焼き直し・Wide と Fine の実機の回帰とも予言どおり（下の「M5 の手順と予言」）。次は Wide の LMX の出力の強さを Fine と合わせる（下の「M5 の後」、ブランチ `sam45-wide/lmx-pwr`）、その後 M6
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -228,6 +228,29 @@ Vivado サーバで、一本化の後（c56caf6）と前（main の 927bfc9 を�
 - V2-b 300 s（`SET tint=0.01024 fmt=f32 A0.bw=256 A1.bw=8 all.shift=9`）: 受け側 SPEC 234,033・TP 27,992・3.7 GB、CRC・欠け・説明のない欠け・逆戻り・重複・kgap・tdev・tp_gap 0、health・flags・sat 0、版 2 だけ。START の EVENT の `ids.usr` = `c56caf60`・proj 00210200・tp_cal (2, 3)。STATUS: miss・kgap・bdrop・r_bad・pl_drop・pl_crc・pl_err・tp_lost・tp_rec_lost・drop 0、time_ok 1・forced 0、**loop_p99 19.3 ms**（Fine の M5b の実機 19.2 ms）・loop_max 28.35 ms・loop_slow 14,322（10.24 ms では毎周越えるのが普通、V2-b の判定）・pl_peak 1,056,512 B、bund_r 524,426 / 525,742 の交互（V2-a の r = 524,426 と同じ形）。**Fine の M5b の実機と同じ**
 - 判定の外: tp_dbfs −31.27〜−31.43（tp_dbm −25.26〜−25.53）。M5b の −12.4 との差は Wide の M4 と同じ配線 N の中の減衰。TP_JUMP 133 回（42・29・33・29）、4 ADC そろって 150〜170 s に 90 回の固まりほか、−0.022〜+0.053 dB。同じ日の Wide と同じ型（入力の側）
 - 記録: `~/m2/m5/m5f_id.txt`・`m5f_v2b.json`・`m5f_v2b_status.txt`（`.s45` は 3.9 GB、照合が済んだので消してよい）、ボードの `f_list.txt`・`specd_fine.log`
+
+### M5 の後: LMX の出力の強さを Fine と合わせる（2026-10-23、手順と予言。ブランチ `sam45-wide/lmx-pwr`）
+
+**決めたこと**: Wide の取得と Wide の道具も、LMX2594 の出力の強さを Fine と同じ **PWR 3** にする（M5 の実機で見つけた）。M6 の判定と Wide の tp_cal を測る前に替える。
+
+**比べたこと**（proj019 の記録から）:
+- 櫛 n × 163.84 MHz は LMX の出力 491.52 MHz（タイルの基準）の経路から出る。bit ではなくボードの性質で、**12 本（n = 13〜24）とも Wide の帯域の中**
+- PWR 31 → 3 で櫛の和 −5.7 dB（一番強い 3768.32 は −4.8 dB、PWR 10 で最小になる癖）。ロック・位相雑音（差 0.2 dB 以内）・無入力の床は PWR 0 まで変わらない
+- 31 のままだと、LOAD で Fine ⇄ Wide を替えるたびにクロックの状態が変わる（同じ日の Fine と Wide のデータで櫛の強さが違う）
+- 31 を残す利点は今までの記録（proj023 の判定・M4・M5、F-2 の (1, 1)）と続くことだけ。下げる側の副作用は見つかっていない
+- **2G も同じ**: study-rfsoc の proj025 の G21・G22 のバックエンドは WideBackend を写していて 31。ここで決めた値を study-rfsoc 側にも当てる
+
+**変えたもの**（PS だけ。ビルドは要らない）:
+- `s45acq.py`: LMX を書く部分を HwBackend の `_setup_lmx()`・`_lmx_ids()` にまとめ、Fine と Wide の両方で呼ぶ（ずれの原因は WideBackend の写し漏れなので、写さずに共有する）。Fine の動きは変わらない（同じ行を関数に移しただけ）。ID の `lmx_pwr` は Wide でも実際の値
+- `wide.py` の `open_board()` と `wide.py`・`wide_v2.py`・`widef2.py`・`wideresp.py`: `--lmx-pwr`（既定 3、specd と同じ）。`--lmx-pwr 31` で出荷時と同じ強さを書く
+- `widecomb.py`（新）: 櫛の 12 本の E（超過の電力、s45spur と同じ量）を .s45 どうしで比べる（Fine の `s45spur.py` は Wide の SLICE の軸を読まない）
+- 手元で: `test_fake.sh all` 全部通過・`wide.py` / `wide_v2.py` / `widecomb.py --selftest` 通過。`widecomb.py` は M5 の Wide の V2-b（PWR 31）で櫛を拾えた（ADC_B の 3768.4 MHz で r 0.13・2293.7 MHz で 0.10）。偽の裏は LMX を書かないので、`_setup_lmx()` を通るのは実機だけ
+
+**手順と予言**（実機。1・2 は配線 N のまま、3 は配線 P）:
+1. **櫛**: specd を `--lmx-pwr 31` → 既定（3）→ 31 → 3 と交互に 4 回起こし、各回 `SET tint=0.04096 fmt=f32 all.b=4 all.shift=7` で 120 s 受ける（B 4 なら流れ 0 が 2048〜4096 MHz の全部で、4 ADC とも 12 本が入る）。`widecomb.py --pair` で 2 組を比べる。
+   **予言**: 4 ADC の櫛の和の E が 2 組とも **−4〜−8 dB**（proj019 の −5.7 dB）。強い線（2785.28・3440.64・2293.76・2949.12・2457.6）は下がる。2621.44・3604.48 は下がらない（別の経路）。3768.32 は下がり方が小さい（PWR 10 で最小）。ID の `lmx_pwr` が 31 / 3 で替わる。外れたら、同じ日に Fine（`--bit proj021`）でも 31 / 3 を取り、bit に付く違いかを分ける
+2. **回帰**: 既定（3）で V2-b 300 s（M5 と同じ設定）。**予言**: M5 と同じ（CRC・欠け・kgap・tdev・miss・bdrop・pl_drop 0、bund_r 7 本とも 1,048,576、time_ok 1）。Fine も `--bit proj021` で起こし、ID の `lmx_pwr=3`（Fine の動きは変わらない）
+3. **時刻の較正**（配線 P）: `widef2.py --lmx-pwr 31` と `--lmx-pwr 3`（既定）を交互に 2 回ずつ（ケーブルの入れ替えなし。差だけを見る）。**予言**: adc_to_core の差が 4 ADC とも **1 ビート以内**（2 回の差の線と同じ）。ADC の遅れはクロックの数で決まり、基準の強さで動くのは ps 級のはず。外れたら (1, 1) の CAL を PWR 3 で測り直す（ケーブルを入れ替えた 2 回）
 
 ### M3 の心配（M3 の前に書いた）
 
