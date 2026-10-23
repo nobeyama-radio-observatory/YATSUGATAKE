@@ -4,6 +4,8 @@
     "proj021": {"bit": "proj021.bit", "pydir": ".", "tp_cal": "tp_cal.json",
                 "note": "SAM45-Fine v2（INTERFACE v2・PL が書くリング）。sha256 は sha256sum proj021.bit で書き足す"},
     "proj020": {"bit": "../proj020/proj020.bit", "pydir": "../proj020", "tp_cal": "../proj020/tp_cal.json",
-                "note": "SAM45-Fine v1（proj020。仮の読み窓・s45proto v1）。V2-d の往復の相手"}
+                "note": "SAM45-Fine v1（proj020。仮の読み窓・s45proto v1）。V2-d の往復の相手"},
+    "sam45-wide": {"bit": "proj023.bit", "pydir": ".", "kind": "wide",
+                "note": "SAM45-Wide（BIT_KIND 1）。kind は wide（SLICE の流れの取得）。TP の dBm の較正（tp_cal）は M6 で足す"}
   }
 }

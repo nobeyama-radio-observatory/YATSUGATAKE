@@ -8,9 +8,10 @@ specd はボードの上で動く分光計のサーバー。制御の口（TCP 5
 ssh xilinx@<board>
 cd ~/sam45-fine-<版>
 ls /dev/shm                       # 前の specd の残り（psm_*）があれば消す: sudo rm /dev/shm/psm_*（kill -9 で落としたときなど）
-sudo python3 specd.py --clkin 0 --ref 10 --bits bits.json
+sudo -E $(which python3) specd.py --clkin 0 --ref 10 --bits bits.json
 ```
 
+- `sudo -E $(which python3)`: pynq の venv の python3 を root で動かす。`sudo python3` だとシステムの python3 になり、`ModuleNotFoundError: No module named 'pynq'` で止まる
 - `--clkin 0 --ref 10`: CLK_IN の 10 MHz を基準にする（既定の `stock` はボードの水晶）。45m と試験台はこれ
 - `--bits bits.json`: LOAD で許す bit の一覧（[`install.md`](install.md)）。起こすときの bit は `--bit <名前>`（既定は bits.json の `default`）
 - 起きるまで数十秒（bit を載せ、RFDC と LMK/LMX を立て、1PPS を待つ）。ログに制御の口とデータの口を開いた行が出たら使える
