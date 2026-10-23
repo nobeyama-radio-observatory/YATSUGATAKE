@@ -271,6 +271,9 @@ def diag(cores, wait=0.5):
 def open_board(a):
     import spectrometer as S
     S.setup_clocks(a.clkin, a.ref)
+    if a.lmx_pwr is not None:                                  # proj019: LMX の出力の強さ（specd の --lmx-pwr と同じ既定 3）。Overlay() の前
+        import extref
+        extref.rewrite_lmx(16, a.lmx_pwr)
     from pynq import Overlay
     import xrfdc
     ol = Overlay(a.bitfile)
@@ -430,6 +433,7 @@ def main():
     p.add_argument("--bitfile", default="proj023.bit")
     p.add_argument("--clkin", default="stock")
     p.add_argument("--ref", type=float, default=10.0)
+    p.add_argument("--lmx-pwr", type=int, default=3, help="LMX2594 の出力の強さ（specd と同じ既定 3。出荷時は 31）")
     p.add_argument("--settle", type=float, default=5.0)
     p.add_argument("--size-mib", type=int, default=32)
     p.add_argument("--list", action="store_true")

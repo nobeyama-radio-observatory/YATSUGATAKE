@@ -8,6 +8,7 @@
 - **PS（specd）**: 止めた後に共有メモリの溜まり `/dev/shm/psm_*` が残る件を直した（v1.0.0 の既知の制限 3）。送信が時間切れ・切断で抜けたときに記録の memoryview を放さず、片付けの `release` が BufferError になって `unlink` に届いていなかった。Python 3.10 では取得の子が resource_tracker の登録を外すので、残りを誰も消さない。名前を先に消す・SIGHUP でも片付ける形にした。SAM45-Wide も同じ（M5 で `sw/pynq/` に一本化した後も入っている）。`test_fake.sh` に `shm` を足した（直す前の道具では落ちる）
 - **文書**: v1.0.0 の既知の制限 11（窓の遅れ D(NS) を PFB 入りの RTL で出し直していない）を閉じた。`make sim-wdelay` を今の RTL で回し、D(NS)・F(NS) は NS 1〜8 とも PS の値と同じ（窓の PFB は z の後なので D に入らない）。bit・PS の値は変えない
 - **PS**: SAM45-Wide の PS を `sw/pynq/` に一本化（`sw/pynq-wide/` を消した。Wide の M5）。specd が bits.json の `"kind": "wide"` を捨てていたのを直した。**Fine にも効く変更**: `sg.py` は SG の出力が unleveled なら止まる（低いレベルを使うなら SG の出口に固定減衰器）。Fine の実機の短い回帰（ID-1・V2-b 300 s）は通過
+- **PS**: SAM45-Wide の取得と Wide の道具も LMX2594 の出力の強さを PWR 3 に（Fine と同じ。今までは出荷時の 31 のまま）。クロックの櫛 n × 163.84 MHz の強い線が 5〜13 dB 下がる。Wide の記録の ID の `lmx_pwr` が実際の値に。櫛を比べる `widecomb.py` を足した
 - **文書**: `docs/user/specd.md` の起こし方を `sudo -E $(which python3)` に直した（`sudo python3` だと pynq の無いシステムの python3 になる）
 
 ## v1.0.0（`v1.0.0`・`sam45-fine/v1.0.0`、2026-10-22）— 最初のリリース
