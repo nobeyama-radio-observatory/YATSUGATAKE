@@ -355,6 +355,18 @@ Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が
 - 道具を 9 回起こし（Overlay 9 回）、9 回とも起動の見張り 0x00 → 0x00・IP の位相 入口 8・出口 155（proj023 の Overlay 5 回・M4・M5 と同じ）。FIN − FOUT は 0 か 1（表示の時点の差）
 - すべて PWR 3。proj023（PWR 31）の値と変わらない（PL の中の判定なので、変わる理由も無い）
 
+### M6 の結果: 塊 N2（2026-10-23、配線 N、specd、`~/m2/m6w/n2/`）: 予言 2 当たり、4 判定とも通過（陽性対照 3 つも）
+
+| 判定 | 結果 |
+|---|---|
+| S | 4 ADC とも 16 塊・間隔 True/True・UTC の刻み 20,000,000 ns・振り切れ 0、−31.43・−31.52・−31.37・−31.25 dBFS（同じ日の V2-b の tp_dbfs −31.42・−31.52・−31.38・−31.26 と 0.01 dB 内）、尖度 2.49〜2.51・DC −0.05〜+0.68 LSB。SNAP 64・CRC・欠け 0。**陽性対照**: ARMED の間の SNAP は `ERR STATE ARMED の間は SNAP できない` |
+| V2-d | LOAD 20.6・20.3 s。usr ba456e10 → c56caf60 → ba456e10、adc_id 02010101 → 02020301 → 02010101、Fine のとき `GET CAL` が (2, 3)、どこでも `lmx_pwr=3`・time_ok 1。3 回の START とも「n に達した」・miss 0・TP の anch_dev 0・gap 0。受け側 **SPEC 1,100**（Wide 350 ＋ Fine 400 ＋ Wide 350）・版 2 だけ・CRC・欠け・dup・kgap・tdev・tp_gap 0・**照合 通過**（SLICE と DDC が 1 本の記録に混ざっても通った。予言の心配は外れた）。**陽性対照**: sha256 を 1 文字変えた bits.json で `LOAD bit=proj021` → `ERR LOAD proj021 の sha256 が bits.json と違う`、ID は Wide のまま |
+| V2-b | 30 分: SPEC **307,538**（予言 ≒ 307,600）・TP 175,737・5.06 GB、CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap・health・flags・sat 0、版 2 だけ、照合 通過。STATUS: miss・bdrop・r_bad・pl_drop・pl_crc・pl_err・tp_lost・tp_rec_lost・drop 0、**bund_r 7 本とも 1,048,576**・C1 は「-」、time_ok 1・forced 0、loop_slow 0・loop_max 21.77 ms・loop_p99 6.9 ms・pl_peak 694,656 B。START の EVENT の ids に `kind: wide`・`usr: ba456e10`・`lmx_pwr: 3` |
+| V2-b の陽性対照 | `--posctl-ring-stall 8`、40 s: 受け側 **kgap 7・tdev 0**・tp_gap 4・CRC 0（照合は「失敗」= 期待どおり）。STATUS: bdrop 13・pl_drop 7,243・pl_peak 33,554,176 B（リングが満ちた）・**r_bad 0・bund_r 7 本とも 2·G のまま**。BDROP 13（proj023 は 8。止まりの前後の束の数で、リングが満ちた位置による） |
+
+- 判定の外: V2-b の TP_JUMP 285 回（83・72・71・59）。入力の側の型（M5 と同じ）。PS-3 の判定は step_db で数える
+- 予言との違い: V2-d の「混ざりで落ちるかもしれない」は外れて通った（受け側は記録ごとに kind を読む）
+
 ## SAM45-Fine の M7 との関係（2026-10-21 に決めた）
 
 - 作業ツリーを分ける: Wide は Vivado サーバの `~/git/YATSUGATAKE-wide`（別の clone）で、ブランチ `sam45-wide/*`

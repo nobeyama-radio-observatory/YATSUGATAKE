@@ -15,4 +15,4 @@ python3 specctl.py --host $B STATUS STOP | tee v2b_status.txt
   - ID・START の EVENT に `kind: wide`・`usr`（載せた bit の commit）・`lmx_pwr: 3`
   - STATUS の行を必ず残す
 - **陽性対照**: specd を `--posctl-ring-stall 8` で起こし、40 s 受ける: 受け側 kgap 7（7 本 × 1 回）・tdev 0、STATUS の bdrop > 0・pl_drop > 0・r_bad 0・bund_r は 7 本とも 2·G のまま
-- **記録**: proj023 手順 4d（2026-10-17、ビルド 11、30 分）: SPEC 308,210・TP 176,121・5.07 GB、欠け・CRC など 0、bund_r 7 本とも 2·G、loop_slow 0・loop_p99 6.9 ms。陽性対照 kgap 7・tdev 0・bdrop 8。YATSUGATAKE M4・M5（300 s の短縮、PWR 31）・「M5 の後」（300 s、PWR 3）: 同じ（M5 の後: SPEC 51,191、loop_p99 7.2 ms）
+- **記録**: **YATSUGATAKE M6 で通過（2026-10-23、PWR 3、`~/m2/m6w/n2/v2b*`）: SPEC 307,538・欠け・CRC など 0・bund_r 7 本とも 2·G・loop_slow 0・loop_p99 6.9 ms。陽性対照（`v2bp*`）kgap 7・tdev 0・bdrop 13・r_bad 0**。 proj023 手順 4d（2026-10-17、ビルド 11、30 分）: SPEC 308,210・TP 176,121・5.07 GB、欠け・CRC など 0、bund_r 7 本とも 2·G、loop_slow 0・loop_p99 6.9 ms。陽性対照 kgap 7・tdev 0・bdrop 8。YATSUGATAKE M4・M5（300 s の短縮、PWR 31）・「M5 の後」（300 s、PWR 3）: 同じ（M5 の後: SPEC 51,191、loop_p99 7.2 ms）
