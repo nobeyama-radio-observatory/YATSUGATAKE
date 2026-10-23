@@ -9,6 +9,8 @@
 - **文書**: v1.0.0 の既知の制限 11（窓の遅れ D(NS) を PFB 入りの RTL で出し直していない）を閉じた。`make sim-wdelay` を今の RTL で回し、D(NS)・F(NS) は NS 1〜8 とも PS の値と同じ（窓の PFB は z の後なので D に入らない）。bit・PS の値は変えない
 - **PS**: SAM45-Wide の PS を `sw/pynq/` に一本化（`sw/pynq-wide/` を消した。Wide の M5）。specd が bits.json の `"kind": "wide"` を捨てていたのを直した。**Fine にも効く変更**: `sg.py` は SG の出力が unleveled なら止まる（低いレベルを使うなら SG の出口に固定減衰器）。Fine の実機の短い回帰（ID-1・V2-b 300 s）は通過
 - **PS**: SAM45-Wide の取得と Wide の道具も LMX2594 の出力の強さを PWR 3 に（Fine と同じ。今までは出荷時の 31 のまま）。クロックの櫛 n × 163.84 MHz の強い線が 5〜13 dB 下がる。Wide の記録の ID の `lmx_pwr` が実際の値に。櫛を比べる `widecomb.py` を足した
+- **PS（解析）**: `s45allan.py` が流れの帯域を Fine の窓の式（512 / 2^ns）で出し、SAM45-Wide の B 2・B 4 の流れを 1/4・1/16 の帯域と読んでいた（ラジオメーターの予言が B²倍ずれる）。v2 の記録の ch の幅 df_hz を使う（Fine の記録は同じ値）
+- **判定**: SAM45-Wide の判定 14 本を `test/acceptance/sam45-wide/` に書き起こした（proj023 の README の中にだけあった）
 - **文書**: `docs/user/specd.md` の起こし方を `sudo -E $(which python3)` に直した（`sudo python3` だと pynq の無いシステムの python3 になる）
 
 ## v1.0.0（`v1.0.0`・`sam45-fine/v1.0.0`、2026-10-22）— 最初のリリース

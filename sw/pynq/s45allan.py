@@ -95,7 +95,7 @@ def read(paths, keys, chan_bin, frac=0.9):
                         continue
                     r = w[key]
                     if r["meta"] is None:
-                        r["meta"] = dict(ns=d["ns"], nacc=d["nacc"], if_mhz=d["if_mhz"], shift=d["shift"], g=d["g"])
+                        r["meta"] = dict(ns=d["ns"], nacc=d["nacc"], if_mhz=d["if_mhz"], shift=d["shift"], g=d["g"], df_hz=d.get("df_hz"))
                     elif (d["ns"], d["nacc"], d["shift"]) != (r["meta"]["ns"], r["meta"]["nacc"], r["meta"]["shift"]):
                         raise SystemExit(f"{key}: 記録の途中で設定が変わった（START をまたいだ記録は分けて解析する）")
                     # 切り捨ての偏り（成分ごと +1/3 LSB²、ch で +2/3、N_ACC 回足す）を引く。引かないと、入力が LSB に近い窓
@@ -166,7 +166,8 @@ def analyze(paths, keys=None, chan_bin=25, tp_bw=1800.0, plot=True, out=None):
         a, b = longest_run(k)
         n = b - a
         meta = r["meta"]
-        W = 512.0 / (1 << meta["ns"])
+        # v2 の記録は ch の幅 df_hz を持つ（Wide の SLICE は ns の欄が log2 B で、512 / 2^ns は帯域にならない。YATSUGATAKE M6 の前に踏んだ）
+        W = meta["df_hz"] * P.NCH / 1e6 if meta.get("df_hz") else 512.0 / (1 << meta["ns"])
         dnu = W * 1e6 / P.NCH
         band = np.array(r["band"][a:b]); lo = np.array(r["lo"][a:b]); hi = np.array(r["hi"][a:b])
         # 量子化: 1 フレームの ch の電力（偏りを引いた後、SHIFT 後の LSB²）。QMIN 未満（無入力の狭い窓など）は

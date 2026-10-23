@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M5 済み**（2026-10-23、ブランチ `sam45-wide/m5`）。Wide の焼き直し・Wide と Fine の実機の回帰とも予言どおり（下の「M5 の手順と予言」）。Wide の LMX の出力の強さを Fine と同じ PWR 3 にした（下の「M5 の後」）。次は M6
+- 状態: **M5 済み**（2026-10-23、ブランチ `sam45-wide/m5`）。Wide の焼き直し・Wide と Fine の実機の回帰とも予言どおり（下の「M5 の手順と予言」）。Wide の LMX の出力の強さを Fine と同じ PWR 3 にした（下の「M5 の後」）。**M6 の判定を書いた**（下の「M6」、実機はこれから）
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -294,6 +294,79 @@ Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が
 - **specd の `load_bits()` が bits.json の `"kind"` を捨てる**のを直す（proj023 の README は「bits.json の項目なら `"kind": "wide"`」と書いているが実装されていない。M4 で `--wide` を付けずに起こし、Fine の取得で起動して止まった）。直したら、bits.json だけで Wide が起動することと、`kind` の無い項目が今までどおり Fine で起動することの両方を見る
 - 較正の鍵を (BIT_KIND, BIT_REV) = (1, 1) に。timebase の CAL に F-2 の値を入れる: **pps_det_ns ≒ 71.5**・**adc_to_core_ns = A 143.0・B 142.9・C 141.5・D 141.4**（proj026 の (b) の形、proj023 F-2）
 - BIT_REV は 1 のまま（Fine の「BIT_REV 3 のまま」と同じ考え）
+
+## M6 判定を全部通し、最初の性能評価を書く（2026-10-23、測る前）
+
+**対象**: main の PS（`sw/pynq/`、M5 の一本化 ＋ #39 ＋ PWR 3、d795a14 以降）と M5 の bit（`proj023.bit` `54b0dbea…`、USR_ACCESS `ba456e10`、FDRI は M3・移植元と同じ）。ボードの `~/sam45-wide-m6/`、制御 PC の `~/m2/m6w/`。
+**判定**: [`test/acceptance/sam45-wide/`](../test/acceptance/sam45-wide/README.md) の 14 本（2026-10-23 に proj023 の README から書き起こした。合格は proj023 の判定の線、値は今の配線 N（≒ −31.4 dBFS）と PWR 3 に合わせた）
+
+### 決めたこと
+
+1. **main の PS の実機の確認は済み**（2026-10-23、`~/m2/m6w/smoke_*`）: ID に `usr=ba456e10`・`lmx_pwr=3`、30 s の受けで欠け・CRC・kgap・miss・pl_drop 0、SHUTDOWN の後に `psm_*` を残さない（残っていた `psm_00473e0f` は 04:32 UTC、#39 の前の PS の Fine の回の残り）。そのときの配線は P のままで、tp_dbfs −59〜−61 dBFS（判定の外）
+2. **F-2 は PWR 3 で測った M を (1, 1) の CAL に入れ直す**（±2.5 ns の内でも）。LMX の強さを替えた後の最初の測りのため。「M5 の後」で B・C・D が ≒ 0.5 ビート小さく出た件はここで決まる
+3. **Wide の tp_cal は P-8 で決める**（Fine の (2, 3) と同じ形: 同じ日の Fine の bit と dBFS − PM の差 ≦ 0.07 dB なら `bits` に [1, 1] を足す）。足すのは PS のデータの変更なので、別の PR
+4. **判定に無い性能の項目は「測り」**（合否なし、予言は書く）:
+   - **A（安定度）**: 配線 N、V2-b と同じ 7 本・tint 40.96 ms で 1 時間受け、`s45allan.py --no-plot`（このサーバに matplotlib が無い）。**`s45allan` を直した**: 流れの帯域を Fine の式（512 / 2^ns）で出していて、Wide の B 2・B 4 を 1/4・1/16 に読んでいた。v2 の記録の df_hz を使う（Fine の記録は同じ値）。M5 の V2-b（300 s）で ch ごとの揺れが B 1・2・4 で予言の 1.04・1.09・1.13 倍
+   - **V（スプリアス）**: A の記録で `widecomb.py`（櫛 n × 163.84 MHz）。`s45spur.py rec` は周波数の軸が Fine の窓の式で Wide を読まない（使わない）
+   - R（流れの平坦さ）は回さない（ch の形は H-1、Wide には窓の肩が無い）
+5. **道具の確かめ（PC、実機の前）**: `s45lin` は `all.b=2` で Wide の流れを読める（`all.b=4` では acquire が空の流れを待って止まる。P-8 の手順は B 2 で書いた）
+
+### 回す順（配線ごとの塊）
+
+宛先は環境変数 `B`・`SG`（Wide の道具は `RFSOC_SG` も）・`PM`・`ATT`。**どの塊の前にも `pgrep -af specd` でほかの specd が動いていないことを確かめる**。
+
+| 塊 | 配線 | 動かし方 | 中身 | 長さの目安 |
+|---|---|---|---|---|
+| N1 | N | ボード直 | ID-1・H-0・H-4・V2-a・V2-e・V2-f（陽性対照つき ＋ Overlay 3 回） | ≒ 15 分 |
+| N2 | N | specd | S・V2-d・V2-b（30 分）・V2-b の陽性対照（specd を起こし直す） | ≒ 45 分 |
+| N3 | N ＋ PM・ATT | specd | PS-3・P-8（Wide と Fine）・tp_cal の決め・A（1 時間） | ≒ 1 時間 40 分 |
+| NS | NS（SG ON） | ボード直 | H-1（`--warm 300`）・H-2（B 1・2・4） | ≒ 20 分 |
+| P | P | ボード直 | F-2（2 回、ケーブルを入れ替えて） | ≒ 15 分 |
+
+- 配線の付け替えは N → NS → P の順（NS は SG の出力を ON にするだけ）。**今は P のまま**（2026-10-23 の smoke）なので、まず N に戻す
+- V2-b の `.s45` は ≒ 5 GB、A は ≒ 10 GB。制御 PC の空き 296 GB
+- specd の SET は起こし直すまで残る。V2-d は LOAD ごとに SET を明示する
+
+### 予言
+
+1. **N1**: すべて proj023 の値（各判定の「記録」）。ID-1 の起動の見張り 0x00 → 0x00・入口 8・出口 155、V2-f の r = 1,048,576 が 4 回の Overlay で同じ、V2-a は 10 組とも全 ch 一致
+2. **N2**: S の電力が V2-b の tp_dbfs と ±0.2 dB（≒ −31.4）。V2-d の LOAD ≦ 30 s・usr が ba456e10 ↔ c56caf60。**SLICE と DDC が混ざった記録の照合は初めて**で、落ちるなら受け側の道具の限り。V2-b は SPEC ≒ 307,600・欠け 0・bund_r 2·G・loop_slow 0
+3. **N3**: PS-3 の step_db ∓0.94 ± 0.03。P-8 の Wide と Fine の `c` の差 ≦ 0.07 dB（TP の作りが同じなので）、L-1 ≦ 0.05 dB・L-2 ±0.02 dB。A は ch ごとが 1 / (Δν·τ) に沿う（M5 の 300 s で 1.04〜1.13 倍）
+4. **NS**: H-1 は proj023 の 2 回目と同じ値（C0 の半 ch の両側の差 ≒ 0.036 dB も出る。PWR 3 で変わるとは見ていない）。H-2 は 3 つの B で ±0.1 ch
+5. **P**: 縁の位置は「M5 の後」の PWR 3 の値（17.3〜17.6 ビート）と ±0.4 ビート、2 回の差 ≦ 1 ビート。M は今の CAL から −2〜0 ns（B・C・D が小さい側）で ±2.5 ns の内
+
+### 書くもの
+
+- 判定ごとに、この節の下に「M6 の結果」を足す（判定の ID・合格の条件・測った値）
+- 判定のファイルの「記録」に、製品の bit で通った日と記録の名前を 1 行足す
+- 全部が通ったら `docs/performance/sam45-wide/<版>.md`（版の名前は M7 で決める。それまでは「案」）
+
+### M6 の結果: 塊 N1（2026-10-23、配線 N、ボード直、`~/m2/m6w/n1/`）: 予言 1 当たり、6 判定とも通過
+
+| 判定 | 結果 |
+|---|---|
+| ID-1 | IF_ID 0x0201_0101 × 4・time_core 0x0201_0102・PROJ 0x0023_0100・NSTREAM 3/2/2/2・CAPS 0x003・BASE_BEATS 2,621,440・BUILD 0x50c0000i、SLICE 8 本・RAW（SID 0x0204_0200）、FFT_N 15・15・15。起動の見張り 4 コアとも 0x00 → 0x00・待たされた 1・待ち行列 2・入口 8・出口 155・遅れ 147。ログに LMX を PWR 3（OUTA・OUTB 31 → 3）で書いた行 |
+| H-0 | 結果: 全部通過。7 本とも SEQ 1〜3・SAT 0・FLAGS 0x0、IF の範囲は式どおり。B1（B 2）と C0（B 4）が同じ線を 2669.69・2666.31 MHz に、A0・D0 が 3590.125 MHz に |
+| H-4 | 30 回の切り替えで NG 0 件 |
+| V2-a | 4 ADC とも 10 組が全 ch 一致（一致しない ch 0・欠け 0）、陽性対照 10/10 で不一致、2 本の流れの F0 753152 |
+| V2-e | 4 ADC とも TP のレコード 304 個・照らした 509〜511 個で不一致 0・SEQ の飛び 0・DUMP_T の式の外れ 0・CRC 0 |
+| V2-f | 7 本・2 RUN × 4 回の Overlay（陽性対照の回を含む）で r = 1,048,576、陽性対照の RUN は 7 本とも 1,572,864（3·G）で「違う」と言った |
+
+- 道具を 9 回起こし（Overlay 9 回）、9 回とも起動の見張り 0x00 → 0x00・IP の位相 入口 8・出口 155（proj023 の Overlay 5 回・M4・M5 と同じ）。FIN − FOUT は 0 か 1（表示の時点の差）
+- すべて PWR 3。proj023（PWR 31）の値と変わらない（PL の中の判定なので、変わる理由も無い）
+
+### M6 の結果: 塊 N2（2026-10-23、配線 N、specd、`~/m2/m6w/n2/`）: 予言 2 当たり、4 判定とも通過（陽性対照 3 つも）
+
+| 判定 | 結果 |
+|---|---|
+| S | 4 ADC とも 16 塊・間隔 True/True・UTC の刻み 20,000,000 ns・振り切れ 0、−31.43・−31.52・−31.37・−31.25 dBFS（同じ日の V2-b の tp_dbfs −31.42・−31.52・−31.38・−31.26 と 0.01 dB 内）、尖度 2.49〜2.51・DC −0.05〜+0.68 LSB。SNAP 64・CRC・欠け 0。**陽性対照**: ARMED の間の SNAP は `ERR STATE ARMED の間は SNAP できない` |
+| V2-d | LOAD 20.6・20.3 s。usr ba456e10 → c56caf60 → ba456e10、adc_id 02010101 → 02020301 → 02010101、Fine のとき `GET CAL` が (2, 3)、どこでも `lmx_pwr=3`・time_ok 1。3 回の START とも「n に達した」・miss 0・TP の anch_dev 0・gap 0。受け側 **SPEC 1,100**（Wide 350 ＋ Fine 400 ＋ Wide 350）・版 2 だけ・CRC・欠け・dup・kgap・tdev・tp_gap 0・**照合 通過**（SLICE と DDC が 1 本の記録に混ざっても通った。予言の心配は外れた）。**陽性対照**: sha256 を 1 文字変えた bits.json で `LOAD bit=proj021` → `ERR LOAD proj021 の sha256 が bits.json と違う`、ID は Wide のまま |
+| V2-b | 30 分: SPEC **307,538**（予言 ≒ 307,600）・TP 175,737・5.06 GB、CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap・health・flags・sat 0、版 2 だけ、照合 通過。STATUS: miss・bdrop・r_bad・pl_drop・pl_crc・pl_err・tp_lost・tp_rec_lost・drop 0、**bund_r 7 本とも 1,048,576**・C1 は「-」、time_ok 1・forced 0、loop_slow 0・loop_max 21.77 ms・loop_p99 6.9 ms・pl_peak 694,656 B。START の EVENT の ids に `kind: wide`・`usr: ba456e10`・`lmx_pwr: 3` |
+| V2-b の陽性対照 | `--posctl-ring-stall 8`、40 s: 受け側 **kgap 7・tdev 0**・tp_gap 4・CRC 0（照合は「失敗」= 期待どおり）。STATUS: bdrop 13・pl_drop 7,243・pl_peak 33,554,176 B（リングが満ちた）・**r_bad 0・bund_r 7 本とも 2·G のまま**。BDROP 13（proj023 は 8。止まりの前後の束の数で、リングが満ちた位置による） |
+
+- 判定の外: V2-b の TP_JUMP 285 回（83・72・71・59）。入力の側の型（M5 と同じ）。PS-3 の判定は step_db で数える
+- 予言との違い: V2-d の「混ざりで落ちるかもしれない」は外れて通った（受け側は記録ごとに kind を読む）
+- N2 で specd を 3 回止めた（V2-b・陽性対照・sha256 違い）後、ボードの `/dev/shm` は空（#39 の直しが Wide の実機でも効いた）
 
 ## SAM45-Fine の M7 との関係（2026-10-21 に決めた）
 
