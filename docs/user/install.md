@@ -62,4 +62,4 @@ python3 bitinfo.py proj021.bit                # USR_ACCESS = ビルドした com
 python3 test_cal_b.py                         # 時刻の式の試験（PL なし）。「結果: 全部通過」
 ```
 
-実機の短い確かめは判定の ID-1（自己記述）と F-0（1PPS）: [`../../test/acceptance/sam45-fine/`](../../test/acceptance/sam45-fine/)。SAM45-Wide は ID-1（`wide.py --list`）と、specd の `ID`（`kind: wide`・usr）・`STATUS` の `time_ok=1`: [`../../test/acceptance/sam45-wide/`](../../test/acceptance/sam45-wide/)。
+実機の短い確かめは判定の ID-1（自己記述）と F-0（1PPS）: [`../../test/acceptance/sam45-fine/`](../../test/acceptance/sam45-fine/)。SAM45-Wide は ID-1（`wide.py --list`）と、specd の `ID`（`win_id=02020000` = SLICE・usr。`kind: wide` は ID ではなく START の EVENT の ids に出る）・`STATUS` の `time_ok=1`: [`../../test/acceptance/sam45-wide/`](../../test/acceptance/sam45-wide/)。
