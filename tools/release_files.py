@@ -6,7 +6,7 @@
         --commit $(git rev-parse --short=7 HEAD) --fdri <前の版の FDRI の sha256>
 
 作るもの（--out の下）:
-  <bit>-<版>.bit / .hwh         ビルドの .bit・.hwh の写し（名前だけ変える）
+  <bit>-<版>.bit / .hwh         ビルドの .bit・.hwh の写し（名前だけ変える。.hwh の絶対パスはファイル名だけに）
   <bit>-<版>.bitinfo.txt        USR_ACCESS（commit・汚れ）・FDRI の sha256（sw/pynq/bitinfo.py）
   <bit>-<版>.timing.txt         -1 の WNS / WHS（vivado.log の TIMING (確定)）と timing.rpt の Design Timing Summary
   <bit>-<版>.utilization.txt    utilization.rpt（頭の Date・Host・Command を除く）
@@ -17,7 +17,7 @@
 照らすもの（どれか外れたら終了状態 1、何も書かない）:
   - .bit の USR_ACCESS が --commit と同じで、汚れの印が無い
   - --fdri を渡したら、FDRI の sha256 が同じ（RTL を変えていない作り直しなら同じになる。M5b）
-  - 書いた文に、絶対パス・ホスト名の行・IP アドレス・.prepublish-patterns の語が無い
+  - 書いた文（.hwh を含む）に、絶対パス・ホスト名の行・IP アドレス・.prepublish-patterns の語が無い
 """
 import argparse
 import hashlib
@@ -33,6 +33,8 @@ import bitinfo  # noqa: E402
 HEAD_DROP = re.compile(r"^\|\s*(Date|Host|Command)\s*:")
 LOG_KEEP = re.compile(r"^(TIMING|ERROR:|CRITICAL WARNING|NOTE:|segfault in|Vivado v|\*\*\*\* Vivado v)")
 ABS_PATH = re.compile(r"(?<![\w.])/(?:home|tools|opt|root|mnt|Users|tmp|usr|var|srv|data|sessions)/\S*")
+# .hwh の属性値の中の絶対パス（SAM45-Wide の COEF_FILE・TW_FILE）。XML に < は置けないのでファイル名だけを残す
+HWH_PATH = re.compile(r"(?<![\w.])/(?:home|tools|opt|root|mnt|Users|tmp|usr|var|srv|data|sessions)/[^\s\"'<>]*/")
 BAD = [re.compile(r"^\|\s*Host\s*:", re.M), re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b"), ABS_PATH]
 
 
@@ -110,6 +112,8 @@ def main():
         f"{stem}.build.log": buildlog(a.build),
     }
     texts = {k: scrub(t) for k, t in texts.items()}
+    with open(hwh, encoding="utf-8") as f:
+        texts[f"{stem}.hwh"] = HWH_PATH.sub("", f.read())
     pats = list(BAD)
     pp = os.path.join(HERE, "..", ".prepublish-patterns")
     if os.path.exists(pp):
@@ -127,7 +131,6 @@ def main():
 
     os.makedirs(a.out, exist_ok=True)
     shutil.copyfile(bit, os.path.join(a.out, stem + ".bit"))
-    shutil.copyfile(hwh, os.path.join(a.out, stem + ".hwh"))
     for k, t in texts.items():
         with open(os.path.join(a.out, k), "w", encoding="utf-8") as f:
             f.write(t)

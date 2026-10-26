@@ -8,7 +8,7 @@ GitHub Releases に、bit ごとに次を添付する。**git の履歴には入
 
 | ファイル | 中身 |
 |---|---|
-| `<bit>-<版>.bit`・`<bit>-<版>.hwh` | PYNQ の Overlay で読む組 |
+| `<bit>-<版>.bit`・`<bit>-<版>.hwh` | PYNQ の Overlay で読む組。.hwh の絶対パス（SAM45-Wide の ROM の hex ファイル）はファイル名だけにする |
 | `<bit>-<版>.timing.txt` | `-1` の WNS / WHS と最悪経路の要約 |
 | `<bit>-<版>.utilization.txt` | 資源 |
 | `<bit>-<版>.cdc.txt` | `report_cdc` の分類ごとの件数 |
