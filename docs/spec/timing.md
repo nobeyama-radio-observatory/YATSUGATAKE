@@ -64,6 +64,7 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 | (BIT_KIND, BIT_REV) | pps_det_ns | adc_to_core_ns（A・B・C・D） | bound_ns | 出どころ |
 |---|---|---|---|---|
 | (2, 3) SAM45-Fine | 71.6（BLP-10.7+） | 141.6・141.7・141.3・141.3 | 5 | 2026-10-21 F-2（LPF あり 2 回・なし 1 回）。[`../../test/acceptance/sam45-fine/F-2.md`](../../test/acceptance/sam45-fine/F-2.md) |
+| (1, 1) SAM45-Wide | 71.5（BLP-10.7+） | 143.0・142.9・141.5・141.4 | 5 | 2026-10-21 study-rfsoc proj023 の F-2（LPF あり 2 回、LMX PWR 31）。2026-10-26 の M6（PWR 3）の M は −1.7〜−0.1 ns で据え置き（判定は保留）。[`../../test/acceptance/sam45-wide/F-2.md`](../../test/acceptance/sam45-wide/F-2.md) |
 
 - **LPF を外す・替える → `pps_det_ns` だけ測り直す。RTL を変える → BIT_REV を上げ、`adc_to_core_ns` と D を出し直して表に足す**（古い値は新しい REV に当たらない）
 - 要求は 100 µs。定数はどれもそれより 3 桁小さいが、黙って 0 にしない
@@ -73,3 +74,4 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 - DDC の D(NS) を (BIT_KIND, BIT_REV) の表に移す（今は全 bit 共通の `WIN_DELAY_BEATS`。DDC の窓を持つ bit が SAM45-Fine だけの間は値が当たる。[`interface.md`](interface.md) の 5.2）
 - 幅の違う窓の区切りの差 X(NS)（NS 1 と 6 で 2.4 µs）は受け入れている（utc_ns はそれを含んだ正しい時刻）
 - 起こした直後の 1PPS の取り込みの異常・PPS のスタンプの量子化（±0.5 ビート）の見立ては調べている途中
+- F-2 の M は Overlay ごとに 4 ADC 共通でずれる（≒ 0.9 ビート、SAM45-Wide の M6 では 1.18 ビート ≒ 4.6 ns）。原因は確かめていない。`bound_ns` 5 はこれを含む
