@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M7（リリース）の途中**（2026-10-26、ブランチ `sam45-wide/m7`）。M6 は済み（14 判定のうち 12 通過・H-1 と F-2 は保留、性能評価 [`performance/sam45-wide/v1.0.0.md`](performance/sam45-wide/v1.0.0.md)）。下の「M7」
+- 状態: **M7 済み・移植は完了**（2026-10-26、最初のリリース `sam45-wide/v1.0.0`・`v1.1.0` を commit 6eacacb で出した。配る .bit は判定した .bit と FDRI が同じ）。M6 は済み（14 判定のうち 12 通過・H-1 と F-2 は保留、性能評価 [`performance/sam45-wide/v1.0.0.md`](performance/sam45-wide/v1.0.0.md)）。下の「M7」の節
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -435,6 +435,14 @@ Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が
 6. 後の PR: bit の README の版の表と性能評価に、配った .bit の sha256・USR_ACCESS を書く
 
 **予言**（2. の前に書いた）: FDRI は 8,608,824 語・sha256 `abc66e72…4d4736`（M3・M5 と同じ）、WNS / WHS +0.000716 / +0.009500 ns（小数 6 桁まで）、USR_ACCESS はタグの commit（汚れなし）。外れるとしたら Performance_Explore の配置が置き場所・環境で動いたとき（同じ RTL の作り直しは M3・M5・common-unify の 3 回とも FDRI まで同じだった）。外れたら配らず、判定をやり直すかを決め直す。Vivado の segfault（`open_run impl_1` など）は回し直しで完走した実績があり、外れには数えない
+
+### M7 の結果（2026-10-26）
+
+- **ビルド**（main 6eacacb、汚れなし、`make IMPL=Performance_Explore JOBS=16`。proj028 のビルドと重なった）: impl_1 で Vivado が 1 回 segfault し、build.tcl が回し直して完走（予言で外れに数えないと決めていた形）。**予言どおり**: FDRI 8,608,824 語・`abc66e72…4d4736`、WNS / WHS +0.000716 / +0.009500 ns、USR_ACCESS `6eacacb0`（汚れなし）。CDC の分類別件数・資源・timing の要約は判定した M5 のビルドと同じ。CRITICAL WARNING なし
+- **添える組**: `release_files.py` の照合は通ったが、**`.hwh` に ROM の `COEF_FILE`・`TW_FILE` がビルドの場所の絶対パス（ホームパス）のまま 5 か所入っていた**。`.hwh` は名前だけ変えて写していたので照合にかかっていなかった（Fine の `.hwh` には絶対パスが無く、表に出なかった）。#48 で `.hwh` も照合にかけ、絶対パスをファイル名だけにした（XML に `<` は置けないので `<path>` にはしない）。配った `.hwh` はこの形（sha256 `243745a7…`）。配る `.bit` は `a31fccde…`
+- **実機**（配る組をボードの新しいディレクトリに置き、PS は 6eacacb の `sw/pynq/`）: `SHA256SUMS`・bitinfo・`test_cal_b.py` が通過。ID-1 は**通過**（M6 と同じ値。起動の見張り 4 コアとも 0x00 → 0x00・入口 8・出口 155・遅れ 147、LMX2594 PWR 3）。specd の `ID` は `usr=6eacacb0`・`win_id=02020000`（SLICE）・`nw=2`、`STATUS` は `time_ok=1`・health 0x0000。直した `.hwh` で Overlay が起きることもこれで確かめた
+- **予言の外れ**: 手順 4 の「`ID` の `kind: wide`」。`ID` の応答に kind の欄は無い（欄の名前を確かめずに書いた）。Wide が載っていることは `win_id`（SLICE の SID 0x0202_0000）と `nw` で読む
+- **タグと Release**: `sam45-wide/v1.0.0`・`v1.1.0` を 6eacacb に付け、GitHub Release に組の 8 個を添えた（落として `SHA256SUMS` が全部合うことを確かめた）
 
 ## SAM45-Fine の M7 との関係（2026-10-21 に決めた）
 
