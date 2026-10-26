@@ -61,3 +61,5 @@ s.plot("A0"); s.check(); s.close()
 ## 記録の中身
 
 記録の形（s45proto v2）は [`../spec/interface.md`](../spec/interface.md) の 6.。時刻（`utc_ns`）は較正込みで、ADC の口に入った時刻を基にした区間の始まり（[`../spec/timing.md`](../spec/timing.md)）。値の単位と dBm への換算は [`../spec/units.md`](../spec/units.md)。
+
+SAM45-Wide の記録（SLICE）は、ch の並びが IF の昇順で、軸は記録の `if_mhz`（送る 2047 番目の ch の IF）と `df_hz`（125 kHz·B）から **IF(i) = if_mhz ＋ (i − 2047)·df** で作る（Fine の窓と同じ式。`ns` の欄は log2 B）。Fine と Wide を `LOAD` で切り替えた記録は 1 本に混ざってよく、受け側は記録ごとに kind を読む。解析の道具のうち `s45spur.py rec` は Wide の軸を読まない（Wide の櫛のスプリアスは `widecomb.py`）

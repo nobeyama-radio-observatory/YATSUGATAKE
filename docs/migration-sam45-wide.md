@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SAM45-Wide）
 
-- 状態: **M5 済み**（2026-10-23、ブランチ `sam45-wide/m5`）。Wide の焼き直し・Wide と Fine の実機の回帰とも予言どおり（下の「M5 の手順と予言」）。Wide の LMX の出力の強さを Fine と同じ PWR 3 にした（下の「M5 の後」）。**M6 の判定を書いた**（下の「M6」、実機はこれから）
+- 状態: **M7（リリース）の途中**（2026-10-26、ブランチ `sam45-wide/m7`）。M6 は済み（14 判定のうち 12 通過・H-1 と F-2 は保留、性能評価 [`performance/sam45-wide/v1.0.0.md`](performance/sam45-wide/v1.0.0.md)）。下の「M7」
 - 移植元: **`study-rfsoc@proj023-m0`**（注釈つきタグ、commit 3a2ce56）
 - 土台にする決め方: SAM45-Fine の [`migration.md`](migration.md) と同じ段取り（M0〜M7）。違うところだけをここに書く
 
@@ -339,7 +339,7 @@ Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が
 
 - 判定ごとに、この節の下に「M6 の結果」を足す（判定の ID・合格の条件・測った値）
 - 判定のファイルの「記録」に、製品の bit で通った日と記録の名前を 1 行足す
-- 全部が通ったら `docs/performance/sam45-wide/<版>.md`（版の名前は M7 で決める。それまでは「案」）。**2026-10-26 に案を書いた**: [`performance/sam45-wide/draft.md`](performance/sam45-wide/draft.md)（12 通過・H-1 と F-2 は保留）
+- 全部が通ったら `docs/performance/sam45-wide/<版>.md`（版の名前は M7 で決める。それまでは「案」）。**2026-10-26 に案を書いた**: `performance/sam45-wide/draft.md`（12 通過・H-1 と F-2 は保留）。M7 で [`performance/sam45-wide/v1.0.0.md`](performance/sam45-wide/v1.0.0.md) に改名
 
 ### M6 の結果: 塊 N1（2026-10-23、配線 N、ボード直、`~/m2/m6w/n1/`）: 予言 1 当たり、6 判定とも通過
 
@@ -420,6 +420,21 @@ Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が
 - **扱い（2026-10-26、実験者の判断）**: F-2 は**保留**（記録の判定は失敗のまま）。M は今の CAL の ±2.5 ns の内で、ずれ（≒ 4.6 ns）は 40.96 ms の積分の時刻の用途に効かない。**CAL の (1, 1) は proj023 の値のまま据え置く**（決めたこと 2「±2.5 ns の内でも入れ直す」を変える）。理由: 入れ直しの差（−1.7〜−0.1 ns）が、Overlay ごとの共通のずれで 2 回の平均が動く幅（±1.7 ns、proj026）と同じ程度で、入れ直しても確かさが上がらない。決めたこと 2 を書いた時点では、共通のずれが 1 ビートを越えるとは見ていなかった。CAL の PR は出さない
 - 「M5 の後」の B・C・D の ≒ 0.5 ビートの件も、同じ共通のずれの幅の中で、PWR 3 の効きとは分けられないまま残る
 - 記録: `f2_a.*`・`f2_b.*`・`f2_comb.log`
+
+## M7: 文書とリリース（2026-10-26〜）
+
+**版**: bit は `sam45-wide/v1.0.0`（最初の版）、リポジトリ全体は `v1.1.0`（bit を足す = 機能の追加で minor。インターフェース v2・specd・s45proto の互換は変わらない）。[`release.md`](release.md) の「版の付け方」
+
+**手順**（release.md の「リリースの手順」をそのまま）:
+
+1. 文書（この PR）: CHANGELOG の v1.1.0 の節・性能評価を `v1.0.0.md` に・仕様（`bits.md` の Wide の行・`timing.md` の CAL (1, 1)・`units.md`）・設計（`docs/design/sam45-wide/`）・使い方（`install.md`・`specd.md`・`client.md`）・bit の README の版の表。PR で main に入れる
+2. その main の commit で、Vivado の計算機で GitHub から pull（作業ツリーは汚れなし）、`hw/bits/sam45-wide/` で `make IMPL=Performance_Explore`。ほかのビルドと重ねない。make の出力は作業ツリーの外に
+3. `tools/release_files.py hw/bits/sam45-wide/build-PE sam45-wide v1.0.0 --bitfile proj023 --out dist/sam45-wide-v1.0.0 --commit <7 桁> --fdri abc66e72…4d4736`（全 64 桁）で添える組を作る（照合が通ること）
+4. 判定は引き継ぐ（同じ RTL の作り直しで FDRI が同じなら）。実機では ID-1（`wide.py --list`）と specd の `ID`（`kind: wide`・usr がタグの commit）・`STATUS`（`time_ok=1`・health 0）だけ
+5. その commit にタグ `sam45-wide/v1.0.0` と `v1.1.0` を付けて push、GitHub Release を作って 3. の組を添付する（**外に出す操作なので、実験者が確かめてから**）
+6. 後の PR: bit の README の版の表と性能評価に、配った .bit の sha256・USR_ACCESS を書く
+
+**予言**（2. の前に書いた）: FDRI は 8,608,824 語・sha256 `abc66e72…4d4736`（M3・M5 と同じ）、WNS / WHS +0.000716 / +0.009500 ns（小数 6 桁まで）、USR_ACCESS はタグの commit（汚れなし）。外れるとしたら Performance_Explore の配置が置き場所・環境で動いたとき（同じ RTL の作り直しは M3・M5・common-unify の 3 回とも FDRI まで同じだった）。外れたら配らず、判定をやり直すかを決め直す。Vivado の segfault（`open_run impl_1` など）は回し直しで完走した実績があり、外れには数えない
 
 ## SAM45-Fine の M7 との関係（2026-10-21 に決めた）
 
