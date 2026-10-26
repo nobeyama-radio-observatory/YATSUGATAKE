@@ -339,7 +339,7 @@ Fine の M5b は「RTL は変えず、ビルドで USR_ACCESS に焼き、PS が
 
 - 判定ごとに、この節の下に「M6 の結果」を足す（判定の ID・合格の条件・測った値）
 - 判定のファイルの「記録」に、製品の bit で通った日と記録の名前を 1 行足す
-- 全部が通ったら `docs/performance/sam45-wide/<版>.md`（版の名前は M7 で決める。それまでは「案」）
+- 全部が通ったら `docs/performance/sam45-wide/<版>.md`（版の名前は M7 で決める。それまでは「案」）。**2026-10-26 に案を書いた**: [`performance/sam45-wide/draft.md`](performance/sam45-wide/draft.md)（12 通過・H-1 と F-2 は保留）
 
 ### M6 の結果: 塊 N1（2026-10-23、配線 N、ボード直、`~/m2/m6w/n1/`）: 予言 1 当たり、6 判定とも通過
 
