@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。次は M1 の後の PR（Makefile から試行の目標を外す）と M2
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。次は M2
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -100,6 +100,7 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 ### M1 の後にすること（それぞれ別の PR）
 
 1. **Makefile から試行の目標を外す**: `coef-ooc`（study-rfsoc の git から proj025 の g22_coef を読む）・`wide-hier`（proj023 のチェックポイントを読む）・`ooc-ref`（`ref/` を移さない）。`sim-all` は今は 1a〜1d の 4 つだけを回すので、2G-4 の sim の全部（下の M2 の表）に替える。外した後に M2 をもう一度
+   - **済み（2026-10-28、ブランチ `2g-4/makefile-trim`）**: 3 つの目標と、それだけが使う `JOBS`・`RULER_REV` を外した。`sim-all` は模型 3 本（`model-g24`・`model`・`model-cu`、「まとめ」の行に「不合格」が無いこと）と sim 15 本（M2 の表の全部、最後の行「sim-…: 全部通過」）を回し、`build-sim-logs/` の 18 個で判定する。共有の入力（CU_WORDS・`g24s_in/x.hex`）を先に作ってから、目標を `SIM_J`（既定 4）本ずつ並べる。この PC で 18 個とも通過（989 s）。判定の陽性対照: ログの写しに「不合格」・NG・ログの欠けを入れると 3 つとも拾う。Wide と違い M2 の前に外したので、M2 は 1 回で済む
 2. **`core_cmn.v`・`rec_fr.v`・`tp_core.v` を `hw/common/` に一本化**（上）
 3. **`sw/pynq-2g/` を `sw/pynq/` に一本化** → M5
 
