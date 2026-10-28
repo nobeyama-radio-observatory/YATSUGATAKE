@@ -172,6 +172,42 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 - 較正の鍵を (BIT_KIND, BIT_REV) = (3, 1) に。timebase の CAL に proj031 R-5 の値（上の表）。BIT_REV は 1 のまま
 - Makefile・build.tcl に Fine の M5b のフック（USR_ACCESS を焼く・`bitinfo.py` で読み返す）。FDRI は M3 と同じになるはず
 
+### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
+
+**M5b のフック**（7befb74）: Wide の Makefile・build.tcl の USR_ACCESS の部分（Makefile 12 行・build.tcl 22 行）をそのまま 2G-4 に写した。RTL・制約・配置には触れない。`make -n build` で USR_ACCESS が git から作られ、Vivado の後に `sw/pynq/bitinfo.py` の読み返しが走る。
+
+**PS の一本化**（f8ee13d、`sw/pynq-2g/` を消した）。土台を study-rfsoc の **`proj023-m0` の `pynq/`** にした 3 方向のマージ（`sw/pynq/` は proj021-m0 ＋ proj023-m0 ＋ Fine・Wide の M5 の後の変更、`sw/pynq-2g/` は proj023-m0 から proj024〜036 で枝分かれした系統）:
+
+| 分け | ファイル | 扱い |
+|---|---|---|
+| 同じ（20） | acqboot・extref・instr・rectap・s45pn・s45proto・s45resp・s45snap・s45snapplot・s45spur・s45tastar・s45v2a・s45v2c・s45v2f・sg・specctl・test_cal_b・test_tpjump・tpjump・window | そのまま |
+| `sw/pynq/` の側だけ変えた（8） | bits.example.json・s45allan・s45cal・s45lin・spectrometer・test_regmap・timetest・tp_cal.json | `sw/pynq/` のまま |
+| 2G の側だけ変えた（3） | s45client（`if_axis`・ch 数で溜めを割る）・specrecv（FULL のフレーム nch / 8）・**widef2** | s45client・specrecv は 2G の版。**widef2 は 2G の側が Wide の F-2 を 2G-4 専用に書き換えていた**（自動のマージでは 2G の版が勝ち、Wide の F-2 が壊れる）ので、Wide の版を残し、2G の版を **`g24f2.py`** として足した |
+| 両方変えた・衝突なし（3） | s45acq（2G の 3 本の裏・Bundler の C の道・malloc_tune など、2G の変更はほぼ足すだけ）・specd・s45ring | 自動のマージ |
+| 両方変えた・衝突あり（4、7 か所） | plring（`--bitfile` の既定）・s45core（定数 1・`--bitfile` 1）・test_fake.sh（使い方の注 1・試験の一覧 1）・timebase（CAL の表 1・time_core の ID の一覧 1） | `sw/pynq/` の形に 2G の分を足した（既定の bit は Fine の proj021 のまま。`BIT_REV_MIN_BY_KIND` に 2G の 3・10・11、CAL は (BIT_KIND, BIT_REV) の鍵のまま） |
+| 2G だけ（13） | amslog・build_fast.sh・cuctl・g24cu・g24cw・level・loopsum・s45fast.c・s45fast.py・test_bund_fast・test_nch・test_ring_fast・test_s45fast | 足した（README は消した） |
+| `sw/pynq/` だけ（7） | bitinfo・h2peek・sgstat・wide・wide_v2・widecomb・wideresp | そのまま |
+
+足した直し:
+- **timebase**: CAL に **(3, 1)**: pps_det_ns 71.5・adc_to_core_ns A 140.9・B 141.1・C 141.6・D 141.9・**bound_ns 50**（proj031 rev 2 の R-5 の F-2。bound は移植元の 50 のまま。Fine・Wide の 5 にそろえるかは F-2 を PWR 3 で測り直してから）。time_core の ID の一覧に 2G の 3 本（0x020B_0102・0x020A_0102・0x0203_0102）。**2G-1・2G-2 の CAL（11, 1）・(10, 1) は入れない**（proj024・025 の値は、移植で作り直す bit とは別の配置。入れないと、その bit では錨の前に「較正定数を持っていない」で止まる = 黙って違う値を使わない）
+- **s45acq**: G21・G22（G24 はその子）の裏も `_setup_lmx()`・`_lmx_ids()` を通す（Wide の M5 の後の直しと同じ。proj024〜036 は LMX を書かず出荷時の 31 のままだった）。ID に `usr`（USR_ACCESS）
+- **予算を越える tint を SET で断る**（`s45acq.check_net`、interface 4.5）: float32 の SPEC の中身の量（1 ダンプで送る ch の合計 × 4 B / tint、頭と TP は数えない）が **30 MB/s** を越えたら ERR。理由に量と、その構成の tint の最小を出す。2G-4・2G-2 は 10.24 ms（51.2 MB/s）を断り 20.48 ms（25.6）は通す、2G-1 も同じ。Fine・Wide は 10.24 ms で 12.8 MB/s（断らない）。**specd の `--net-budget-mbs 0` で外す**（陽性対照・BUND の 10.24 ms の試験の形）。fmt u64・both は試験の形なので float32 の量で照らす
+- **リング 64 MiB**: コードは proj024 から 2G の裏の既定が `G_RING_MIB` 64（`--ring-mib` を渡さなければ 64）。specd の help が「既定 32、2G-1 は 64」と古いままだったので直した。判定の共通の前提から `--ring-mib 64` を外した
+- `hw/bits/2g-4`（Makefile の CU_WORDS の依存・`sim/check_cu.py`・build.tcl の注）と `model/cu_model.py` の `sw/pynq-2g` の道を `sw/pynq` に。`libs45fast.so` を .gitignore に
+- 判定（`test/acceptance/2g-4/`）: 共通の前提の specd の起こし方、F-2 を `g24f2.py`・鍵 (3, 1) に、BUND の前提に `--net-budget-mbs 0`、NET の手順・合格・陽性対照を確定
+
+**PC で通したもの**（Vivado サーバ、作業用の写しで）: `test_fake.sh all` **31 試験とも通過**（Fine 13・shm・Wide 4・2G 11・net・netp）。**陽性対照の陽性対照**: 照合の定数を 0 にした s45acq では `net` が NG（2G-4 の 10.24 ms が OK になる）。`FAST=--fast`（C の道、x86 なので「CRC: 表」）の `test_fake.sh all` も回す（下の結果）。`test_cal_b`・`test_tpjump`・`wide.py` / `wide_v2.py` / `widecomb.py --selftest`・`test_nch`・`test_s45fast`・`test_ring_fast`・`test_bund_fast` が全部通過、.py 全部が `py_compile` を通る
+
+**予言**:
+1. **M2 の回し直し**（`make sim-all`、`sw/pynq/g24cu.py` の道で）: 18 個とも「全部通過」、`build-sim/` の出力は M2 と同じ（RTL も CU_WORDS の元も同じ。違うのは iverilog の `tb` の番地だけ）。COEF_CRC 0x891BE197
+2. **M3 の焼き直し**（7befb74、`make build`、`-1`・既定の戦略）: USR_ACCESS `0x7befb740`（commit 7befb74・汚れなし）が焼け、make の読み返しが通る。**FDRI は M3 と同じ**（`f05e1f62…3b1c`）、WNS / WHS は 0.047165 / 0.000000 で小数 6 桁まで同じ。構成の流れ（欄 e）の sha256 は USR_ACCESS の分だけ M3 と違う
+3. **M4 の回し直し**（ボードの新しいディレクトリ `2g-4-m5`、今回の bit と一本化した `sw/pynq/`、specd は `--g24` なしで bits.json の `"kind": "g24"`・`--ring-mib` なし・`--lmx-pwr` なし、配線 N）: 1 回の Overlay の読み込みの中で ID-1 → H-0 → EQ-4 → NET → tint 20.48 ms で 300 s。
+   - ID-1: M4 と同じ（係数 URAM 0.7 s 台・CRC 0x891be197・STAT 0x15、ID proj 00310200・kind g24）に加えて、ID の **`usr=7befb740`・`lmx_pwr=3`**、ログに「リング 64 MiB」、錨が (3, 1) の CAL で「未較正」でない、「CRC: 命令」
+   - H-0（4 窓 × 200、照合 通過・`g24cw` 全部通過、陽性対照 `--src DCBA` で 4 窓とも NG）・EQ-4（50 / 50 組 × 3、陽性対照 0 / 49 × 3）: M4 と同じ
+   - NET: `SET tint=0.01024` が ERR で GET は変わらない、`SET tint=0.02048` が OK。陽性対照（`--net-budget-mbs 0` で起こし直す）は OK
+   - tint 20.48 ms で 300 s: 取りこぼし 0（miss・pl_drop・pl_crc・pl_err 0、受けの CRC・欠け・kgap・tdev 0、照合 通過）、1 周の計 ≒ 13 ms（M4 の 13.10 ms ± 1 ms）。LMX の PWR が 31 → 3 に変わるので、櫛の線の強さと床の形は M4 と違ってよい（判定の外。tp_dbfs は ±0.1 dB で同じはず: 入力の電力は PWR で変わらない、Wide の M5 の後の 1）
+4. **LMX の PWR 3 での測り直し**（Wide の「M5 の後」と同じ型）: F-2（配線 P、ケーブルの入れ替えあり 2 回）で M が CAL の (3, 1)（PWR 31 で測った値）と **4 ADC とも 1 ビート（3.9 ns）以内**（Wide は 31 → 3 で −0.03〜−0.62 ビート）。外れたら (3, 1) を PWR 3 の値で入れ直す。TP の線形性（配線 N ＋ PM・ATT、Wide の P-8 の L-1・L-2 の線）は PWR に依らず通る
+
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
 ### `check_g24.py ds`（proj030 からの持ち越し）
