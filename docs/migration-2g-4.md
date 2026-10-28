@@ -93,7 +93,7 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 - **置く**（ec699fc）: 付録の 106 個（置く 103・写し 3）を `git show study-rfsoc@proj031-m0 / proj036-m0:…` から取り出して置いた。106 個とも移植元と blob が同じ。既にある 35 個も今の main（6fcabe1）の `hw/common/`・`hw/board/` とバイト単位で同じ（M0 の比べの後に変わっていない）
 - **パスの直し**: 8 個・45 行（Makefile 15・build.tcl 20・build_post.tcl 4・Python 6）。**違う行はすべてパスの行**: 古い行と新しい行からパスの部分を消して比べ、45 行とも一致（陽性対照: パス以外を 1 文字・空白 1 つ変えた行はどちらも不一致になる）。`src/g24/`・`src/s2_*.v` は `hw/bits/2g-4/src/` の下に同じ形で置いたので直していない。`sw/pynq-2g/` と `model/` の 4 個は移植元のまま（`model/cu_model.py` だけ pynq・src の道を 2 行直した）
 - **在ってはいけない側**: 2G-4 の Makefile・build.tcl が `hw/common/` の `core_cmn.v`・`rec_fr.v`・`tp_core.v` を指す行は 0（直す前の版に当てると 3・2 行を拾う = 照合が働いている）。build.tcl が読むファイル（コメントの行を除く）はすべて在る
-- **動かして確かめたこと**（作業用の PC。Vivado は使っていない）: `make model-g24`・`model`・`model-cu` が全部通過、**COEF_CRC 0x891BE197**。`make gen`・`tools/gen_crc32.py` の出力が `src/g24/` の hex 4 個・`crc32_d32.vh` とバイト単位で同じ。`make sim-all`（g24c・g24t・g24p・g24ch）と `sim-recfr`（写しの `rec_fr.v`）が「全部通過」、陽性対照 8 本は落ちた（≒ 3 分）。Tcl 5 個が `info complete` で完結、`sw/pynq-2g/` の .py 46 個が `py_compile` を通る
+- **動かして確かめたこと**（Vivado サーバ。Vivado は使っていない）: `make model-g24`・`model`・`model-cu` が全部通過、**COEF_CRC 0x891BE197**。`make gen`・`tools/gen_crc32.py` の出力が `src/g24/` の hex 4 個・`crc32_d32.vh` とバイト単位で同じ。`make sim-all`（g24c・g24t・g24p・g24ch）と `sim-recfr`（写しの `rec_fr.v`）が「全部通過」、陽性対照 8 本は落ちた（≒ 3 分）。Tcl 5 個が `info complete` で完結、`sw/pynq-2g/` の .py 46 個が `py_compile` を通る
 - **`runs/` は git に入れない**（`.gitignore` に `/hw/bits/2g-4/runs/`）。`make build` がその場で `make model-cu` を回して作る
 - **動かないままにしたもの**: Makefile の `coef-ooc`（`tools/coef_ooc.tcl`・study-rfsoc の git）・`wide-hier`（`tools/wide_hier.tcl`）・`ooc-ref`（`ref/`）。外すのは下の 1
 
@@ -119,12 +119,12 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 
 ### M2 の結果（2026-10-28）
 
-作業用の PC（Icarus Verilog 11.0・Python 3.10.12・numpy 1.21.5）で、移植先（`hw/bits/2g-4/`、2g-4/makefile-trim の 1 つ目の commit）の `make sim-all` と、**タグ `proj031-m0` の proj031 を `git archive` で取り出して同じ 18 個を回したもの**を比べた（同じ PC・同じ版の道具で、同じ時間に並べて回した。移植先 989 s・移植元 1,018 s）:
+Vivado サーバ（Icarus Verilog 11.0・Python 3.10.12・numpy 1.21.5）で、移植先（`hw/bits/2g-4/`、2g-4/makefile-trim の 1 つ目の commit）の `make sim-all` と、**タグ `proj031-m0` の proj031 を `git archive` で取り出して同じ 18 個を回したもの**を比べた（同じ PC・同じ版の道具で、同じ時間に並べて回した。移植先 989 s・移植元 1,018 s）:
 
 - **18 個とも「全部通過」**（模型 3 本は「まとめ」の行が全部通過、sim 15 本は最後の行が全部通過）。陽性対照は 27 本がすべて落ちるべきところで落ちた（g24ds の陽性対照は D_S +0 のところだけで落ちる）。両側で同じ
 - **`build-sim/` の出力 265 個のうち 217 個がバイト単位で同じ**（各変種の `tb.log`・`check.log`・入力の hex・CU_WORDS を含む）。違う 48 個は iverilog のコンパイル物 `tb` だけで、**パス（`src/common/` ↔ `../../common/`・写しの 3 個は `src/`）と、コンパイルごとに変わる番地（`0x…`）を読み替えると 48 個とも同じ**（陽性対照: 1 行に字を足すと不一致になる）
 - **`build-sim-logs/` の 18 個のうち 15 個がバイト単位で同じ**。違う 3 個は模型のログで、違うのは make が出すコマンドの行（`model/` ↔ `../../../model/`）と経過秒（`[2.1 s]` ↔ `[2.0 s]` など）だけ。`runs/model_cu.txt` の COEF_CRC は両側とも **0x891BE197**
-- 比べの相手について: Fine・Wide の M2 は移植元の作業ツリーに残っていた最後の実行と比べたが、2G-4 は移植元をタグから回し直した（proj031 の作業ツリーの出力は rev 2 の sim と ds の直しの後の g24ds で日付がまちまちのため）。Vivado サーバではなく作業用の PC で回したので、M3 の前に Vivado サーバの `make sim-all` も一度回して 18 個の通過を確かめる
+- 比べの相手について: Fine・Wide の M2 は移植元の作業ツリーに残っていた最後の実行と比べたが、2G-4 は移植元をタグから回し直した（proj031 の作業ツリーの出力は rev 2 の sim と ds の直しの後の g24ds で日付がまちまちのため）。回したのは M3 でビルドする Vivado サーバ
 
 ### M3 の心配（M3 の前に書いた）
 
