@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。次は M2
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3 済み**（下の「M2 の結果」「M3 の結果」）。次は M4（実機の短い回帰）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -93,7 +93,7 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 - **置く**（ec699fc）: 付録の 106 個（置く 103・写し 3）を `git show study-rfsoc@proj031-m0 / proj036-m0:…` から取り出して置いた。106 個とも移植元と blob が同じ。既にある 35 個も今の main（6fcabe1）の `hw/common/`・`hw/board/` とバイト単位で同じ（M0 の比べの後に変わっていない）
 - **パスの直し**: 8 個・45 行（Makefile 15・build.tcl 20・build_post.tcl 4・Python 6）。**違う行はすべてパスの行**: 古い行と新しい行からパスの部分を消して比べ、45 行とも一致（陽性対照: パス以外を 1 文字・空白 1 つ変えた行はどちらも不一致になる）。`src/g24/`・`src/s2_*.v` は `hw/bits/2g-4/src/` の下に同じ形で置いたので直していない。`sw/pynq-2g/` と `model/` の 4 個は移植元のまま（`model/cu_model.py` だけ pynq・src の道を 2 行直した）
 - **在ってはいけない側**: 2G-4 の Makefile・build.tcl が `hw/common/` の `core_cmn.v`・`rec_fr.v`・`tp_core.v` を指す行は 0（直す前の版に当てると 3・2 行を拾う = 照合が働いている）。build.tcl が読むファイル（コメントの行を除く）はすべて在る
-- **動かして確かめたこと**（作業用の PC。Vivado は使っていない）: `make model-g24`・`model`・`model-cu` が全部通過、**COEF_CRC 0x891BE197**。`make gen`・`tools/gen_crc32.py` の出力が `src/g24/` の hex 4 個・`crc32_d32.vh` とバイト単位で同じ。`make sim-all`（g24c・g24t・g24p・g24ch）と `sim-recfr`（写しの `rec_fr.v`）が「全部通過」、陽性対照 8 本は落ちた（≒ 3 分）。Tcl 5 個が `info complete` で完結、`sw/pynq-2g/` の .py 46 個が `py_compile` を通る
+- **動かして確かめたこと**（Vivado サーバ。Vivado は使っていない）: `make model-g24`・`model`・`model-cu` が全部通過、**COEF_CRC 0x891BE197**。`make gen`・`tools/gen_crc32.py` の出力が `src/g24/` の hex 4 個・`crc32_d32.vh` とバイト単位で同じ。`make sim-all`（g24c・g24t・g24p・g24ch）と `sim-recfr`（写しの `rec_fr.v`）が「全部通過」、陽性対照 8 本は落ちた（≒ 3 分）。Tcl 5 個が `info complete` で完結、`sw/pynq-2g/` の .py 46 個が `py_compile` を通る
 - **`runs/` は git に入れない**（`.gitignore` に `/hw/bits/2g-4/runs/`）。`make build` がその場で `make model-cu` を回して作る
 - **動かないままにしたもの**: Makefile の `coef-ooc`（`tools/coef_ooc.tcl`・study-rfsoc の git）・`wide-hier`（`tools/wide_hier.tcl`）・`ooc-ref`（`ref/`）。外すのは下の 1
 
@@ -110,18 +110,42 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え | 全ファイルに行き先がある・始める条件が全部 [x] |
 | M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-28**: 上の「M1 の結果」） |
-| M2 | sim を全部回す: model-g24・model・model-cu、sim-g24c・g24t・g24p・g24ch・lane・g24a・g24s・recfr・g24core・g24s45・g24x4（cuclr・cuclrno を含む）・**g24ds**・sep・all2・cu | proj031-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
-| M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`f05e1f62…3b1c`）。WNS / WHS が移植元と小数 6 桁まで同じ |
+| M2 | sim を全部回す: model-g24・model・model-cu、sim-g24c・g24t・g24p・g24ch・lane・g24a・g24s・recfr・g24core・g24s45・g24x4（cuclr・cuclrno を含む）・**g24ds**・sep・all2・cu | proj031-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-28**: 下の「M2 の結果」） |
+| M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`f05e1f62…3b1c`）。WNS / WHS が移植元と小数 6 桁まで同じ（**2026-10-28**: 下の「M3 の結果」） |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、study-rfsoc の道具のディレクトリと混ぜない） | ID・係数 URAM の VERIFY（CRC 0x891be197・0.7 s 台）・4 窓 × 200 の照合と `g24cw`・4 コアの bit 単位の同等（50 / 50 組 × 3）・tint 20.48 ms で 300 s 取りこぼし 0 が proj031 / proj036 と同じ値 |
 | M5 | Fine の M5a・M5b を 2G-4 に当て、`sw/pynq-2g/` を `sw/pynq/` に一本化 | 下の「M5」 |
 | M6 | 2G-4 の判定（`test/acceptance/2g-4/`）を全部通し、性能評価を書く | `docs/performance/2g-4/<版>.md` |
 | M7 | spec・design・user の 2G-4 の分を書き、リリース | `release.md`。ボードの準備（AXI_MAX_PIPELINE 0x0102・s45fast.c のビルド）を手順に入れる |
+
+### M2 の結果（2026-10-28）
+
+Vivado サーバ（Icarus Verilog 11.0・Python 3.10.12・numpy 1.21.5）で、移植先（`hw/bits/2g-4/`、2g-4/makefile-trim の 1 つ目の commit）の `make sim-all` と、**タグ `proj031-m0` の proj031 を `git archive` で取り出して同じ 18 個を回したもの**を比べた（同じ PC・同じ版の道具で、同じ時間に並べて回した。移植先 989 s・移植元 1,018 s）:
+
+- **18 個とも「全部通過」**（模型 3 本は「まとめ」の行が全部通過、sim 15 本は最後の行が全部通過）。陽性対照は 27 本がすべて落ちるべきところで落ちた（g24ds の陽性対照は D_S +0 のところだけで落ちる）。両側で同じ
+- **`build-sim/` の出力 265 個のうち 217 個がバイト単位で同じ**（各変種の `tb.log`・`check.log`・入力の hex・CU_WORDS を含む）。違う 48 個は iverilog のコンパイル物 `tb` だけで、**パス（`src/common/` ↔ `../../common/`・写しの 3 個は `src/`）と、コンパイルごとに変わる番地（`0x…`）を読み替えると 48 個とも同じ**（陽性対照: 1 行に字を足すと不一致になる）
+- **`build-sim-logs/` の 18 個のうち 15 個がバイト単位で同じ**。違う 3 個は模型のログで、違うのは make が出すコマンドの行（`model/` ↔ `../../../model/`）と経過秒（`[2.1 s]` ↔ `[2.0 s]` など）だけ。`runs/model_cu.txt` の COEF_CRC は両側とも **0x891BE197**
+- 比べの相手について: Fine・Wide の M2 は移植元の作業ツリーに残っていた最後の実行と比べたが、2G-4 は移植元をタグから回し直した（proj031 の作業ツリーの出力は rev 2 の sim と ds の直しの後の g24ds で日付がまちまちのため）。回したのは M3 でビルドする Vivado サーバ
 
 ### M3 の心配（M3 の前に書いた）
 
 移植元の WHS は **+0.000 ns** で、WNS +0.047 ns も薄い（proj031 の結論）。Fine・Wide の M3 は「ディレクトリだけ違う」作り直しで構成データまで同じになったので、2G-4 も同じになる見込みが高い。
 **負に落ちたら RTL も制約も直さずに止め、どうするかを決め直す**（直すと移植ではなくなる）。PE（WNS +0.007・WHS +0.010）に替えるのも M3 の中では行わない（比べの相手が変わる）。
 `make build` は bit に焼く COEF_CRC を `make model-cu` の出力から読む（numpy の版で浮動小数の丸めが変わると CRC が変わりうる）。M3 の前に `runs/model_cu.txt` の COEF_CRC が 0x891BE197 であることを確かめる
+
+### M3 の結果（2026-10-28）
+
+Vivado サーバで、移植先（`hw/bits/2g-4/`、commit 699c511 の木 = M2 と同じ RTL・build.tcl）の `make build`（`-1`・既定の戦略・BUILD_JOBS 8）を回した（6,429 s）。予言（上の「M3 の心配」）どおり、**ディレクトリだけ違う作り直しで構成データまで同じ**:
+
+| | 移植元（proj031 rev 2 の `build/`） | 移植先 |
+|---|---|---|
+| FDRI | 8,608,824 語 / `f05e1f62e5e374ced85e2fa99d95a9364a6b72749b6a14169f7161042e3a3b1c` | **同じ** |
+| 構成の流れ（欄 e）の sha256 | `66dad151e1503c3897da2fdb5451bfa507d08d1d646e1063490fe3b80376bef6` | **同じ**（.bit のファイルはヘッダの日付だけ違う） |
+| TIMING（確定） | WNS 0.047165 ns / WHS 0.000000 ns | **同じ** |
+| 資源・CDC | LUT・FF・DSP・BRAM・URAM の表、CDC-3 119・CDC-6 5・CDC-15 3,137 | ログから取り出した行がすべて同じ |
+| COEF_CRC（g24_cu_0） | 0x891BE197・PROJ 0x00310200 | 同じ |
+| ERROR・CRITICAL WARNING | ERROR 2 行（`lane_fft_g24` の `output_width` を読む既知の 2 行、ビルドは続く）・runme の CRITICAL WARNING 0 | 同じ |
+
+`bitinfo.py`（`sw/pynq/`）で読んだ。USR_ACCESS は焼いていない（M5 で Fine の M5b のフックを入れる）。.bit は git に入れない（ADR 0018）
 
 ### M5（Wide の M5 と違うところ）
 
