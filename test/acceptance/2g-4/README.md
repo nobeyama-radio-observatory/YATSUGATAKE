@@ -13,6 +13,7 @@ ID は Wide の判定と同じ意味のものは同じ ID（ID-1・H-0・H-2・F
 - **ファン**: proj027 4f の配置のまま（2G-4 は VCCINT ≒ 31 A で目安 38 A を下回るが、配置は変えない）
 - **クロック**: 外部 10 MHz と 1PPS（入口に LPF を常設）。`--clkin 0 --ref 10`
 - **specd**: `sudo -E $(which python3) specd.py --g24 --bitfile proj031.bit --clkin 0 --ref 10 --ring-mib 64 --prefault --fast --fast-ring`（M5 の後は bits.json の `kind` と既定で同じになる）。止めるときは `SHUTDOWN confirm=1` か pid のファイルで（`pkill -f specd.py` は ssh のコマンド行にも当たる）
+- **送り出し**: specd を起こした後、受けを取る前に一度 **`SEND ON`** を打つ（打たないと記録が specd の溜まりに残り、受けのファイルが空になる。照合は「通過」のまま spec 0 で出るので気づきにくい。proj031 R-1a と 2G-4 の M4 で踏んだ）。溜まりに残った分は `CLEAR` で捨ててから取り直す
 - **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`。宛先はファイルに書かない
 - **2 つの動かし方**: 「specd」（制御 PC から specctl・specrecv）と「ボード直」（specd を止め、root で道具が Overlay を載せる。F-2 だけ）
 - **SET の既定**: `A0.src=A B0.src=B C0.src=C D0.src=D shift=7 fmt=f32`。窓 A0〜D0 = コア 0〜3

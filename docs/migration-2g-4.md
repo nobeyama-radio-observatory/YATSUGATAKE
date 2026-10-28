@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3 済み**（下の「M2 の結果」「M3 の結果」）。次は M4（実機の短い回帰）
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。次は M5（PS の一本化と Fine の M5a・M5b を 2G-4 に）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -112,7 +112,7 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 | M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-28**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g24・model・model-cu、sim-g24c・g24t・g24p・g24ch・lane・g24a・g24s・recfr・g24core・g24s45・g24x4（cuclr・cuclrno を含む）・**g24ds**・sep・all2・cu | proj031-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-28**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`f05e1f62…3b1c`）。WNS / WHS が移植元と小数 6 桁まで同じ（**2026-10-28**: 下の「M3 の結果」） |
-| M4 | 実機の短い回帰（ボードの新しいディレクトリ、study-rfsoc の道具のディレクトリと混ぜない） | ID・係数 URAM の VERIFY（CRC 0x891be197・0.7 s 台）・4 窓 × 200 の照合と `g24cw`・4 コアの bit 単位の同等（50 / 50 組 × 3）・tint 20.48 ms で 300 s 取りこぼし 0 が proj031 / proj036 と同じ値 |
+| M4 | 実機の短い回帰（ボードの新しいディレクトリ、study-rfsoc の道具のディレクトリと混ぜない） | ID・係数 URAM の VERIFY（CRC 0x891be197・0.7 s 台）・4 窓 × 200 の照合と `g24cw`・4 コアの bit 単位の同等（50 / 50 組 × 3）・tint 20.48 ms で 300 s 取りこぼし 0 が proj031 / proj036 と同じ値（**2026-10-28**: 下の「M4 の結果」） |
 | M5 | Fine の M5a・M5b を 2G-4 に当て、`sw/pynq-2g/` を `sw/pynq/` に一本化 | 下の「M5」 |
 | M6 | 2G-4 の判定（`test/acceptance/2g-4/`）を全部通し、性能評価を書く | `docs/performance/2g-4/<版>.md` |
 | M7 | spec・design・user の 2G-4 の分を書き、リリース | `release.md`。ボードの準備（AXI_MAX_PIPELINE 0x0102・s45fast.c のビルド）を手順に入れる |
@@ -146,6 +146,21 @@ Vivado サーバで、移植先（`hw/bits/2g-4/`、commit 699c511 の木 = M2 �
 | ERROR・CRITICAL WARNING | ERROR 2 行（`lane_fft_g24` の `output_width` を読む既知の 2 行、ビルドは続く）・runme の CRITICAL WARNING 0 | 同じ |
 
 `bitinfo.py`（`sw/pynq/`）で読んだ。USR_ACCESS は焼いていない（M5 で Fine の M5b のフックを入れる）。.bit は git に入れない（ADR 0018）
+
+### M4 の結果（2026-10-28）
+
+M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、ボードの写しが手元と sha256 で同じ）を、ボードの新しいディレクトリ（`2g-4-m4`、study-rfsoc の道具のディレクトリと混ぜない）に置き、`build_fast.sh`（「CRC: 命令」）の後に specd を `--g24 … --fast --fast-ring --loop-log-ms 0.1` で起こした。**1 回の Overlay の読み込みの中で**、ID-1 → H-0 → EQ-4 → tint 20.48 ms で 300 s の順に回した。配線は N（ノイズ ON、proj036 R-4 のまま）:
+
+| | 移植先（M4） | 移植元の記録 |
+|---|---|---|
+| ID-1 | 係数 URAM 4096 行を **0.73 s**・VERIFY 通過（CRC 0x891be197・STAT 0x15）、ID proj 00310200・kind g24、IDLE・time_ok 1・health 0・flags 0 | proj031 rev 2: 0.73 s・同じ CRC・STAT |
+| H-0（4 窓 × 200） | 800 本・CRC 0・説明のない欠け 0・照合 通過・`g24cw` 全部通過、陽性対照（`--src DCBA`）で 4 窓とも NG | proj031 R-1a: 同じ（床は配線 N/S の値なので比べない） |
+| EQ-4 | **50 / 50 組 × 3**、陽性対照 0 / 49 組 × 3 | proj031 R-1b: 50 / 50 組 × 3、0 / 49 組 × 3 |
+| tint 20.48 ms で 300 s | SPEC 58,505・7.36 GB（24.5 MB/s）・CRC・欠け・kgap・tdev 0・照合 通過、miss・pl_drop・pl_crc・pl_err 0・loop_slow 1・1 周の最長 22.74 ms・p99 11.2 ms・リングの山 3.2 MB・1 周の計 13.10 ms、AXI_MAX_PIPELINE 前後 0x102 | proj036 R-3・R-4: 取りこぼし 0・最長 23.2 / 23.09 ms・p99 11.2 ms・山 4.2 / 3.3 MB、R-1 の 1 周の計 13.4 ms |
+
+**判定の書き方の誤りを 2 つ見つけて直した**（`test/acceptance/2g-4/`）:
+- **H-0・EQ-4・H-2 の手順に `SEND ON` が無かった**。最初の H-0 は記録が specd の溜まり（101 MB）に残り、受けが spec 0 のまま「照合: 通過」になった（proj031 R-1a と同じ踏み方）。`CLEAR` して取り直した。共通の前提に「受けを取る前に `SEND ON`」を書き、3 つの手順に入れた
+- **H-0 の陽性対照 `g24cw.py --posctl` は効かない**（`--posctl` は CW の判定 `--sg-mhz` にしか効かず、「全部通過」になった）。M0 で書き誤った。src の入れ替え（`--src DCBA`）に替えた
 
 ### M5（Wide の M5 と違うところ）
 

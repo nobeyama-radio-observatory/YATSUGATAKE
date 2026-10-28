@@ -15,4 +15,4 @@ python3 specctl.py --host $B ID STATUS | tee id1.txt
   - 起動の見張り: 4 コアとも FLAGS 0（最初の START の後の STATUS で）
   - AXI_MAX_PIPELINE 0x0102・libs45fast.so は「CRC: 命令」
 - **陽性対照**: CU（係数が合わないと START を断る）
-- **記録**: proj031 rev 2（2026-10-27）: 0.73 s・CRC 0x891be197・STAT 0x15・ID proj 00310200。proj036 R-4 の ID: lmx_pwr 31（M5 で PWR 3 に）
+- **記録**: proj031 rev 2（2026-10-27）: 0.73 s・CRC 0x891be197・STAT 0x15・ID proj 00310200。proj036 R-4 の ID: lmx_pwr 31（M5 で PWR 3 に）。**YATSUGATAKE M4**（2026-10-28、移植先の bit・`sw/pynq-2g/`）: 0.73 s・CRC 0x891be197・STAT 0x15・ID proj 00310200・kind g24・lmx_pwr 31、STATUS IDLE・time_ok 1・health 0x0000・flags 0x000、AXI_MAX_PIPELINE 0x102・「CRC: 命令」
