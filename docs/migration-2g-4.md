@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。次は M2
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2 済み**（下の「M2 の結果」）。次は M3（Vivado サーバでビルド）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -110,12 +110,21 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え | 全ファイルに行き先がある・始める条件が全部 [x] |
 | M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-28**: 上の「M1 の結果」） |
-| M2 | sim を全部回す: model-g24・model・model-cu、sim-g24c・g24t・g24p・g24ch・lane・g24a・g24s・recfr・g24core・g24s45・g24x4（cuclr・cuclrno を含む）・**g24ds**・sep・all2・cu | proj031-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
+| M2 | sim を全部回す: model-g24・model・model-cu、sim-g24c・g24t・g24p・g24ch・lane・g24a・g24s・recfr・g24core・g24s45・g24x4（cuclr・cuclrno を含む）・**g24ds**・sep・all2・cu | proj031-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-28**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`f05e1f62…3b1c`）。WNS / WHS が移植元と小数 6 桁まで同じ |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、study-rfsoc の道具のディレクトリと混ぜない） | ID・係数 URAM の VERIFY（CRC 0x891be197・0.7 s 台）・4 窓 × 200 の照合と `g24cw`・4 コアの bit 単位の同等（50 / 50 組 × 3）・tint 20.48 ms で 300 s 取りこぼし 0 が proj031 / proj036 と同じ値 |
 | M5 | Fine の M5a・M5b を 2G-4 に当て、`sw/pynq-2g/` を `sw/pynq/` に一本化 | 下の「M5」 |
 | M6 | 2G-4 の判定（`test/acceptance/2g-4/`）を全部通し、性能評価を書く | `docs/performance/2g-4/<版>.md` |
 | M7 | spec・design・user の 2G-4 の分を書き、リリース | `release.md`。ボードの準備（AXI_MAX_PIPELINE 0x0102・s45fast.c のビルド）を手順に入れる |
+
+### M2 の結果（2026-10-28）
+
+作業用の PC（Icarus Verilog 11.0・Python 3.10.12・numpy 1.21.5）で、移植先（`hw/bits/2g-4/`、2g-4/makefile-trim の 1 つ目の commit）の `make sim-all` と、**タグ `proj031-m0` の proj031 を `git archive` で取り出して同じ 18 個を回したもの**を比べた（同じ PC・同じ版の道具で、同じ時間に並べて回した。移植先 989 s・移植元 1,018 s）:
+
+- **18 個とも「全部通過」**（模型 3 本は「まとめ」の行が全部通過、sim 15 本は最後の行が全部通過）。陽性対照は 27 本がすべて落ちるべきところで落ちた（g24ds の陽性対照は D_S +0 のところだけで落ちる）。両側で同じ
+- **`build-sim/` の出力 265 個のうち 217 個がバイト単位で同じ**（各変種の `tb.log`・`check.log`・入力の hex・CU_WORDS を含む）。違う 48 個は iverilog のコンパイル物 `tb` だけで、**パス（`src/common/` ↔ `../../common/`・写しの 3 個は `src/`）と、コンパイルごとに変わる番地（`0x…`）を読み替えると 48 個とも同じ**（陽性対照: 1 行に字を足すと不一致になる）
+- **`build-sim-logs/` の 18 個のうち 15 個がバイト単位で同じ**。違う 3 個は模型のログで、違うのは make が出すコマンドの行（`model/` ↔ `../../../model/`）と経過秒（`[2.1 s]` ↔ `[2.0 s]` など）だけ。`runs/model_cu.txt` の COEF_CRC は両側とも **0x891BE197**
+- 比べの相手について: Fine・Wide の M2 は移植元の作業ツリーに残っていた最後の実行と比べたが、2G-4 は移植元をタグから回し直した（proj031 の作業ツリーの出力は rev 2 の sim と ds の直しの後の g24ds で日付がまちまちのため）。Vivado サーバではなく作業用の PC で回したので、M3 の前に Vivado サーバの `make sim-all` も一度回して 18 個の通過を確かめる
 
 ### M3 の心配（M3 の前に書いた）
 
