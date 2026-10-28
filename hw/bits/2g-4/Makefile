@@ -6,7 +6,7 @@ PYTHON        ?= python3
 IVERILOG      ?= iverilog
 VVP           ?= vvp
 
-.PHONY: build post coef-ooc wide-hier model-g24 gen sim-all sim-g24c sim-g24t sim-g24p sim-g24ch sim-lane sim-g24a sim-g24s sim-recfr sim-g24core sim-g24s45 clean
+.PHONY: build post model-g24 gen sim-all sim-g24c sim-g24t sim-g24p sim-g24ch sim-lane sim-g24a sim-g24s sim-recfr sim-g24core sim-g24s45 clean
 
 # 模型（numpy だけ）。M-a〜d。成否は最後の「まとめ」の行で読む（make の成功を信用しない）
 model-g24:
@@ -212,29 +212,35 @@ sim-g24ds: $(CU_WORDS)
 	  && echo "sim-g24ds: 全部通過（陽性対照は落ちた）" || (echo "sim-g24ds: NG"; exit 1)
 
 
-# 1a〜1d をまとめて（iverilog は 1 本 1 コアなので並べて回す）。成否は各ターゲットの最後の行で読む
-sim-all:
-	@$(MAKE) --no-print-directory -j4 -O sim-g24c sim-g24t sim-g24p sim-g24ch
+# 2G-4 の模型と sim を全部（YATSUGATAKE の M2 の表）。模型 3 本は「まとめ」の行に「不合格」が無いこと、
+# sim 15 本は最後の行「sim-…: 全部通過」で読む（make の成功を信用しない）。ログは build-sim-logs/ に目標ごとに 1 個、18 個。
+# 共有の入力（CU_WORDS・g24s_in/x.hex）は先に作る（proj027: 並べた目標が書きかけの x.hex を読んで X が混ざった）。
+# 目標は SIM_J 本ずつ並べる（各目標の中でも変種を並べる。g24core・g24s45・g24x4・g24ds が重いので先に）
+G24_MODELS := model-g24 model model-cu
+G24_SIMS   := sim-g24core sim-g24s45 sim-g24x4 sim-g24ds sim-g24s sim-g24p sim-g24c sim-g24t sim-g24ch sim-lane sim-g24a \
+              sim-recfr sim-sep sim-all2 sim-cu
+SIM_J      ?= 4
+sim-all: $(CU_WORDS)
+	@mkdir -p build-sim-logs; rm -f build-sim-logs/*.log
+	@o0=$(SIMDIR)/g24s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g24.py spec-gen $$o0 > /dev/null
+	@for t in $(G24_MODELS); do $(MAKE) --no-print-directory $$t > build-sim-logs/$$t.log 2>&1; done
+	@echo $(G24_SIMS) | tr ' ' '\n' | xargs -P $(SIM_J) -I{} sh -c '$(MAKE) --no-print-directory {} > build-sim-logs/{}.log 2>&1'
+	@echo "---- sim-all ----"
+	@for t in $(G24_MODELS); do printf '%-14s %s\n' "$$t" "$$(grep 'まとめ:' build-sim-logs/$$t.log | tail -1 || true)"; done
+	@for t in $(G24_SIMS); do printf '%-14s %s\n' "$$t" "$$(grep "^$$t: " build-sim-logs/$$t.log | tail -1 || true)"; done
+	@fail=""; \
+	  for t in $(G24_MODELS); do grep 'まとめ:' build-sim-logs/$$t.log | tail -1 | grep -q '通過' && ! grep 'まとめ:' build-sim-logs/$$t.log | tail -1 | grep -q '不合格' || fail="$$fail $$t"; done; \
+	  for t in $(G24_SIMS); do grep -q "^$$t: 全部通過" build-sim-logs/$$t.log || fail="$$fail $$t"; done; \
+	  n=$$(ls build-sim-logs/*.log | wc -l); \
+	  if [ -n "$$fail" ]; then echo "FAIL:$$fail"; exit 1; \
+	  elif [ $$n -ne 18 ]; then echo "FAIL: ログが $$n 個（18 個のはず）"; exit 1; else echo "sim-all: 全部通過（模型 3・sim 15）"; fi
 
 clean:
 	rm -rf build build-* .Xil *.jou *.log runs
 
-# ---- F-2 の測り: g24_coef を 1 個だけ OOC で合成（Vivado。JOBS は最大 8、2026-10-23 西村さん）----
+# ---- Vivado（OOC・ビルド）----
 XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.1
 VIVADO        := $(XILINX_VIVADO)/bin/vivado
-JOBS          ?= 8
-RULER_REV     := f706170
-coef-ooc:
-	mkdir -p build-ooc/ruler
-	for f in g22_coef.v g22_coef_lo.hex g22_coef_hi.hex; do git --no-optional-locks show $(RULER_REV):proj025/src/g22/$$f > build-ooc/ruler/$$f; done
-	$(VIVADO) -mode batch -nojournal -log build-ooc/vivado.log -source tools/coef_ooc.tcl -tclargs $(JOBS) > /dev/null 2>&1; true
-	@tail -n 5 build-ooc/ooc.txt 2>/dev/null || echo "ooc.txt が無い（build-ooc/vivado.log を読む）"
-
-# ---- Wide の束ね・切り出しの LUT: proj023 ビルド 11 の配線済みチェックポイントを読むだけで開き、階層を深くして数える ----
-wide-hier:
-	mkdir -p build-wide
-	$(VIVADO) -mode batch -nojournal -log build-wide/vivado.log -source tools/wide_hier.tcl > /dev/null 2>&1; true
-	@grep -E 'CLB LUTs:|NG|結果:' build-wide/vivado.log | grep -v '^#' | tail -n 6
 
 # ---- 2f: 2G-4 の .bit（Vivado サーバ。`make build`。proj025-m0 の Makefile から写した）----
 # RealDigitalOrg/RFSoC4x2-BSP を clone した先の board_files（Vivado のインストールツリーの中には置かない。VERSIONS.md）
@@ -277,7 +283,7 @@ post:
 	COEF_CRC=$$(awk '/^COEF_CRC/{print $$2}' runs/model_cu.txt) RESUME=1 $(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado_post.log -source build.tcl -tclargs $(BUILD_JOBS)
 
 # ================================================================ proj030
-.PHONY: model sim-sep sim-all2 ooc-sep ooc-chain ooc-q ooc-ref
+.PHONY: model sim-sep sim-all2 ooc-sep ooc-chain ooc-q
 
 # M-1 の模型。成否は最後の「まとめ」の行で読む
 model:
@@ -334,11 +340,6 @@ ooc-chain ooc-q:
 	  grep '^OOC ' vivado.log | tee ../ooc-$$n.txt; m=$$(grep -c 'Synth 8-3848' vivado.log); echo "Synth 8-3848: $$m" | tee -a ../ooc-$$n.txt; \
 	  grep -c 'CRITICAL WARNING' vivado.log | sed 's/^/CRITICAL WARNING: /' | tee -a ../ooc-$$n.txt; [ $$m -eq 0 ]
 
-# 比べる相手: 今の鎖 g24_chain（proj027 の HEAD から ref/ に写した。電力まで含む）
-ooc-ref:
-	@o=build-ooc/ref; mkdir -p $$o; \
-	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs g24_chain 3.906 clk ../../../../common/cmul.v ../../ref/dft16.v ../../ref/g24_chain.v > /dev/null 2>&1; \
-	  grep '^OOC ' vivado.log | tee ../ooc-ref.txt
 
 # ================================================================ proj031
 .PHONY: model-cu gen-crc sim-cu
