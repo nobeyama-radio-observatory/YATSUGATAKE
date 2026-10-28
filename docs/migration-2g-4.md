@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M0 済み**（2026-10-28。置き場所の表・始める条件・`hw/common/` との違いの数え）。次は M1（ブランチ `2g-4/m1-place`）
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。次は M1 の後の PR（Makefile から試行の目標を外す）と M2
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -88,6 +88,15 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 - `runs/model_cu.txt` の置き場所: `make model-cu`・`make build` は bit のディレクトリの `runs/` に書く（git には入れない。`.gitignore` に足すかを M1 で決める）
 - **在ってはいけない側の照合を M1 に付ける**: 2G-4 の Makefile・build.tcl が `hw/common/core_cmn.v`・`rec_fr.v`・`tp_core.v` を指していないこと（指していると、口の無い版で作られて合成で止まるか、NCH 4096 の幅で作られる）
 
+### M1 の結果（2026-10-28、ブランチ `2g-4/m1-place`）
+
+- **置く**（ec699fc）: 付録の 106 個（置く 103・写し 3）を `git show study-rfsoc@proj031-m0 / proj036-m0:…` から取り出して置いた。106 個とも移植元と blob が同じ。既にある 35 個も今の main（6fcabe1）の `hw/common/`・`hw/board/` とバイト単位で同じ（M0 の比べの後に変わっていない）
+- **パスの直し**: 8 個・45 行（Makefile 15・build.tcl 20・build_post.tcl 4・Python 6）。**違う行はすべてパスの行**: 古い行と新しい行からパスの部分を消して比べ、45 行とも一致（陽性対照: パス以外を 1 文字・空白 1 つ変えた行はどちらも不一致になる）。`src/g24/`・`src/s2_*.v` は `hw/bits/2g-4/src/` の下に同じ形で置いたので直していない。`sw/pynq-2g/` と `model/` の 4 個は移植元のまま（`model/cu_model.py` だけ pynq・src の道を 2 行直した）
+- **在ってはいけない側**: 2G-4 の Makefile・build.tcl が `hw/common/` の `core_cmn.v`・`rec_fr.v`・`tp_core.v` を指す行は 0（直す前の版に当てると 3・2 行を拾う = 照合が働いている）。build.tcl が読むファイル（コメントの行を除く）はすべて在る
+- **動かして確かめたこと**（作業用の PC。Vivado は使っていない）: `make model-g24`・`model`・`model-cu` が全部通過、**COEF_CRC 0x891BE197**。`make gen`・`tools/gen_crc32.py` の出力が `src/g24/` の hex 4 個・`crc32_d32.vh` とバイト単位で同じ。`make sim-all`（g24c・g24t・g24p・g24ch）と `sim-recfr`（写しの `rec_fr.v`）が「全部通過」、陽性対照 8 本は落ちた（≒ 3 分）。Tcl 5 個が `info complete` で完結、`sw/pynq-2g/` の .py 46 個が `py_compile` を通る
+- **`runs/` は git に入れない**（`.gitignore` に `/hw/bits/2g-4/runs/`）。`make build` がその場で `make model-cu` を回して作る
+- **動かないままにしたもの**: Makefile の `coef-ooc`（`tools/coef_ooc.tcl`・study-rfsoc の git）・`wide-hier`（`tools/wide_hier.tcl`）・`ooc-ref`（`ref/`）。外すのは下の 1
+
 ### M1 の後にすること（それぞれ別の PR）
 
 1. **Makefile から試行の目標を外す**: `coef-ooc`（study-rfsoc の git から proj025 の g22_coef を読む）・`wide-hier`（proj023 のチェックポイントを読む）・`ooc-ref`（`ref/` を移さない）。`sim-all` は今は 1a〜1d の 4 つだけを回すので、2G-4 の sim の全部（下の M2 の表）に替える。外した後に M2 をもう一度
@@ -99,7 +108,7 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 | 手順 | 2G-4 ですること | 合格 |
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え | 全ファイルに行き先がある・始める条件が全部 [x] |
-| M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上） |
+| M1 | 表の行き先に置き、パスだけを直す | `git diff --stat` で中身の変更がパスの行だけ。在ってはいけない側の照合（上）（**2026-10-28**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g24・model・model-cu、sim-g24c・g24t・g24p・g24ch・lane・g24a・g24s・recfr・g24core・g24s45・g24x4（cuclr・cuclrno を含む）・**g24ds**・sep・all2・cu | proj031-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
 | M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`f05e1f62…3b1c`）。WNS / WHS が移植元と小数 6 桁まで同じ |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、study-rfsoc の道具のディレクトリと混ぜない） | ID・係数 URAM の VERIFY（CRC 0x891be197・0.7 s 台）・4 窓 × 200 の照合と `g24cw`・4 コアの bit 単位の同等（50 / 50 組 × 3）・tint 20.48 ms で 300 s 取りこぼし 0 が proj031 / proj036 と同じ値 |
