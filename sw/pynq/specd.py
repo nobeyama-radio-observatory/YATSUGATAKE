@@ -16,6 +16,12 @@
   SNAP adc=A|B|C|D [n=1] [every=20]（proj019: ADC の生サンプル 8192 個 = 2 µs を n 個、every ms おき。IDLE のときだけ。記録は T_SNAP）
 proj023 4d: `--wide`（または bits.json の項目に "kind": "wide"）で SAM45-Wide の .bit（SLICE の流れ 8 本）。SET のキーは
   tint・fmt・cfg・A.b（束ね B 1/2/4、コアで 1 つ）・A.shift（コアで 1 つ）・A0.s0（流れの最初の ch）・all.b・all.shift。SNAP は RAW の流れ（SAM45-Fine と同じ命令）
+proj025 3c: `--g22`（または bits.json の項目に "kind": "g22"）で 2G-2 の .bit（FULL の流れ 2 本・65536 ch、鍵は A0・B0）。SET のキーは
+  tint・fmt・cfg・A0.src・B0.src・A0.shift・B0.shift・all.shift・shift（src はコアごと。2 コアに同じ ADC も可）。SNAP はコア 0 の RAW の流れ（s 1）
+proj027 3c: `--g24`（または bits.json の項目に "kind": "g24"）で 2G-4 の .bit（FULL の流れ 4 本・32768 ch、鍵は A0・B0・C0・D0）。SET のキーは
+  tint・fmt・cfg・A0〜D0.src・A0〜D0.shift・all.shift・shift（src はコアごと。4 コアに同じ ADC も可）。SNAP はコア 0 の RAW の流れ（s 1）
+proj024 3c: `--g21`（または bits.json の項目に "kind": "g21"）で 2G-1 の .bit（FULL の流れ 1 本・131072 ch、鍵は A0）。SET のキーは
+  tint・fmt・cfg・src（FULL の入力の ADC A〜D、次の WRST で効く）・shift（RUN で効く）・A0.src・A0.shift・all.shift。SNAP は RAW の流れ（s 1）
 proj021 2-3d: BITS（bits.json の許す bit の一覧）| LOAD bit=<名前>（IDLE のときだけ。取得のプロセスを新しい bit で起こし直す。
   制御・データの口と溜まりは保つ。データの口に EVENT LOAD を出す）
 データの口（既定 51001、同時に 1 接続）: s45proto の記録を続けて送る。SEND ON の間だけ。
@@ -112,6 +118,10 @@ class Server:
         self.a = a
         self.ctx = mp.get_context("spawn")          # proj021 2-3d: 取得は spawn で（acqboot の冒頭）
         self.ring = R.Ring(a.buf_mb << 20, lock=self.ctx.Lock())
+        if getattr(a, "prefault", False):             # proj029 1d: 送り出しの側（このプロセス）も溜まりのページを先に触る
+            t0 = time.time()
+            n = self.ring.prefault(write=False)
+            log(f"溜まりのページを先に触った（送り出し）: {n} ページ・{time.time() - t0:.2f} 秒")
         self.loading = False
         if a.bits:
             self.bits, self.cur = load_bits(a.bits)
@@ -154,6 +164,9 @@ class Server:
         o.bitfile = e["bit"]
         o.seq0 = seq0
         o.wide = bool(self.a.wide) if e.get("kind") is None else e.get("kind") == "wide"     # proj023: SAM45-Wide
+        o.g21 = bool(getattr(self.a, "g21", False)) if e.get("kind") is None else e.get("kind") == "g21"   # proj024: 2G-1
+        o.g22 = bool(getattr(self.a, "g22", False)) if e.get("kind") is None else e.get("kind") == "g22"   # proj025: 2G-2
+        o.g24 = bool(getattr(self.a, "g24", False)) if e.get("kind") is None else e.get("kind") == "g24"   # proj027: 2G-4
         if e.get("tp_cal"):
             o.tp_cal = None
             if os.path.exists(e["tp_cal"]):
@@ -295,6 +308,8 @@ class Server:
                 rg = r.get("ring")
                 if rg:                                 # proj021 2-3a: PL が書くリング
                     d["pl_drop"], d["pl_crc"], d["pl_peak"], d["pl_err"] = rg["drop"], rg["crc"], rg["peak"], rg["err"]
+                    if "mat" in rg:
+                        d["pl_mat"] = rg["mat"]           # proj029 2: --fast-ring で使い切れずに写したレコードの数
                     d["tp_rec_lost"] = rg["tp_rec_lost"]
                 if r.get("err"):
                     d["err"] = r["err"]
@@ -318,6 +333,14 @@ class Server:
             def f(r):
                 st = r["settings"]
                 d = dict(tint=st["tint"], cfg=f"{st['cfg']:#x}")
+                if st.get("kind") in ("g22", "g24"):         # proj025: 2G-2（FULL の流れ A0・B0 の 2 本、コアごとの src・shift）。proj027: 2G-4 は A0〜D0 の 4 本
+                    d["fmt"] = st.get("fmt")
+                    for c, key in enumerate(("A0", "B0", "C0", "D0")[:len(st["src"])]):
+                        d[f"{key}.src"] = "ABCD"[st["src"][c]]; d[f"{key}.shift"] = st["shift"][c]
+                    return kv_line(d)
+                if st.get("kind") == "g21":                  # proj024: 2G-1（FULL の流れ A0 の 1 本）
+                    d["fmt"] = st.get("fmt"); d["src"] = "ABCD"[st["src"]]; d["shift"] = st["shift"]
+                    return kv_line(d)
                 if st.get("kind") == "wide":                 # proj023: SLICE の流れ
                     d["fmt"] = st.get("fmt")
                     for j, ws in enumerate(st["wins"]):
@@ -626,10 +649,18 @@ def main():
     p.add_argument("--path", default="trig", choices=("trig", "comp"))
     p.add_argument("--cpu", type=int, default=3, help="取得のプロセスを固定する CPU（-1 で固定しない）")
     p.add_argument("--rt", type=int, default=10, help="取得のプロセスの SCHED_FIFO の優先度（0 で使わない）")
+    p.add_argument("--fast", action="store_true", help="proj029 1: 2G の SPEC の記録（FULL）の中身と CRC を C で（libs45fast.so、build_fast.sh で作る）")
+    p.add_argument("--fast-ring", action="store_true", help="proj029 2: 2G の SPEC のレコードを写さずにリングの上から C で（n_sum 1 は記録に・proj036: n_sum ≧ 2 は束ねの器に。--fast と一緒に）")
+    p.add_argument("--prefault", action="store_true", help="proj029 1d: 溜まりの全ページを起動時に触る（取得・送り出しの両方）")
+    p.add_argument("--loop-log-ms", type=float, default=0, help="proj025 4c: 1 周がこの ms を越えたら内訳をログに（最大 300 周。0 = tint を越えた周だけ、今までどおり）")
     p.add_argument("--loop-sleep", type=float, default=0.003, help="読み出しの 1 周の後に寝る秒数（proj017 F-4 と同じ 3 ms）")
     p.add_argument("--boot-timeout", type=float, default=120.0)
     p.add_argument("--fake", action="store_true", help="PL を使わない（偽の記録。通信の試験）")
     p.add_argument("--wide", action="store_true", help="proj023: SAM45-Wide の .bit（SLICE の流れ。bits.json の項目の kind が優先）")
+    p.add_argument("--g21", action="store_true", help="proj024: 2G-1 の .bit（FULL の流れ 1 本・131072 ch。bits.json の項目の kind が優先）")
+    p.add_argument("--g24", action="store_true", help="proj027: 2G-4 の .bit（FULL の流れ 4 本・32768 ch × 4、鍵は A0〜D0。bits.json の項目の kind が優先）")
+    p.add_argument("--g22", action="store_true", help="proj025: 2G-2 の .bit（FULL の流れ 2 本・65536 ch × 2、鍵は A0・B0。bits.json の項目の kind が優先）")
+    p.add_argument("--no-malloc-tune", action="store_true", help="proj024 3d: 2G-1 の取得で mallopt（1 MiB の配列を mmap で取らせない）をしない（比べる用）")
     p.add_argument("--tp-cal", default="tp_cal.json", help="TP の dBm の較正ファイル（無ければ使わない。s45cal.py）")
     p.add_argument("--fake-notime", action="store_true", help="偽物で 1PPS が無い（時刻を答えられない）状態を作る")
     p.add_argument("--fake-stall", type=int, default=0, help="偽物の陽性対照: 窓 A0 の k がこの倍数のとき読み出しを 50 ms 止める")
@@ -638,10 +669,12 @@ def main():
     p.add_argument("--bits", default=None, help="proj021 2-3d: bits.json（LOAD で許す bit の一覧）。無ければ --bitfile の 1 本だけ")
     p.add_argument("--bit", default=None, help="起こすときの bit の名前（bits.json の。既定はその default）")
     p.add_argument("--proto", type=int, default=2, choices=(1, 2), help="proj021 2-3c: 送る記録の版（2 = s45proto v2・float32 / 1 = 今までの v1）")
+    p.add_argument("--posctl-noacc", action="store_true", help="proj036 陽性対照: --fast-ring の束ねで足さずに写す（束の最後の 1 本だけが残る。受け側の照合・比べが落ちる）")
     p.add_argument("--posctl-f32-trunc", action="store_true", help="陽性対照: v2 の float32 を最も近い値でなく 0 へ切り捨てる（fmt=both の照合が落ちる）")
     p.add_argument("--read", default="ring", choices=("ring",),
                    help="proj021 2-3a: PL からの読み口（ring = PL が書くリングのレコード。2-2d で axi = 仮の読み窓の道は外した）")
-    p.add_argument("--ring-mib", type=int, default=32, help="PL が書くリングの大きさ [MiB]（--read ring）")
+    p.add_argument("--ring-mib", type=int, default=None, help="PL が書くリングの大きさ [MiB]（既定: SAM45-Fine・SAM45-Wide は 32、2G（--g21・--g22・--g24・bits.json の kind）は 64 = allocate の上限。proj024 3e・INTERFACE 8. の 11）")
+    p.add_argument("--net-budget-mbs", type=float, default=None, help="SET の tint の照合: float32 の SPEC がこの MB/s を越える tint を断る（既定 30 = INTERFACE 4.5・8. の 10。0 で照らさない = 陽性対照・試験用）")
     p.add_argument("--posctl-ring-stall", type=float, default=0.0, help="陽性対照: RUN の 100 周目にこの秒数リングを読まない")
     p.add_argument("--no-tp-jump", action="store_true", help="B2 の TP の跳ねの見張りを止める（1 周の重さの比べ用）")
     p.add_argument("--posctl-tp-jump", type=int, default=0, help="陽性対照（B2）: 偽物の TP のこの倍数の個を ×1.05（+0.21 dB）にする")

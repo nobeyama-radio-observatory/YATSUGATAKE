@@ -181,7 +181,7 @@
 #      GB_K（環境変数、既定 0）を spec_core の GB_K_RST に与える（ハードのリセットの起動に効くしきい値）
 #
 # RFDC・Clocking Wizard・ギアボックス・spec_core の本体は proj010 と同一。
-# ナイキストゾーン（2）は実行時に PYNQ から設定する（../../../sw/pynq-2g/spectrometer.py）。
+# ナイキストゾーン（2）は実行時に PYNQ から設定する（../../../sw/pynq/spectrometer.py）。
 
 set proj         proj031
 # proj015: **既定の part を -1 に**（実機の .bit を -1 で配置配線する。チップの刻印が未確認で、遅い方で閉じたものだけを載せる）。

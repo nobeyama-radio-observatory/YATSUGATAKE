@@ -15,7 +15,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..", "hw", "bits", "2g-4")
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(HERE, "..", "sw", "pynq-2g"))
+sys.path.insert(0, os.path.join(HERE, "..", "sw", "pynq"))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import g24_fixed as gf  # noqa: E402
 import g24cu  # noqa: E402

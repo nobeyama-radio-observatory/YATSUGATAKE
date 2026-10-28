@@ -22,7 +22,7 @@ SIMDIR := build-sim
 # proj031: コアの sim の係数は sim/cu_src.v（中身は g24_cu、URAM に裏口で入れる）。入れる中身は PS が書くのと同じ（sim/check_cu.py gen）
 CU_WORDS := $(SIMDIR)/cu_words.hex
 CU_FLAGS := -I src/g24 -DWORDS=\"$(CU_WORDS)\"
-$(CU_WORDS): ../../../sw/pynq-2g/g24cu.py sim/check_cu.py src/g24/g24_coef_lo.hex src/g24/g24_coef_hi.hex
+$(CU_WORDS): ../../../sw/pynq/g24cu.py sim/check_cu.py src/g24/g24_coef_lo.hex src/g24/g24_coef_hi.hex
 	@mkdir -p $(SIMDIR) && $(PYTHON) sim/check_cu.py gen $@ > /dev/null
 # 1a. g24_coef（係数の補間）。ふつうと陽性対照（-DCOEF_FRAC_ERR、落ちるべき）
 sim-g24c:

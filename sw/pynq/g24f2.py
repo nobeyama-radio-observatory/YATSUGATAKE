@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
-"""proj023 手順 4f — F-2（ADC → コアの遅れ adc_to_core、timebase.CAL）を SAM45-Wide の .bit で
+"""2G-4 の F-2（YATSUGATAKE の 2G-4 の M5 で、study-rfsoc proj036-m0 の pynq/widef2.py を名前を替えて入れた。SAM45-Wide の F-2 は widef2.py）。
+M5 で足したのは --lmx-pwr（既定 3、specd と同じ）と CAL の鍵の表示 (BIT_KIND, BIT_REV) = (3, 1) だけ。以下は移植元の注:
+
+proj023 手順 4f — F-2（ADC → コアの遅れ adc_to_core、timebase.CAL）を SAM45-Wide の .bit で
 （proj024 4d: 2G-1（BIT_KIND 11、コア 1 個）に直した。RAW は コア 0 の s 1（0x4400）、入口は raw_sel（axis_sel4）で 4 ADC から選ぶ（D-14）。
  開き方は s45acq の G21Backend と同じ（discover(bit_kind=11, ncore=1)）。CAL の鍵は 0x0024_0100。測り方・合格の線は proj023 と同じ）
 （proj025 4d: 2G-2（BIT_KIND 10、コア 2 個）に直した。RAW はコア 0 だけが持つ（s 1、コア 1 は RAW なし・NSTREAM 1）ので snap_stream はそのまま 1 本。
@@ -15,10 +18,10 @@ RAW は コア 0 の s 2、入口は axis_sel4（full_sel）で 4 ADC から選�
 
 **配線 P**: 1PPS を PPS Clk と ADC_A〜D に分配（proj021 の F-2 と同じ）。ボード直、root、specd を止めてから:
 
-    python3 widef2.py --clkin 0 --ref 10 --adc 0,1,2,3 --out f2_24a
+    python3 g24f2.py --clkin 0 --ref 10 --adc 0,1,2,3 --out f2_24a
     # ADC のケーブルを A↔C・B↔D に入れ替えて
-    python3 widef2.py --clkin 0 --ref 10 --adc 0,1,2,3 --out f2_24b
-    python3 widef2.py --combine f2_24a.f2.json f2_24b.f2.json      # 2 回の平均 M と判定（CAL に入れる値）
+    python3 g24f2.py --clkin 0 --ref 10 --adc 0,1,2,3 --out f2_24b
+    python3 g24f2.py --combine f2_24a.f2.json f2_24b.f2.json      # 2 回の平均 M と判定（CAL に入れる値）
 
 合格（test/acceptance/F-2.md と同じ線）: (a) 4 ADC × 5 試行とも縁が見える（最大 / σ ≧ 20）・1 回の中の σ ≦ 0.4 ビート・2 回の差 ≦ 1 ビート。
 (p) 5 試行とも縁が見えない。M = 2 回の平均（ns）を timebase.CAL[0x0024_0100] に（proj026 の (b) の形で）入れる。
@@ -48,6 +51,10 @@ def open_board(a):
     """wide.open_board と同じ手順で、2G-4 の .bit を開く（proj025 は 2G-2、proj024 は 2G-1）（wide.open_board は BIT_KIND 1 と SLICE の流れを要求するので使わない）"""
     import spectrometer as S
     S.setup_clocks(a.clkin, a.ref)
+    if a.lmx_pwr is not None:                            # YATSUGATAKE（2G-4 の M5）: LMX の出力の強さ（wide.open_board・specd と同じ既定 3）。Overlay() の前
+        import extref
+        lmx = extref.rewrite_lmx(16, a.lmx_pwr)
+        log(f"LMX: 出力の強さ {lmx.get('outa_pwr', a.lmx_pwr) if isinstance(lmx, dict) else a.lmx_pwr}（--lmx-pwr {a.lmx_pwr}）")
     from pynq import Overlay
     import xrfdc                                         # Overlay() より前に import する（VERSIONS.md）
     ol = Overlay(a.bitfile)
@@ -145,7 +152,7 @@ def combine(paths):
         cal["ABCD"[adc]] = round(m * NS_PER_BEAT, 1)
         log(f"  {'ABCD'[adc]}: " + " / ".join(f"{x['mean']:+.2f}（σ {x['std']:.2f}・{x['n']}/{x['n_trial']}・(p) で見えた {x['p_seen']}）" for x in v)
             + f" → M = {m:.2f} ビート = **{m * NS_PER_BEAT:.1f} ns**・2 回の差 {d:.2f}（≦ 1）: {'OK' if good else 'NG'}")
-    log(f"timebase.CAL[{SC.PROJ_G24:#011_x}] の M（LPF ありなら (b): adc_to_core_ns = M ＋ LPF の分、pps_det_ns = LPF の分）: {cal}")
+    log(f"timebase.CAL[(3, 1)]（2G-4、PROJ {SC.PROJ_G24:#011_x}）の M（LPF ありなら (b): adc_to_core_ns = M ＋ LPF の分、pps_det_ns = LPF の分）: {cal}")
     log(f"結果（F-2）: {'通過' if ok else '失敗'}")
     return ok
 
@@ -154,6 +161,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--bitfile", default="proj031.bit")
     p.add_argument("--raw-core", type=int, default=0, choices=range(4), help="proj027: RAW を取るコア（既定 0。4 コアとも RAW を持つ）")
+    p.add_argument("--lmx-pwr", type=int, default=3, help="LMX2594 の出力の強さ（specd と同じ既定 3。出荷時は 31、proj031 R-5 の CAL は 31 で測った）")
     p.add_argument("--clkin", default="stock")
     p.add_argument("--ref", type=float, default=10.0)
     p.add_argument("--settle", type=float, default=5.0)

@@ -60,6 +60,12 @@ CAL = {
                         "（ケーブルをまっすぐ / A↔D・B↔C、Overlay も 2 回）: M = A 18.54・18.09 / B 18.48・18.09 / C 17.93・17.90 / D 17.94・17.86 ビート、"
                         "平均 71.5・71.4・70.0・69.9 ns。pps_det_ns は LPF の遅れ（proj026 で同じ日の LPF なしとの差 ≒ 71.5 ns）、"
                         "adc_to_core_ns = M（LPF あり）＋ 71.5。bound_ns は (2, 3) と同じ 5 ns（±0.5 ビート ＋ LPF の分の ±2 ns）"),
+    # YATSUGATAKE（2G-4 の M5）: (3, 1) は study-rfsoc の proj031 rev 2（BIT_KIND 3・BIT_REV 1、PROJ 0x0031_0200）の R-5 の F-2。
+    #   2G-1（BIT_KIND 11）・2G-2（BIT_KIND 10）は移植のときに、その bit の F-2 で足す（proj024・proj025 の値は別の配置なので持ち込まない）
+    (3, 1): dict(pps_det_ns=71.5, adc_to_core_ns={0: 140.9, 1: 141.1, 2: 141.6, 3: 141.9}, bound_ns=50,
+                 source="proj031 rev 2 R-5 の F-2（2026-10-28、配線 P・1PPS の入口に LPF BLP-10.7+）: RAW の流れ（コア 0 の s 1、SRC で ADC を選ぶ）の生サンプルで "
+                        "1PPS の縁がコアに入った T − スタンプを 4 ADC、ケーブルを A↔D・B↔C に入れ替えて 2 回（f2_31a・f2_31b）。M = A 69.4・B 69.6・C 70.1・D 70.4 ns。"
+                        "(b): pps_det_ns = LPF の分 71.5、adc_to_core_ns = M ＋ 71.5（LPF を外したら pps_det_ns を 0 に）。bound_ns は移植元の 50 のまま"),
 }
 # 窓の PFB・DDC の遅れ（win_core の入口のビート → そのインパルスの |z|² の重心が wspec に入るまで、ビート）。NS → 値。
 #   make sim-wdelay（2026-10-02、iverilog・k = 5・Δφ = 0）。線形位相なので重心 = 群遅延 ＋ 経路の遅れ。**RTL を変えたら出し直す**
@@ -103,7 +109,10 @@ class TimeCore:
     """time_core_0 のレジスタ（src/common/time_core.v の冒頭の表）。mmio は pynq.MMIO か、read(off) / write(off, v) を持つもの。"""
     ID = 0x0202_0302              # proj021 2-5: IF_ID（IF_VER 2・BIT_KIND 2 = SAM45-Fine・BIT_REV 3・CORE_KIND 2）。2-2d〜2-4 は 0x0202_0202、2-1〜2-2c は 0x0202_0102、旧 0x0021_7101
     IDS = (0x0202_0102, 0x0202_0202, 0x0202_0302,   # BIT_REV 1（2-1〜2-2c）・2（2-2d〜2-4）・3（2-5〜）。time_core の中身は同じ
-           0x0201_0102)                              # SAM45-Wide（BIT_KIND 1・BIT_REV 1、study-rfsoc proj023）
+           0x0201_0102,                              # SAM45-Wide（BIT_KIND 1・BIT_REV 1、study-rfsoc proj023）
+           0x020B_0102,                              # 2G-1（BIT_KIND 11・BIT_REV 1、study-rfsoc proj024）
+           0x020A_0102,                              # 2G-2（BIT_KIND 10・BIT_REV 1、study-rfsoc proj025）
+           0x0203_0102)                              # 2G-4（BIT_KIND 3・BIT_REV 1、study-rfsoc proj027〜031）
     PROJ = 0x0021_0200            # 0x5C。記録だけ（M5a から CAL の鍵は IF_ID の (BIT_KIND, BIT_REV)）
     CTRL_ARM, CTRL_CANCEL, CTRL_ASET, CTRL_ACLR, CTRL_NCLR = 1, 2, 8, 16, 256
 
