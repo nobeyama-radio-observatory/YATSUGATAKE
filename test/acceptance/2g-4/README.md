@@ -14,7 +14,7 @@ ID は Wide の判定と同じ意味のものは同じ ID（ID-1・H-0・H-2・F
 - **クロック**: 外部 10 MHz と 1PPS（入口に LPF を常設）。`--clkin 0 --ref 10`
 - **specd**（M5 の後、`sw/pynq/`）: `sudo -E $(which python3) specd.py --g24 --bitfile proj031.bit --clkin 0 --ref 10 --prefault --fast --fast-ring`（bits.json の項目なら `"kind": "g24"` で `--g24` と同じ）。リング 64 MiB・LMX の PWR 3・予算 30 MB/s の照合は既定（M4 までの `sw/pynq-2g/` は `--ring-mib 64` を渡し、LMX は出荷時の 31 のままだった）。止めるときは `SHUTDOWN confirm=1` か pid のファイルで（`pkill -f specd.py` は ssh のコマンド行にも当たる）
 - **送り出し**: specd を起こした後、受けを取る前に一度 **`SEND ON`** を打つ（打たないと記録が specd の溜まりに残り、受けのファイルが空になる。照合は「通過」のまま spec 0 で出るので気づきにくい。proj031 R-1a と 2G-4 の M4 で踏んだ）。溜まりに残った分は `CLEAR` で捨ててから取り直す
-- **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`。宛先はファイルに書かない
+- **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`。宛先はファイルに書かない。STATUS の `data_client`・`data_drop` には受け手の IP が出るので、記録に残すときは伏せる
 - **2 つの動かし方**: 「specd」（制御 PC から specctl・specrecv）と「ボード直」（specd を止め、root で道具が Overlay を載せる。F-2 だけ）
 - **SET の既定**: `A0.src=A B0.src=B C0.src=C D0.src=D shift=7 fmt=f32`。窓 A0〜D0 = コア 0〜3
 - **ネットワークの tint**: 2G-4 の最小は **20.48 ms**（interface 4.5、予算 1 ボード 30 MB/s）。それより短い tint（10.24 ms）は SET で断られる（NET、M5 から）。10.24 ms を使う判定（BUND）は specd を **`--net-budget-mbs 0`**（照合を外す試験の形）で起こし、受けの量が予算を越えることを承知で短い時間だけ使う
