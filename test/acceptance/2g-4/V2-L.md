@@ -13,4 +13,5 @@ python3 specctl.py --host $B STATUS STOP
 - **合格**: 7,200 s で受けの CRC・欠け・説明のない欠け・kgap・tdev 0・照合 通過、STATUS の miss・pl_drop・pl_crc・pl_err 0 が毎分、AXI_MAX_PIPELINE が毎分 0x0102、
   **VCCINT ≦ 34 A で平ら**（目安 38 A に余裕）・PL の温度は平ら（上がり続けない）、ボードが落ちない
 - **陽性対照**: V2-b の陽性対照（同じ見張り）
-- **記録**: proj036 R-4（2026-10-28、YATSUGATAKE の移植の始める条件）: 下に書く
+- **記録**: **proj036 R-4（2026-10-28 06:15〜08:15 UTC）: 通過**。176.8 GB（24.6 MB/s）・SPEC 1,406,164・CRC・欠け・kgap・tdev 0・照合 通過、毎分の miss・pl_drop・pl_crc・pl_err 0・AXI_MAX_PIPELINE 0x0102、loop_slow 1・1 周の最長 23.1 ms・リングの山 3.3 MB、VCCINT 32.6 A（32.3〜33.0）・PL 53.6〜60.0 ℃ で平ら
+- 注意: 受けが `--seconds` で先に切れると、STOP までの間に specd の溜まりが満ちて STATUS の drop が増える（R-4 で 903）。drop は受けの終わりの前の STATUS で読む

@@ -1,7 +1,7 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M0 作業中**（2026-10-28。置き場所の表・始める条件・`hw/common/` との違いの数え。下の「始める条件」）
-- 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。タグはまだ付けていない
+- 状態: **M0 済み**（2026-10-28。置き場所の表・始める条件・`hw/common/` との違いの数え）。次は M1（ブランチ `2g-4/m1-place`）
+- 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
 
@@ -18,11 +18,11 @@
 - [x] proj031 の判定（P-2 の sim・B・R・R-5 F-2）が通り、README に結論が書かれている（2026-10-28。rev 2 = PROJ 0x0031_0200 が最終）
 - [x] proj036 の判定（P-1・R-1〜R-3）が通っている（2026-10-28。tint 20.48 ms で 1 周 13.4 ms（65 %）、30 分 24.8 MB/s で取りこぼし 0）
 - [x] 2G-4 の運用に使う bit を決めた → **proj031 rev 2**（proj030 との比べは proj031 README の「決めること」。DSP が 256 少ない。電流は proj030 が 0.5 A 少ないが、どちらも 32 A 前後で連続運転の目安 38 A を下回る）
-- [ ] **proj031 の持ち越しを閉じる**
+- [x] **proj031 の持ち越しを閉じる**
   - [x] `check_g24.py ds` を 2-for-1 の IP の出口（z_q = y_q + j·y_(q+8)）に合わせた（2026-10-28、study-rfsoc 575ae63）。sim-g24ds は normal 通過・陽性対照（D_S 0）は落ちた（下の「持ち越しを閉じた記録」）
-  - [ ] **2 時間以上の連続運転**（tint 20.48 ms・運用の形）→ proj036 R-4（2026-10-28、走らせている）
+  - [x] **2 時間以上の連続運転**（tint 20.48 ms・運用の形）→ proj036 R-4 で通過（2026-10-28、下の「持ち越しを閉じた記録」）
 - [x] **判定が `test/acceptance/2g-4/` の書き方で書かれている**（Wide はこれが無いまま始めて M6 の前に書き起こした。2G-4 は M0 で書き起こした、2026-10-28）: 11 判定（ID-1・CU・H-0・EQ-4・H-2・F-2・BUND・V2-b・V2-L・RING・NET）。RING は 2026-10-28 に interface 8. の 11 で入れた新しい判定で study-rfsoc では回していない、NET は M5 で specd に照合を入れてから。M1〜M4 の回帰は判定の「記録」の値と比べる
-- [ ] **タグ** `proj031-m0`・`proj036-m0` を付け、study-rfsoc の公開前スキャン（`python3 ../YATSUGATAKE/tools/prepublish_scan.py`）の後に push する（M1 の PR を出す前に要る）
+- [x] **タグ** `proj031-m0`・`proj036-m0`（f97b060）を付け、study-rfsoc の公開前スキャンの後に push した（2026-10-28）。スキャンのヒットは、今回の 3 つの commit とその中のファイルには 0。ほかのヒット（1,600 件ほど）は追跡していない `runs/` など（受け手の IP・ホームパスはどれも追跡していないファイル）と、追跡しているファイルのボードの既定の利用者のホーム（実験の台本の `cd` 先）・`<作者>` の置き場の字・数値の偽陽性
 - [x] **ボードの準備**（proj035）: GEM1 の AXI_MAX_PIPELINE（0xFF0C0054）を **0x0102** にする systemd のユニット（study-rfsoc `proj035/board/`、手順は `proj001/docs/runbook.md` の 09）をボードに入れ、有効にした。送り出し 194 → 348 Mbit/s。**読みの要求を 4 本以上にしない**（CPU の DDR の読みが遅れ、2G の取得が追いつかない）。判定の前提とリリースのボードの準備の手順にも入れる（M7）
 
 ### 移植元の bit（M3 の比べの相手）
@@ -134,4 +134,8 @@ Fine の M1・Wide の M1 と同じ型。中身は変えない:
 
 ### 2 時間の連続運転
 
-study-rfsoc の proj036 R-4（予言は proj036 README）: （走らせている）
+study-rfsoc の proj036 R-4（2026-10-28 06:15〜08:15 UTC、予言は proj036 README）: **通過**
+- 受け（7,200 s、制御 PC、`--out` なし）: 176.8 GB（24.6 MB/s）・SPEC 1,406,164・**CRC・欠け・説明のない欠け・kgap・tdev 0・照合 通過**
+- STATUS（毎分 119 回）: miss・kgap・pl_drop・pl_crc・pl_err はどれも 0、AXI_MAX_PIPELINE は毎回 0x0102、loop_slow 1・1 周の最長 23.1 ms・loop_p99 11.2 ms・リングの山 3.3 MB
+- VCCINT 32.6 A（32.3〜33.0）で平ら・PL 53.6〜60.0 ℃ で平ら・ボードは落ちなかった。**電流は予言（31.3 ± 0.5 A）の上に外れた**（取得 200 ダンプで測った proj031 R の値に、2 時間の送り出しの分が乗った見込み。確かめていない）。V2-L の合格（≦ 34 A）には入る
+- STOP の前の STATUS の drop 903 は、受けが先に切れた後に specd の溜まりが満ちた分（台本の順）。受けが ACK した最後の seq までは全部届いた。V2-L の手順は「STOP を受けの終わりの前に打つ」か、drop を受けの終わりの前の STATUS で読む
