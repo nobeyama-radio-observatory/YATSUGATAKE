@@ -266,16 +266,26 @@ ifneq ($(IMPL),)
 endif
 # launch_runs -jobs（効くのは OOC 合成だけ）。proj027: Vivado は並行で使うので上限 8（2026-10-23、西村さん。proj025 は 30）
 BUILD_JOBS ?= 8
-export BOARD_REPO PART OUTDIR GB_K IMPL
+# YATSUGATAKE M5b（2G-4 の M5、Fine・Wide と同じフック）: .bit の USR_ACCESS に焼く値（docs/migration.md の M5b）。[31:4] commit の短いハッシュ 7 桁・[3:1] 0・
+#   [0] 追跡しているファイルに未コミットの変更がある。make を始めた時点で 1 回だけ決める。USR_ACCESS=none で焼かない（比べのため）
+ifeq ($(origin USR_ACCESS),undefined)
+  USR_ACCESS := $(shell h=$$(git rev-parse --short=7 HEAD 2>/dev/null | cut -c1-7); \
+                  [ $${#h} = 7 ] && printf '0x%s%s' $$h $$(git status --porcelain --untracked-files=no | grep -q . && echo 1 || echo 0))
+endif
+export BOARD_REPO PART OUTDIR GB_K IMPL USR_ACCESS
 
 # 2G-4 の .bit（2f。合成〜ビットストリーム）。成果物は $(OUTDIR)/proj031.bit・.hwh。
 # **ビルドの後、今のディレクトリで今の RTL が焼けたかを確かめる**（grep BUILD_TAG $(OUTDIR)/vivado.log）。成否は make の終了状態でなくログの ERROR・TIMING (確定) で読む
 # proj031: g24_cu の COEF_CRC は make model-cu の最後の行（模型が全部通ったときだけ）。build.tcl が環境変数 COEF_CRC で受けて CONFIG に入れ、読み返す
 build:
+	@test -n "$(USR_ACCESS)" || { echo "USR_ACCESS を git から作れない（git の作業ツリーの中で make する。焼かないなら USR_ACCESS=none）"; exit 1; }
+	@echo "USR_ACCESS: $(USR_ACCESS)"
 	mkdir -p $(OUTDIR)
 	@$(MAKE) --no-print-directory model-cu > /dev/null
 	@grep -q 'まとめ: M-a 通過  M-b 通過  M-c 通過  M-d 通過' runs/model_cu.txt || (echo "ERROR: make model-cu が通っていない"; exit 1)
 	COEF_CRC=$$(awk '/^COEF_CRC/{print $$2}' runs/model_cu.txt) $(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado.log -source build.tcl -tclargs $(BUILD_JOBS)
+	@# M5b: 書き出した .bit を読み返し、焼くはずの値と照らす（在るかと、値が合うかの両側。none なら「無いこと」）
+	@$(PYTHON) ../../../sw/pynq/bitinfo.py $(OUTDIR)/proj031.bit --expect $(USR_ACCESS) > $(OUTDIR)/bitinfo.txt; s=$$?; cat $(OUTDIR)/bitinfo.txt; exit $$s
 
 # impl_1 は完走したのに、後段（open_run 〜 照合・CDC・build/ への写し）で親の Vivado が落ちたときの再開（proj025 2f ビルド 2）。
 # 合成・実装はやり直さない（build.tcl の RESUME=1 → build_post.tcl）。.bit より新しいソースがあれば止まる。ログは別名（元の vivado.log を残す）
