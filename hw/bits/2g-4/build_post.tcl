@@ -13,7 +13,7 @@ puts "---- 1PPS の入力ポート ----"
 foreach {pname want} {pps_trig AH13 pps_comp AJ13} {
     set prt [get_ports -quiet $pname]
     if {[llength $prt] == 0} {
-        puts "ERROR: ポート $pname が存在しない（create_bd_port の名前と src/board/pps.xdc の get_ports を突き合わせる）"
+        puts "ERROR: ポート $pname が存在しない（create_bd_port の名前と ../../board/pps.xdc の get_ports を突き合わせる）"
         exit 1
     }
     set got [get_property PACKAGE_PIN $prt]
@@ -95,7 +95,7 @@ puts ""
 puts "クロック間の制約: $outdir/clock_interaction.rpt"
 puts "  asynchronous を含む箇所 = $n_async"
 if {$n_async == 0} {
-    puts "  **非同期の宣言が見当たらない。src/board/timing.xdc が効いていない可能性がある**"
+    puts "  **非同期の宣言が見当たらない。../../board/timing.xdc が効いていない可能性がある**"
 }
 
 # ---- BRAM と DSP の使用量 ----
@@ -340,7 +340,7 @@ if {[info exists timing_failed]} {
     puts ""
     puts "ERROR: タイミングが閉じていない。成果物は調査用に残したが実機に使わないこと。"
     puts "  上の「違反している経路」でクロック対を見る。"
-    puts "  クロック対が違っていれば src/board/timing.xdc の非同期宣言の漏れ。"
+    puts "  クロック対が違っていれば ../../board/timing.xdc の非同期宣言の漏れ。"
     puts "  **XDC で if / foreach を使うと黙って無効になる**（Designutils 20-1307）"
     exit 1
 }
@@ -348,6 +348,6 @@ if {[info exists timing_failed]} {
 if {!$has_preset} {
     puts ""
     puts "NOTE: これは PS にプリセットを当てていない検証ビルド（$part）。"
-    puts "      このビットストリームは実機に使わない。見るのは上の TIMING の値だけ。make ps-preset で src/board/ps_preset.tcl を作る"
+    puts "      このビットストリームは実機に使わない。見るのは上の TIMING の値だけ。make ps-preset で ../../board/ps_preset.tcl を作る"
 }
 

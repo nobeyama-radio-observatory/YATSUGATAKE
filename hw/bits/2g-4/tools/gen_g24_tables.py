@@ -16,7 +16,7 @@ import sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "model"))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "..", "model"))
 import g24_fixed as F  # noqa: E402
 
 VW, SW = 22, 13

@@ -11,9 +11,9 @@ VVP           ?= vvp
 # 模型（numpy だけ）。M-a〜d。成否は最後の「まとめ」の行で読む（make の成功を信用しない）
 model-g24:
 	mkdir -p runs
-	$(PYTHON) model/g24_model.py | tee runs/model.log
+	$(PYTHON) ../../../model/g24_model.py | tee runs/model.log
 
-# 2G-2 の ROM の中身（model/g24_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす。src/g24/ に写したものをコミットする
+# 2G-2 の ROM の中身（../../../model/g24_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす。src/g24/ に写したものをコミットする
 gen:
 	$(PYTHON) tools/gen_g24_tables.py build-gen
 
@@ -22,7 +22,7 @@ SIMDIR := build-sim
 # proj031: コアの sim の係数は sim/cu_src.v（中身は g24_cu、URAM に裏口で入れる）。入れる中身は PS が書くのと同じ（sim/check_cu.py gen）
 CU_WORDS := $(SIMDIR)/cu_words.hex
 CU_FLAGS := -I src/g24 -DWORDS=\"$(CU_WORDS)\"
-$(CU_WORDS): pynq/g24cu.py sim/check_cu.py src/g24/g24_coef_lo.hex src/g24/g24_coef_hi.hex
+$(CU_WORDS): ../../../sw/pynq-2g/g24cu.py sim/check_cu.py src/g24/g24_coef_lo.hex src/g24/g24_coef_hi.hex
 	@mkdir -p $(SIMDIR) && $(PYTHON) sim/check_cu.py gen $@ > /dev/null
 # 1a. g24_coef（係数の補間）。ふつうと陽性対照（-DCOEF_FRAC_ERR、落ちるべき）
 sim-g24c:
@@ -41,7 +41,7 @@ sim-g24t:
 	@for v in normal err; do \
 	  o=$(SIMDIR)/g24t_$$v; mkdir -p $$o; d=""; [ $$v = err ] && d="-DTW_HI_ERR"; \
 	  $(IVERILOG) -g2005 $$d -DOUT=\"$$o\" -DTA=\"src/g24/g24_tw_a.hex\" -DTB=\"src/g24/g24_tw_b.hex\" \
-	    -o $$o/tb src/common/cmul.v src/g24/g24_tw.v sim/tb_g24_tw.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
+	    -o $$o/tb ../../common/cmul.v src/g24/g24_tw.v sim/tb_g24_tw.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
 	  $(PYTHON) sim/check_g24.py tw $$o $$o/tb.log > $$o/check.log 2>&1; \
 	  printf '%-14s %s\n' "g24t_$$v" "$$(grep '結果:' $$o/check.log || echo '結果の行が無い')"; \
 	done
@@ -65,7 +65,7 @@ sim-g24p: $(CU_WORDS)
 	  && echo "sim-g24p: 全部通過（陽性対照 2 本は落ちた）" || (echo "sim-g24p: NG"; exit 1)
 
 # 1d. g24_tw ＋ g24_chain（鎖）。ふつう（SHIFT 7）・飽和（SHIFT 4）・陽性対照 2 本（-DCHAIN_TW_LAT_ERR・-DCHAIN_RND1、落ちるべき）
-G24CH_RTL := src/common/cmul.v src/common/dft16.v src/g24/g24_tw.v src/g24/g24_chain.v sim/tb_g24_chain.v
+G24CH_RTL := ../../common/cmul.v ../../common/dft16.v src/g24/g24_tw.v src/g24/g24_chain.v sim/tb_g24_chain.v
 sim-g24ch:
 	@o0=$(SIMDIR)/g24ch_in; mkdir -p $$o0; $(PYTHON) sim/check_g24.py chain-gen $$o0 > /dev/null; \
 	for v in normal sat twlat rnd1; do \
@@ -105,7 +105,7 @@ sim-g24a:
 	  && echo "sim-g24a: 全部通過（陽性対照は落ちた）" || (echo "sim-g24a: NG"; exit 1)
 
 # 2c. g24_spec（分光の本体）。x.hex は無ければ作る（proj027: 毎回作り直すと、make -j で並べた 2d・2e が書きかけの x.hex を読んで X が混ざった）。ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
-G24S_RTL := src/common/cmul.v src/common/dft16f.v src/g24/g24_cu.v sim/cu_src.v src/g24/g24_pfb_core.v src/g24/g24_pfb.v \
+G24S_RTL := ../../common/cmul.v ../../common/dft16f.v src/g24/g24_cu.v sim/cu_src.v src/g24/g24_pfb_core.v src/g24/g24_pfb.v \
             src/g24/g24_tw.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/g24/g24_acc.v src/g24/g24_spec.v sim/lane_fft_g24_model.v sim/tb_g24_spec.v
 sim-g24s: $(CU_WORDS)
 	@o0=$(SIMDIR)/g24s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g24.py spec-gen $$o0; \
@@ -126,7 +126,7 @@ sim-g24s: $(CU_WORDS)
 sim-recfr:
 	@for v in normal posctl; do \
 	  o=$(SIMDIR)/recfr_$$v; mkdir -p $$o; d=""; [ $$v = posctl ] && d="-DEQ_POSCTL"; \
-	  ( $(IVERILOG) -g2005 $$d -o $$o/tb sim/rec_fr_ref.v src/common/rec_fr.v sim/tb_recfr_eq.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1 ) & \
+	  ( $(IVERILOG) -g2005 $$d -o $$o/tb sim/rec_fr_ref.v src/rec_fr.v sim/tb_recfr_eq.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1 ) & \
 	done; wait; \
 	for v in normal posctl; do printf '%-14s %s\n' "recfr_$$v" "$$(grep '結果:' $(SIMDIR)/recfr_$$v/tb.log || echo '結果の行が無い')"; done
 	@grep -q '結果: 全部通過' $(SIMDIR)/recfr_normal/tb.log && grep -q '結果: 不合格' $(SIMDIR)/recfr_posctl/tb.log \
@@ -135,7 +135,7 @@ sim-recfr:
 # 2d. g24_core（FULL の流れのブロック・SPEC のレコード 256 KiB・FULL の TP・SRC）。入力は 2c と同じ x.hex（sim-g24s の g24s_in を作る）。
 #     ふつう・陽性対照 2 本（-DG24C_POSCTL: 積分器の読みの口に 1 段多い / -DG24C_TP_POSCTL: TP の F0 の × 8 を忘れる）。
 #     G24CORE_V で回す変種を選べる（proj025 では 3 本を同時に 20 分前後。2G-4 のレコードは 256 KiB で半分）
-G24CORE_RTL := src/common/cmul.v src/common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/common/adc_ev.v src/common/tp_core.v src/common/rec_fr.v src/common/rec_arb.v \
+G24CORE_RTL := ../../common/cmul.v ../../common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v ../../common/adc_ev.v src/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
                src/g24/g24_cu.v sim/cu_src.v src/g24/g24_pfb_core.v src/g24/g24_pfb.v src/g24/g24_tw.v src/g24/g24_acc.v \
                src/g24/g24_spec.v src/g24/g24_core.v sim/lane_fft_g24_model.v sim/tb_g24_core.v
 G24CORE_V ?= normal posctl tp
@@ -155,7 +155,7 @@ sim-g24core: $(CU_WORDS)
 
 # 2e. g24_s45_core（コアの共通・FULL（s 0）・RAW（s 1）・axis_sel4 × 2 は tb がブロックデザインと同じく外に置く）。
 #     ふつうと陽性対照（-DDROP_POSCTL: FULL の TP の drop を数え忘れる。rec_drop の和と LATE の和が合わなくなるべき）。2 本を同時に
-G24S45_RTL := $(filter-out sim/tb_g24_core.v,$(G24CORE_RTL)) src/common/core_cmn.v src/common/raw_core.v src/common/axis_sel4.v \
+G24S45_RTL := $(filter-out sim/tb_g24_core.v,$(G24CORE_RTL)) src/core_cmn.v ../../common/raw_core.v ../../common/axis_sel4.v \
               src/g24/g24_s45_core.v sim/tb_g24_s45.v
 G24S45_V ?= normal drop
 sim-g24s45: $(CU_WORDS)
@@ -239,7 +239,7 @@ wide-hier:
 # ---- 2f: 2G-4 の .bit（Vivado サーバ。`make build`。proj025-m0 の Makefile から写した）----
 # RealDigitalOrg/RFSoC4x2-BSP を clone した先の board_files（Vivado のインストールツリーの中には置かない。VERSIONS.md）
 BOARD_REPO ?= $(HOME)/src/RFSoC4x2-BSP/board_files
-# part。既定は -1（実機の .bit。PS には src/board/ps_preset.tcl を当てる）。-2 は PART=xczu48dr-ffvg1517-2-e → build-2-e/
+# part。既定は -1（実機の .bit。PS には ../../board/ps_preset.tcl を当てる）。-2 は PART=xczu48dr-ffvg1517-2-e → build-2-e/
 PART_DEFAULT := xczu48dr-ffvg1517-1-e
 PART         ?= $(PART_DEFAULT)
 # gb_gate のしきい値の既定（core_cmn の GB_K_RST）。proj012 rev3 から 2
@@ -282,7 +282,7 @@ post:
 # M-1 の模型。成否は最後の「まとめ」の行で読む
 model:
 	@mkdir -p runs
-	$(PYTHON) model/s2_model.py | tee runs/model.txt
+	$(PYTHON) ../../../model/s2_model.py | tee runs/model.txt
 
 # ---- P-1 s2_sep の単体の sim（成否は各ログの「結果:」の行で読む）----
 # normal・gap は通るべき、addr・swap・pos（陽性対照）は落ちるべき。入力の hex は変種ごとのディレクトリに書く（proj028 F-5a）
@@ -309,7 +309,7 @@ ooc-sep:
 
 # ---- P-2・P-3 s2_sep → s2_chain（＋ g24_tw）→ s2_q をつないだ sim（6 フレーム、積分器の口を模型と bit 単位で）----
 # normal（SHIFT 7）・sat（SHIFT 4、q の飽和あり）・gap は通るべき、sh18（-DCHAIN_SH18）・bubble（-DQ_BUBBLE）は落ちるべき
-ALL2_RTL := src/s2_sep.v src/common/cmul.v src/common/dft16f.v src/g24/g24_tw.v src/s2_chain.v src/s2_q.v sim/tb_s2_all.v
+ALL2_RTL := src/s2_sep.v ../../common/cmul.v ../../common/dft16f.v src/g24/g24_tw.v src/s2_chain.v src/s2_q.v sim/tb_s2_all.v
 sim-all2:
 	@for v in normal sat gap sh18 bubble; do \
 	  o=$(SIMDIR)/all2_$$v; mkdir -p $$o; d=""; sh=7; \
@@ -326,7 +326,7 @@ sim-all2:
 	  && echo "sim-all2: 全部通過（陽性対照 2 本は落ちた）" || (echo "sim-all2: NG"; exit 1)
 
 # ---- P-2・P-3 の OOC（`-1`・256 MHz）。結果は build-ooc/ooc-<名前>.txt ----
-OOC_CHAIN := src/common/cmul.v src/common/dft16f.v src/s2_chain.v
+OOC_CHAIN := ../../common/cmul.v ../../common/dft16f.v src/s2_chain.v
 OOC_Q     := src/s2_q.v
 ooc-chain ooc-q:
 	@n=$(@:ooc-%=%); top=s2_$$n; f="$(if $(filter ooc-chain,$@),$(OOC_CHAIN),$(OOC_Q))"; o=build-ooc/$$n; mkdir -p $$o; \
@@ -337,7 +337,7 @@ ooc-chain ooc-q:
 # 比べる相手: 今の鎖 g24_chain（proj027 の HEAD から ref/ に写した。電力まで含む）
 ooc-ref:
 	@o=build-ooc/ref; mkdir -p $$o; \
-	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs g24_chain 3.906 clk ../../src/common/cmul.v ../../ref/dft16.v ../../ref/g24_chain.v > /dev/null 2>&1; \
+	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs g24_chain 3.906 clk ../../../../common/cmul.v ../../ref/dft16.v ../../ref/g24_chain.v > /dev/null 2>&1; \
 	  grep '^OOC ' vivado.log | tee ../ooc-ref.txt
 
 # ================================================================ proj031
@@ -350,7 +350,7 @@ gen-crc:
 # M の模型。成否は「まとめ」の行で読む。最後の行の COEF_CRC が build.tcl の定数
 model-cu:
 	@mkdir -p runs
-	$(PYTHON) model/cu_model.py | tee runs/model_cu.txt
+	$(PYTHON) ../../../model/cu_model.py | tee runs/model_cu.txt
 
 # ---- P-1 g24_cu の単体の sim（比べる相手は g24_coef の RTL）。成否は各ログの「結果:」の行で読む ----
 # normal は通るべき、mirror・norev（RTL の陽性対照）・nowrite・onebit・after（tb の陽性対照）は落ちるべき。入力の hex は 1 回だけ作り、全変種は読むだけ

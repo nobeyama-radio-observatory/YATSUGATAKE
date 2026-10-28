@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import g24_fixed as F  # noqa: E402
 import s2_model as S  # noqa: E402
 

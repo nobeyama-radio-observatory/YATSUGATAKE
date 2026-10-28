@@ -37,6 +37,8 @@ make.out
 *.npz
 *.s45
 runs/**/data/
+# 2G-4 の模型の出力（make model-cu の runs/model_cu.txt など。make build がその場で作る）
+/hw/bits/2g-4/runs/
 
 # ---- OS / エディタ ----
 .DS_Store

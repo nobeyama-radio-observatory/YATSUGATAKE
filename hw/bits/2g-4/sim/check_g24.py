@@ -24,7 +24,7 @@ import sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "model"))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "..", "model"))
 import g24_fixed as F  # noqa: E402
 import s2_model as S2  # noqa: E402  proj030: IP の出口（8 個の複素の Z）から先は 2-for-1 の定義（S2.power_s2）
 from g2_model import core_fft, design, pfb_float  # noqa: E402
