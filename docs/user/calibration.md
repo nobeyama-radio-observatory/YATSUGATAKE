@@ -1,4 +1,4 @@
-# 時刻の較正（ボードごと、設置の後に 1 回）
+# ボードの較正（時刻・TP の dBm。ボードごと、設置の後に 1 回）
 
 データの時刻（`utc_ns`）を、ボードの個体と設置（1PPS の入口の LPF・ケーブル）に合わせる。測った値は**ボードにだけ置き、リポジトリには戻さない**（[ADR 0023](../decisions/0023-time-calibration-per-board.md)）。
 測っていないボードは開発の値（暫定）で動く。誤差は数 ns で要求の 100 µs には効かないが、`ID` の `tcal=provisional` で分かる。
@@ -48,3 +48,27 @@ specd を起こし直し、制御 PC から `ID` に `tcal=board`、`GET CAL` �
 
 `time_cal.json` はボードの個体の値。リポジトリには入れない（`.gitignore` 済み）。SD カードを作り直すと消えるので、ユーザーの手元に写しを持つ。
 測りの記録（`timecal-<日時>/`）も同じ扱い。作り直しは `timecal.py --from timecal-<日時>/load*.f2.json`（測らない）。
+
+## TP の dBm の較正
+
+STATUS の `tp_dbm` と START の EVENT の係数（ADC の口の dBm への換算）。**観測の強度の較正には使わない**（チョッパーホイールがする）ので、無くても運転できる（dBFS は出る）。
+係数はボードの個体の値で、ボードの `/etc/yatsugatake/tp_cal.json`（環境変数 `YATSUGATAKE_TP_CAL`）にだけ置く（[ADR 0025](../decisions/0025-tp-calibration-per-board.md)）。鍵は時刻と同じボードの印と ADC の道。
+
+測り方（ノイズソース ＋ パワーメーター、specd を動かしたまま。制御 PC か ボードの Jupyter で。手順と線は [`../spec/units.md`](../spec/units.md)・判定 P-8）:
+
+```python
+from s45client import S45; from instr import PowerMeter, Atten; import s45lin as L
+s = S45("<board>"); pm = PowerMeter(); at = Atten()          # 宛先は環境変数 RFSOC_PM・RFSOC_ATT
+path = L.measure(s, pm, at, out="lin1")                      # 線形性（≒ 6 分）
+L.make_cal(path, out="tp_cal.json")                          # 暫定の K（specd の ID のボードの印が入る）
+L.adc_port_cal(s, pm, "A", cal_path="tp_cal.json")           # PM を ADC の口に付け替えて ADC ごとに置き換える（対話）
+```
+
+できた `tp_cal.json` をボードの `/etc/yatsugatake/tp_cal.json` に置き（`sudo install -D -m 644 tp_cal.json /etc/yatsugatake/tp_cal.json`）、specd を起こし直す。
+確かめ: `sudo -E $(which python3) s45cal.py show`（このボードの印と合うか）、制御 PC から `GET CAL` に ADC ごとの `k`。
+
+**前の形のファイル**（ADR 0025 より前の、ボードの印の無い `bits` の形）は使われない。そのボードで測ったものなら、ボードで一度:
+
+```bash
+sudo -E $(which python3) s45cal.py adopt <前の tp_cal.json>     # 印と ADC の道を付けて /etc/yatsugatake/tp_cal.json に置く（K は変えない）
+```

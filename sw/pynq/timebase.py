@@ -264,7 +264,7 @@ class Timebase:
                     time_cal = load_time_cal(p)
                 except (ValueError, KeyError, OSError) as e:
                     (log or print)(f"時刻の較正ファイルを読めない（暫定の値を使う）: {e}")
-        self.board = board_id() if time_cal is not None else None
+        self.board = board_id()                                         # ADR 0023・0025: 時刻と TP の較正ファイルの鍵
         self.cal, self.cal_state, self.cal_why = select_cal(key, time_cal, self.board, cal)   # ADR 0023
         if self.cal_state != "board":
             (log or print)(f"時刻の較正は暫定（開発の値）: {self.cal_why}")
