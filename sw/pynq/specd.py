@@ -313,7 +313,7 @@ class Server:
                 c = r.get("cal")
                 if not c:
                     return kv_line(dict(cal="none", msg=r.get("msg"), **dt))
-                d = dict(file=c.get("file"), bits=c.get("bits"), unit=c.get("unit"))
+                d = dict(file=c.get("file"), board=(c.get("board") or {}).get("id"), adc_path=c.get("adc_path"), unit=c.get("unit"))   # ADR 0025
                 for a, v in sorted(c["adc"].items()):
                     d[f"{a}.k"] = round(v["k_db"], 3); d[f"{a}.prov"] = bool(v.get("provisional")); d[f"{a}.date"] = v.get("date")
                 return kv_line(d | dt)

@@ -64,3 +64,4 @@
 | [0023](0023-time-calibration-per-board.md) | 時刻の較正はボードごとに設置の後で測り、ボードにだけ置く（bit ごとには測らない） | 採用 | 2026-10-29 |
 | [0024](0024-noise-source-always-on-remote-off.md) | 評価のノイズソースは常時 ON、OFF の要る測りだけ道具が遠隔で切って戻す | 採用 | 2026-10-29 |
 | [0025](0025-tp-calibration-per-board.md) | TP の dBm の較正もボードごとに持ち、ボードにだけ置く（リポジトリの tp_cal.json をやめる） | 採用 | 2026-10-29 |
+| [0026](0026-board-id-mac.md) | ボードの印は eth0 の MAC にする（eFuse の DNA は読めない） | 採用 | 2026-10-29 |

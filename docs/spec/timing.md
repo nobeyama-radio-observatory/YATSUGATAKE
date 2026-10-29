@@ -55,7 +55,7 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 
 | どれを当てるか | 条件 | 印（`ID` の `tcal`） |
 |---|---|---|
-| ボードの較正ファイル（既定 `/etc/yatsugatake/time_cal.json`、環境変数 `YATSUGATAKE_TIME_CAL`） | ファイルのボードの印 = このボード（eFuse の DNA、読めなければ eth0 の MAC）、かつ測った bit と載っている bit の ADC → コアの道（`ADC_PATH`）が同じ | `board` |
+| ボードの較正ファイル（既定 `/etc/yatsugatake/time_cal.json`、環境変数 `YATSUGATAKE_TIME_CAL`） | ファイルのボードの印 = このボード（eth0 の MAC、[ADR 0026](../decisions/0026-board-id-mac.md)）、かつ測った bit と載っている bit の ADC → コアの道（`ADC_PATH`）が同じ | `board` |
 | `CAL[(BIT_KIND, BIT_REV)]`。無い bit は `CAL[(1, 1)]` | 上に当たらないとき | `provisional` |
 
 - 較正ファイルは `timecal.py` が作る（[`../user/calibration.md`](../user/calibration.md)）。形 (a): `pps_det_ns` 0・`adc_to_core_ns` = M。Overlay 5 回の平均、`bound_ns` = max(5, ⌈ばらつきの半分 ＋ 2 ns⌉)

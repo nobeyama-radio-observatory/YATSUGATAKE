@@ -90,17 +90,9 @@ def adc_path_of(key):
 
 
 def board_id():
-    """このボードの印（dict(id, src)）。時刻の較正ファイルを別のボードで使わないため。
-    ZynqMP の eFuse の DNA（nvmem、root で読める）を先に、読めなければ eth0 の MAC。どちらも無ければ None"""
-    for dev in ("/sys/bus/nvmem/devices/zynqmp-nvmem0/nvmem",):
-        try:
-            with open(dev, "rb") as f:
-                b = f.read(0x18)
-            dna = b[0x0C:0x18]
-            if len(dna) == 12 and any(dna) and dna != b"\xff" * 12:
-                return dict(id="dna:" + dna.hex(), src=dev)
-        except OSError:
-            pass
+    """このボードの印（dict(id, src)）。時刻・TP の較正ファイルを別のボードで使わないため。
+    eth0 の MAC（ボードの EEPROM の固定のアドレス、root でなくても読める）。読めなければ None。
+    eFuse の DNA は PYNQ v3.1.1 では読めない（nvmem は EOPNOTSUPP、/dev/mem は Bus error）ので使わない（ADR 0026）"""
     try:
         with open("/sys/class/net/eth0/address") as f:
             mac = f.read().strip().lower()

@@ -153,7 +153,7 @@ def main():
         log(f"結果: 通過（--dry-run なので書かない）: {json.dumps(d['adc_to_core_ns'])}・bound_ns {d['bound_ns']}"); sys.exit(0)
     board = TB.board_id()
     if board is None:
-        log("ERROR: このボードの印が読めない（eFuse の DNA も eth0 の MAC も）。較正ファイルの鍵が作れない"); sys.exit(1)
+        log("ERROR: このボードの印が読めない（eth0 の MAC）。較正ファイルの鍵が作れない"); sys.exit(1)
     write_cal(d, a.write, board)
     log("結果: 通過。specd を起こし直すと ID の tcal=board・GET CAL に値が出る")
 

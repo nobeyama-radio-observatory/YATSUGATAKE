@@ -31,7 +31,7 @@ sudo -E $(which python3) timecal.py --clkin 0 --ref 10
 - Overlay を 5 回載せ直し、ADC ごとに 1PPS の縁を 5 試行ずつ測る（数分）。記録は `timecal-<日時>/`
 - 通れば `/etc/yatsugatake/time_cal.json` を書く。前のファイルは `time_cal.json.<日時>` に残る
 - 置き場所を替えるなら `--write <パス>` と、specd を起こすときの環境変数 `YATSUGATAKE_TIME_CAL=<パス>`
-- 通らない（`結果: 失敗`）ときはファイルを書かない。よくある原因: 1PPS が ADC に入っていない（縁が見えない）、specd が動いている、Overlay ごとのばらつきが 2 ビートを越えた（もう一度回す）
+- 通らない（`結果: 失敗`）ときはファイルを書かない。よくある原因: 1PPS が ADC に入っていない（縁が見えない）、specd が動いている、Overlay ごとのばらつきが 2 ビートを越えた（もう一度回す）、1 回の中の σ が 0.4 ビートを越えた（縁がビートの境目にかかってスタンプが 1 ビート跳ぶ。もう一度回す）
 
 合格の線（道具が見る）: 各回で 4 ADC × 5 試行とも縁が見える（最大 / σ ≧ 20）・1 回の中の σ ≦ 0.4 ビート・縁の 2 フレーム前では見えない（陽性対照）。ADC ごとの回の間のばらつき ≦ 2 ビート。
 
@@ -65,7 +65,7 @@ L.adc_port_cal(s, pm, "A", cal_path="tp_cal.json")           # PM を ADC の口
 ```
 
 できた `tp_cal.json` をボードの `/etc/yatsugatake/tp_cal.json` に置き（`sudo install -D -m 644 tp_cal.json /etc/yatsugatake/tp_cal.json`）、specd を起こし直す。
-確かめ: `sudo -E $(which python3) s45cal.py show`（このボードの印と合うか）、制御 PC から `GET CAL` に ADC ごとの `k`。
+確かめ: `sudo -E $(which python3) s45cal.py show`（このボードの印と合うか）、制御 PC から `GET CAL` に `board`（このボードの印）・`adc_path`・ADC ごとの `k`。
 
 **前の形のファイル**（ADR 0025 より前の、ボードの印の無い `bits` の形）は使われない。そのボードで測ったものなら、ボードで一度:
 

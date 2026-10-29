@@ -14,7 +14,7 @@ import timebase as TB
 import timecal as TC
 
 IF_WIDE = "02010102"                      # BIT_KIND 1・BIT_REV 1
-BOARD = dict(id="dna:0123456789abcdef01234567", src="試験")
+BOARD = dict(id="mac:" + ":".join(["0a"] * 6), src="試験")
 
 
 def rec(dirn, name, means, std=0.05, p_seen=0, n=5, if_id=IF_WIDE):
