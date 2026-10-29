@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr の合成が変わり `IMPL=Performance_ExtraTimingOpt` で閉じた新しい bit `a9a01b81…`。下の「`hw/common/` の一本化」の 3 節）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -212,6 +212,12 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 
 **扱い（2026-10-29、実験者の判断）**: `hw/common/` は今の形（Fine・Wide は v1.0.0 と同じ）のまま、2G-4 は新しい形で実装の戦略を替えてタイミングを詰める。M3 の「移植元と FDRI が同じ」はこの bit では成り立たなくなり、M6 はこの bit で回す。
 **予言（回す前）**: `IMPL=Performance_Explore` と `IMPL=Performance_ExtraTimingOpt` を並べて回す（BUILD_JOBS 8）。負けの量（−0.35 ns）は配置の運で出る幅（proj023 の Wide は既定で負け、PE で +0.0007）に入るので、どちらか 1 本は閉じる見込み（WNS ≧ 0・WHS ≧ 0・build.tcl の照合が全部通る）。閉じた方を 2G-4 の bit にし、FDRI・USR_ACCESS・WNS をここと 2G-4 の README に書く。2 本とも閉じなければ、負けの経路（PFB の sat_cnt）を見て RTL か制約で手を打つかを相談する
+
+### 2G-4 のタイミングを詰めた結果（2026-10-29〜30）: 予言どおり 1 本が閉じた
+
+- `IMPL=Performance_Explore`: 合成の段で Vivado が 4 回 segfault し、`raw_sel_1` の OOC が回し直しても通らず止まった（設計ではなく Vivado の不安定。下）
+- **`IMPL=Performance_ExtraTimingOpt`: 閉じた**。配線の後 WNS +0.047・WHS +0.009 ns（負けの端点 0）。`impl_1` は `write_bitstream` まで完走したが、親の Vivado が設計を開き直す所で segfault（Wide の一本化のときと同じ型）→ `make post IMPL=Performance_ExtraTimingOpt` で後段を仕上げた: **TIMING（確定）WNS +0.046737 / WHS +0.009404 ns・FDRI `a9a01b81dd8c1f0942b7d82c1bd37c211e301d7a39b4ac1620704ae7c0f55488`・USR_ACCESS 52d27230（汚れなし）**。M5 の bit と比べて、address_map・cdc（分類別の件数）・clocks・net_check・rfdc_params・xfft_params が同じ、BRAM 692・URAM 56・DSP 2,064 が同じ、LUT −9・FF +117（配置の後の複製）、DRC は同じ規則で DPOP-3 が 63 → 64 だけ
+- **Vivado の不安定（2026-10-29）**: 合わせて 15 回を越える segfault（合成・`impl_1` の頭・配置・設計を開き直す所と場所が散る）。いつもは数日に 1 回、多かったのはビルドを並べた 10-23 の 5 回。並べると落ちやすい見当だが、1 本だけでも落ちた。カーネルのログに MCE・EDAC の誤りは無い（EDAC はメモリコントローラの driver が当たっていないので、訂正の誤りが出ない形かもしれない）。Fine・Wide は v1.0.0 とビットまで同じ構成データを出したので、黙って壊れた結果ではない。2G-4 の PETO の bit は比べる相手が無いので、**同じ戦略でもう 1 回作り直し、FDRI がそろうかを確かめてから M6 に使う**
 
 ### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
 
