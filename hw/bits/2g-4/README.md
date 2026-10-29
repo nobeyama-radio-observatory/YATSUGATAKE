@@ -8,6 +8,6 @@
 - Makefile の目標: ビルド（`make build IMPL=Performance_ExtraTimingOpt` → `build-PETO/`）・`post`・sim（`make sim-all` = 模型 3 本 ＋ sim 15 本、`build-sim-logs/` の 18 個で判定。`SIM_J` で並べる数）・表の作り直し（`gen`・`gen-crc`）・部品の OOC（`ooc-sep`・`ooc-chain`・`ooc-q`・`ooc-cu`）。proj031 までの試行の目標（`coef-ooc`・`wide-hier`・`ooc-ref`）は外した（2g-4/makefile-trim）
 - `make build` は先に `make model-cu` を回し、`runs/model_cu.txt` の COEF_CRC（期待 0x891BE197）を bit に焼く。`runs/` は git に入れない
 - 実装の戦略は **`IMPL=Performance_ExtraTimingOpt`**（2026-10-29 から。一本化の後、既定の戦略では WNS −0.352 ns で閉じない。PETO で WNS +0.046737・WHS +0.009404 ns、FDRI `a9a01b81…5488`）。移植元と M3〜M5 の bit は既定の戦略（WNS +0.047 ns・FDRI `f05e1f62…3b1c`）
-- 親の Vivado が `impl_1` の後（設計を開き直す所）で落ちたら `make post IMPL=Performance_ExtraTimingOpt`（合成・実装をやり直さずに照合・報告・`build-PETO/` への写し）。2026-10-29 の PETO はこれで仕上げた
+- 親の Vivado が `impl_1` の後（設計を開き直す所）で落ちたら `make post IMPL=Performance_ExtraTimingOpt`（合成・実装をやり直さずに照合・報告・`build-PETO/` への写し）。2026-10-29 の PETO はこれで仕上げた。**ただし 2026-10-30 の確かめの作り直し（一続き）は WNS −0.351 ns で閉じず FDRI もそろわなかった**（1 回目は配置の途中で落ちて dcp から回し直した道筋で偶然閉じた。migration）。2G-4 の bit の扱いは未定
 
 系譜: proj027（2G-4 の RTL）→ proj030（レーン FFT の 2-for-1）→ proj031（係数の共有 URAM）。PS は proj036（束ねの取得の C）。

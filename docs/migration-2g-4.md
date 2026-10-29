@@ -219,6 +219,14 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 - **`IMPL=Performance_ExtraTimingOpt`: 閉じた**。配線の後 WNS +0.047・WHS +0.009 ns（負けの端点 0）。`impl_1` は `write_bitstream` まで完走したが、親の Vivado が設計を開き直す所で segfault（Wide の一本化のときと同じ型）→ `make post IMPL=Performance_ExtraTimingOpt` で後段を仕上げた: **TIMING（確定）WNS +0.046737 / WHS +0.009404 ns・FDRI `a9a01b81dd8c1f0942b7d82c1bd37c211e301d7a39b4ac1620704ae7c0f55488`・USR_ACCESS 52d27230（汚れなし）**。M5 の bit と比べて、address_map・cdc（分類別の件数）・clocks・net_check・rfdc_params・xfft_params が同じ、BRAM 692・URAM 56・DSP 2,064 が同じ、LUT −9・FF +117（配置の後の複製）、DRC は同じ規則で DPOP-3 が 63 → 64 だけ
 - **Vivado の不安定（2026-10-29）**: 合わせて 15 回を越える segfault（合成・`impl_1` の頭・配置・設計を開き直す所と場所が散る）。いつもは数日に 1 回、多かったのはビルドを並べた 10-23 の 5 回。並べると落ちやすい見当だが、1 本だけでも落ちた。カーネルのログに MCE・EDAC の誤りは無い（EDAC はメモリコントローラの driver が当たっていないので、訂正の誤りが出ない形かもしれない）。Fine・Wide は v1.0.0 とビットまで同じ構成データを出したので、黙って壊れた結果ではない。2G-4 の PETO の bit は比べる相手が無いので、**同じ戦略でもう 1 回作り直し、FDRI がそろうかを確かめてから M6 に使う**
 
+### 2G-4 の PETO の確かめの作り直し（2026-10-30）: FDRI がそろわず、一続きの回は閉じない
+
+同じ戦略（`IMPL=Performance_ExtraTimingOpt`、BUILD_JOBS 8、8c0d68b）で 1 本だけ作り直した。**FDRI `4851ae4d…ffd9`（1 回目 `a9a01b81…5488` と違う）・WNS −0.351120 ns（334 端点）・WHS +0.009507 ns → 閉じない**（既定の戦略の −0.352 とほぼ同じ）。
+- 合成の 39 個は資源の数が 1 回目と同じ。`impl_1` のチェックサムは配置の Phase 2.4.1 まで 1 回目と全部同じ
+- **分かれた所**: 1 回目は Phase 2.4.2（Physical Synthesis In Placer）で Vivado が segfault し、回し直しが `system_wrapper_opt.dcp` を開くところから始まった（「ShapeDB restore issue … ShapeDB will be regenerated」）。そこから先の配置が別物になり、偶然 WNS +0.047 に着いた。2 回目は落ちずに一続きで走った
+- **したがって 1 回目の bit `a9a01b81…` は作り直せない**（同じ所で落ちたときだけ出る）。マシンの不具合でデータが化けた形ではない（分かれた所が手順の違いで説明できる）
+- 今の rec_fr の 2G-4 は、既定・PETO の一続きの回で閉じない。PE は合成の段の segfault で回っていない
+
 ### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
 
 **M5b のフック**（7befb74）: Wide の Makefile・build.tcl の USR_ACCESS の部分（Makefile 12 行・build.tcl 22 行）をそのまま 2G-4 に写した。RTL・制約・配置には触れない。`make -n build` で USR_ACCESS が git から作られ、Vivado の後に `sw/pynq/bitinfo.py` の読み返しが走る。
