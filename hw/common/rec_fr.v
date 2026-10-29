@@ -27,6 +27,8 @@
 // ---- proj024 手順 2d: NCH を引数に（2G-1 の FULL は 131072 ch・1 MiB のレコード。INTERFACE 8. の 11）----
 //   数え（n_iss・n_cap・np 0..NCH、n_out・out_last 0..8+NCH）と rd_ch の幅を NCH から作り、語 7 の中身のバイト数を NCH·8 にした。
 //   **NCH = 4096（既定）では 567fda2 と同じ幅・同じ値**（sim-recfr で旧版と全部の出口をクロックごとに比べる）
+//   YATSUGATAKE の hw/common への一本化（2026-10-29）: `np - 1` を `np - 1'b1` に。幅の無い 1 だと 32 bit で引き、np = 0（起きない）の
+//   答えが 13 bit の旧版と違うので、合成が別の回路を作った（Fine の FDRI が v1.0.0 から変わった）。1'b1 なら np の幅で引き、旧版と同じ式
 //
 // ---- 口の時間 ----
 //   rd_ch はここのレジスタ。持ち主は rd_ch をもう 1 段受けて記憶の番地にし、記憶の 2 段（rd1・rd2）の後にもう 1 段受けて rd_data にする
@@ -182,7 +184,7 @@ module rec_fr #(
             end
             // ---- proj021 2-2c: SNAP の相の終わりの見張り（最後の語を取り込んだ 2 クロック後の snap_ok）----
             chk_p <= 1'b0;
-            if (st == S_RUN && ph && cap && n_cap == np - 1) chk_p <= 1'b1;
+            if (st == S_RUN && ph && cap && n_cap == np - 1'b1) chk_p <= 1'b1;
             if (chk_p) begin
                 chk <= 1'b1;
                 if (!sok && !abort) begin abort <= 1'b1; late[rd_s] <= 1'b1; dbg_eab <= 1'b1; end
@@ -217,7 +219,7 @@ module rec_fr #(
                     end
                 end
                 S_RUN: begin
-                    if (n_cap == np - 1 && cap && !(!ph && want_sn)) req <= 1'b0;   // 口を返す（出口はまだ流れている）。SNAP が続くなら持ったまま
+                    if (n_cap == np - 1'b1 && cap && !(!ph && want_sn)) req <= 1'b0;   // 口を返す（出口はまだ流れている）。SNAP が続くなら持ったまま
                     if (pop && m_tlast) begin
                         if (!ph && !abort) one_clr[rd_s] <= 1'b1;       // 最後の語を出すときには全部取り込んである（n_cap = NCH）
                         if (!ph && want_sn) begin
