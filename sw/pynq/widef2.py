@@ -183,7 +183,8 @@ def main():
         ok = False
     # リングは rectap が終わりに閉じる（atexit）
     if a.out and summ:
-        json.dump(dict(adc=summ, bitfile=a.bitfile, t=time.time()), open(a.out + ".f2.json", "w"), indent=1)
+        json.dump(dict(adc=summ, bitfile=a.bitfile, if_id=f"{cores[0].if_id:08x}", t=time.time()),   # if_id: timecal.py が測った bit を記録する
+                  open(a.out + ".f2.json", "w"), indent=1)
         np.savez_compressed(a.out + ".f2.npz", **{f"{k}_{tag}_x": np.array([r["x"] for r in v[i]]) for k, v in raw.items()
                                                  for i, tag in enumerate(("a", "p"))},
                             **{f"{k}_{tag}_meta": np.array([[r["dump_t"], r["stamp"], r["s0"], r["i_e"]] for r in v[i]]) for k, v in raw.items()

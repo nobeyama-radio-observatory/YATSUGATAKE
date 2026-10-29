@@ -49,9 +49,20 @@
 
 TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初のフレームの頭）。
 
-## 較正の定数（`sw/pynq/timebase.py` の `CAL`）
+## 較正の定数
 
-鍵は bit の **(BIT_KIND, BIT_REV)**。無い bit は「未較正」と出して止まる（別の bit の値を黙って使わない）。
+**ボードの較正ファイル**（[ADR 0023](../decisions/0023-time-calibration-per-board.md)）が正。無ければ `sw/pynq/timebase.py` の `CAL`（開発の値）を**暫定**として当てる。
+
+| どれを当てるか | 条件 | 印（`ID` の `tcal`） |
+|---|---|---|
+| ボードの較正ファイル（既定 `/etc/yatsugatake/time_cal.json`、環境変数 `YATSUGATAKE_TIME_CAL`） | ファイルのボードの印 = このボード（eFuse の DNA、読めなければ eth0 の MAC）、かつ測った bit と載っている bit の ADC → コアの道（`ADC_PATH`）が同じ | `board` |
+| `CAL[(BIT_KIND, BIT_REV)]`。無い bit は `CAL[(1, 1)]` | 上に当たらないとき | `provisional` |
+
+- 較正ファイルは `timecal.py` が作る（[`../user/calibration.md`](../user/calibration.md)）。形 (a): `pps_det_ns` 0・`adc_to_core_ns` = M。Overlay 5 回の平均、`bound_ns` = max(5, ⌈ばらつきの半分 ＋ 2 ns⌉)
+- ADC → コアの道（`ADC_PATH`、(BIT_KIND, BIT_REV) → 番号）: 表に無い bit は共通コアの道 1。**RFDC の設定・ギアボックスを変えた bit は新しい番号を足す**
+- 較正ファイルはリポジトリに入れない（ボードの個体の値）
+
+`CAL`（開発の値）の鍵は bit の **(BIT_KIND, BIT_REV)**。
 
 | 定数 | 意味 | 性質 | 測り方 |
 |---|---|---|---|
@@ -66,7 +77,8 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 | (2, 3) SAM45-Fine | 71.6（BLP-10.7+） | 141.6・141.7・141.3・141.3 | 5 | 2026-10-21 F-2（LPF あり 2 回・なし 1 回）。[`../../test/acceptance/sam45-fine/F-2.md`](../../test/acceptance/sam45-fine/F-2.md) |
 | (1, 1) SAM45-Wide | 71.5（BLP-10.7+） | 143.0・142.9・141.5・141.4 | 5 | 2026-10-21 study-rfsoc proj023 の F-2（LPF あり 2 回、LMX PWR 31）。2026-10-26 の M6（PWR 3）の M は −1.7〜−0.1 ns で据え置き（判定は保留）。[`../../test/acceptance/sam45-wide/F-2.md`](../../test/acceptance/sam45-wide/F-2.md) |
 
-- **LPF を外す・替える → `pps_det_ns` だけ測り直す。RTL を変える → BIT_REV を上げ、`adc_to_core_ns` と D を出し直して表に足す**（古い値は新しい REV に当たらない）
+- 本番のボードで LPF・ケーブル・分配を替えたら、`timecal.py` で測り直す。`CAL` の値は開発のボードのもので、本番の較正の代わりにしない
+- RTL を変える → BIT_REV を上げ、D を出し直す。ADC → コアの道を変えたときだけ `ADC_PATH` に新しい番号を足し、開発のボードで F-2 を回して `CAL` に足す
 - 要求は 100 µs。定数はどれもそれより 3 桁小さいが、黙って 0 にしない
 
 ## 持ち越し

@@ -46,4 +46,6 @@
 | [PS-2](PS-2.md) | specd の 10 分の運転 | specd | N | 通過 |
 | [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | 通過 |
 
+**F-2（配線 P）は、これからの bit では回さない**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)、2026-10-29）。本番の時刻の較正はボードごとに設置の後で測る（[`docs/user/calibration.md`](../../../docs/user/calibration.md)）。F-2 を回すのは、ADC → コアの道（RFDC の設定・ギアボックス）を変えた bit を開発のボードで確かめるときだけ。上の表の F-2 の結果は `timebase.CAL`（開発の値・暫定）の出どころとして残す。
+
 **SAM45-Fine では回さない判定**（FULL = 全帯域のスペクトルが無い）: W-6・W-1b・全帯域の golden・F-5・`spectrometer --tp`。全帯域のある bit（SAM45-Wide など）の判定として扱う。

@@ -393,7 +393,7 @@ class HwBackend:
             if prm != S.TP_PARAM_EXPECT:
                 raise RuntimeError(f"TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
         self.TpStream = make_tp_reader(S)
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(W.R_ID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",   # proj021 2-2d: 載っている time_core の IF_ID（BIT_REV 1 / 2）
@@ -404,6 +404,7 @@ class HwBackend:
         if self.use_ring:
             self._open_ring()
         self.ids["read"] = "ring" if self.use_ring else "axi"
+        self.ids["tcal"] = self.tb.cal_state                      # ADR 0023: board（ボードの較正）/ provisional（開発の値）
         self.bit_kind = (self.cores[0].if_id >> 16) & 0xFF        # proj021 2-3c: v2 の SPEC の bit_kind
         self.anchor()
 
@@ -728,7 +729,7 @@ class FakeBackend:
     def open(self):
         import types
         self.t0 = time.time() - 100.0                # 偽の時刻: T = (time − t0)·256e6、UTC = t0 + T / 256e6
-        self.ids = dict(win="fake", adc="fake", time="fake")
+        self.ids = dict(win="fake", adc="fake", time="fake", tcal="fake")
         rng = np.random.default_rng(1)
         self.base = rng.integers(1 << 40, 1 << 41, (4 * NW, P.NCH), dtype=np.uint64)
         tb = types.SimpleNamespace(cal=dict(pps_det_ns=0, adc_to_core_ns=0), check=lambda: None,
@@ -868,7 +869,7 @@ class WideBackend(HwBackend):
             if prm != S.TP_PARAM_EXPECT:
                 raise RuntimeError(f"TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
         self.TpStream = make_tp_reader(S)
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(SC.S_SID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",
@@ -877,6 +878,7 @@ class WideBackend(HwBackend):
         self.clock = Clock(None, {})
         self._open_ring()
         self.ids["read"] = "ring"
+        self.ids["tcal"] = self.tb.cal_state                      # ADR 0023
         self.bit_kind = c0.bit_kind
         self.anchor()
 
@@ -1154,7 +1156,7 @@ class Acq:
             if op == "get":
                 return dict(ok=True, settings=self.st)
             if op == "cal":
-                return dict(ok=True, cal=self._cal_pub(), msg=self.cal_msg)
+                return dict(ok=True, cal=self._cal_pub(), msg=self.cal_msg, time=self._tcal_pub())
             if op == "set":
                 if self.state not in (self.IDLE, self.ERROR):
                     return dict(ok=False, code="STATE", msg=f"{self.state} の間は SET できない（STOP の後に）")
@@ -1304,7 +1306,7 @@ class Acq:
         utc = self.be.clock.utc_ns(sa)
         self.event(dict(ev="START", start_at=sa, utc_ns=utc, n=self.ndump_target, forced=self.forced, version=VERSION,
                         proto=self.proto, fmt=self.st.get("fmt", "f32") if self.proto == 2 else "u64",
-                        ids=self.be.ids, tint=self.st["tint"], cfg=self.st["cfg"], tp_cal=self._cal_pub(),
+                        ids=self.be.ids, tint=self.st["tint"], cfg=self.st["cfg"], tp_cal=self._cal_pub(), time_cal=self._tcal_pub(),
                         wins=[dict(key=win_key(j), adc=j // NW, win=j % NW, **cf) for j, cf in enumerate(self.be.cfgs)]))
         self.log(f"START: START_AT {sa}（格子 {sa // G_BEATS}·G、UTC {utc / 1e9:.6f}）n = {self.ndump_target}")
         return dict(ok=True, start_at=sa, utc_ns=utc)
@@ -1387,6 +1389,15 @@ class Acq:
         if self.cal is None:
             return None
         return {k: v for k, v in self.cal.items() if not k.startswith("_")} | {"file": self.cal.get("_file")}
+
+    def _tcal_pub(self):
+        """START の EVENT・GET CAL に出す時刻の較正（ADR 0023。偽物は None）"""
+        tb = getattr(self.be, "tb", None)
+        if tb is None:
+            return None
+        c = tb.cal
+        return dict(state=tb.cal_state, why=tb.cal_why, file=c.get("_file"), date=c.get("date"), board=(tb.board or {}).get("id"),
+                    pps_det_ns=c["pps_det_ns"], adc_to_core_ns=c["adc_to_core_ns"], bound_ns=c["bound_ns"])
 
     def _spec_record(self, j, m, spec):
         cf = self.be.cfgs[j]
