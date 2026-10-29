@@ -172,6 +172,23 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 - 較正の鍵を (BIT_KIND, BIT_REV) = (3, 1) に。timebase の CAL に proj031 R-5 の値（上の表）。BIT_REV は 1 のまま
 - Makefile・build.tcl に Fine の M5b のフック（USR_ACCESS を焼く・`bitinfo.py` で読み返す）。FDRI は M3 と同じになるはず
 
+### `hw/common/` の一本化（core_cmn・rec_fr・tp_core）の手順と予言（2026-10-29、ブランチ `2g-4/common-unify`、回す前）
+
+**変えたもの**: `hw/common/` の `core_cmn.v`・`rec_fr.v`・`tp_core.v` を 2G-4 の写し（= proj031 の版、上の「`hw/common/` との違い」）に替え、写しを消し、2G-4 の Makefile（3 行）・build.tcl（2 行）を `../../common/` に向けた。違いは口を足しただけで、既定のパラメータでは今の式と同じ:
+- `tp_core.v`: パラメータ `F0_EXT`（既定 0）と入力 `f0_ext`。Fine の `win_core` と Wide の `core_cmn` は `f0_ext` を繋がない（Fine）か 0 で繋ぐ（core_cmn の 1 行）
+- `rec_fr.v`: パラメータ `NCH`（既定 4096）・`CHW`。NCH 4096 では今と同じ幅・同じ値
+- `core_cmn.v`: tp_core の `f0_ext` を 0 で繋いだ 1 行（Wide も使う）
+
+**合格**（Wide の一本化と同じ型。1 つでも外れたら一本化しない）:
+1. **Fine の sim**: `hw/bits/sam45-fine` で `make sim-all sim-ring` を、一本化の前（main 6ee64b1 の worktree）と後の 2 つの木で回し、sim の出力（ダンプ・照合のログ・結果の行）がバイト単位で同じ。陽性対照は前と同じ件数で落ちる。コンパイル物（`tb*`）は `tp_core`・`rec_fr` を含むものだけが読み替えても違ってよい
+2. **Wide の sim**: `make sim-all` が 28 個とも通過し、sim のログが一本化の前の木と同じ
+3. **2G-4 の sim**: `make sim-all` が 18 個とも通過し、出力が M5 の回し直しと同じ（`tb` の番地・模型のログの秒を除く）
+4. **Fine のビルド**（既定の戦略・`JOBS=8`）: **FDRI が v1.0.0 と同じ**（`e095fa97…29f9`）
+5. **Wide のビルド**（`IMPL=Performance_Explore JOBS=8`）: **FDRI が v1.0.0 と同じ**（`abc66e72…4d4736`）。Wide の一本化と同じく、配線の後の `open_run` で Vivado が落ちても bit が出ていれば FDRI で判定する
+6. **2G-4 のビルド**（既定の戦略・BUILD_JOBS 8）: **FDRI が M3・M5 と同じ**（`f05e1f62…3b1c`）。2G-4 は読むファイルの中身が同じ（置き場所だけ違う）
+
+**予言**: 6 つとも同じ。既定のパラメータでは式が同じなので、合成は同じネットリストを作る。外れるとしたら、Fine の `tp_core` に繋がない入力 `f0_ext`・Wide と Fine の `rec_fr` の幅をパラメータから作る書き方で、合成が名前・順番の違う部品を作り、配置のタイブレークが動くこと（そのときは 1〜3 は通り、4・5 だけが外れる）。2G-4 は M3 で「ディレクトリだけ違う作り直しで構成データまで同じ」だったので 6 は当たる見込みが高い
+
 ### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
 
 **M5b のフック**（7befb74）: Wide の Makefile・build.tcl の USR_ACCESS の部分（Makefile 12 行・build.tcl 22 行）をそのまま 2G-4 に写した。RTL・制約・配置には触れない。`make -n build` で USR_ACCESS が git から作られ、Vivado の後に `sw/pynq/bitinfo.py` の読み返しが走る。

@@ -126,7 +126,7 @@ sim-g24s: $(CU_WORDS)
 sim-recfr:
 	@for v in normal posctl; do \
 	  o=$(SIMDIR)/recfr_$$v; mkdir -p $$o; d=""; [ $$v = posctl ] && d="-DEQ_POSCTL"; \
-	  ( $(IVERILOG) -g2005 $$d -o $$o/tb sim/rec_fr_ref.v src/rec_fr.v sim/tb_recfr_eq.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1 ) & \
+	  ( $(IVERILOG) -g2005 $$d -o $$o/tb sim/rec_fr_ref.v ../../common/rec_fr.v sim/tb_recfr_eq.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1 ) & \
 	done; wait; \
 	for v in normal posctl; do printf '%-14s %s\n' "recfr_$$v" "$$(grep '結果:' $(SIMDIR)/recfr_$$v/tb.log || echo '結果の行が無い')"; done
 	@grep -q '結果: 全部通過' $(SIMDIR)/recfr_normal/tb.log && grep -q '結果: 不合格' $(SIMDIR)/recfr_posctl/tb.log \
@@ -135,7 +135,7 @@ sim-recfr:
 # 2d. g24_core（FULL の流れのブロック・SPEC のレコード 256 KiB・FULL の TP・SRC）。入力は 2c と同じ x.hex（sim-g24s の g24s_in を作る）。
 #     ふつう・陽性対照 2 本（-DG24C_POSCTL: 積分器の読みの口に 1 段多い / -DG24C_TP_POSCTL: TP の F0 の × 8 を忘れる）。
 #     G24CORE_V で回す変種を選べる（proj025 では 3 本を同時に 20 分前後。2G-4 のレコードは 256 KiB で半分）
-G24CORE_RTL := ../../common/cmul.v ../../common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v ../../common/adc_ev.v src/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
+G24CORE_RTL := ../../common/cmul.v ../../common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v ../../common/adc_ev.v ../../common/tp_core.v ../../common/rec_fr.v ../../common/rec_arb.v \
                src/g24/g24_cu.v sim/cu_src.v src/g24/g24_pfb_core.v src/g24/g24_pfb.v src/g24/g24_tw.v src/g24/g24_acc.v \
                src/g24/g24_spec.v src/g24/g24_core.v sim/lane_fft_g24_model.v sim/tb_g24_core.v
 G24CORE_V ?= normal posctl tp
@@ -155,7 +155,7 @@ sim-g24core: $(CU_WORDS)
 
 # 2e. g24_s45_core（コアの共通・FULL（s 0）・RAW（s 1）・axis_sel4 × 2 は tb がブロックデザインと同じく外に置く）。
 #     ふつうと陽性対照（-DDROP_POSCTL: FULL の TP の drop を数え忘れる。rec_drop の和と LATE の和が合わなくなるべき）。2 本を同時に
-G24S45_RTL := $(filter-out sim/tb_g24_core.v,$(G24CORE_RTL)) src/core_cmn.v ../../common/raw_core.v ../../common/axis_sel4.v \
+G24S45_RTL := $(filter-out sim/tb_g24_core.v,$(G24CORE_RTL)) ../../common/core_cmn.v ../../common/raw_core.v ../../common/axis_sel4.v \
               src/g24/g24_s45_core.v sim/tb_g24_s45.v
 G24S45_V ?= normal drop
 sim-g24s45: $(CU_WORDS)
