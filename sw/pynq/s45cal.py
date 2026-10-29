@@ -12,7 +12,7 @@ dBm への換算は受け側で行う（係数を測り直しても、過去の�
 このボードで測ったものなら `python3 s45cal.py adopt <前のファイル>` で今の形にして置く。
 
 tp_cal.json の形:
-  {"version": 1, "board": {"id": "dna:…", "src": …}（このボードの印。specd の ID の board と照らす）,
+  {"version": 1, "board": {"id": "mac:…", "src": …}（このボードの印。specd の ID の board と照らす）,
    "adc_path": 1（測った bit の ADC の道。載っている bit の道と照らす）,
    "measured_on": [...]（測った bit の記録。照合には使わない）, "unit": "dBm at ADC input (SMA)",
    "adc": {"A": {"k_db": -69.37, "valid_dbfs": [-47, -7], "provisional": true, "source": "...", "date": "2026-10-06"}, ...},

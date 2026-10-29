@@ -23,7 +23,7 @@ F-2 は 1PPS を ADC_A〜D にも入れる配線 P が要り、ケーブルを�
 - **本番のボードは、設置の後にユーザーが `sw/pynq/timecal.py` で測り、較正ファイル（`time_cal.json`）を自動で作る。** 以後はそのファイルで動く
   - 測るのは形 (a) の M = adc_to_core − pps_det だけ（LPF の有り無しの測り分けはしない。時刻の式に効くのは M だけ）
   - Overlay を載せ直して 5 回測った平均。ばらつきを `bound_ns` に入れる。ケーブルの入れ替えはしない（分配器から ADC まで同じ長さのケーブルを使う）
-  - 鍵はボードの印（eFuse の DNA、読めなければ eth0 の MAC）。別のボードでは当たらない
+  - 鍵はボードの印（eFuse の DNA、読めなければ eth0 の MAC）。別のボードでは当たらない（→ [ADR 0026](0026-board-id-mac.md)）
 - **較正ファイルはリポジトリに戻さない。** ボードの `/etc/yatsugatake/time_cal.json`（環境変数 `YATSUGATAKE_TIME_CAL` で替えられる）にだけ置き、ユーザーの手元で持つ
 - **較正ファイルが無い・当たらないときは、`timebase.CAL` の開発の値（SAM45-Fine・Wide の F-2、無い bit には Wide の値）を「暫定」として当てる。** 止めない代わりに、specd の `ID` の `tcal`（`board` / `provisional`）・`GET CAL`・START の EVENT の `time_cal` に印を出す
 

@@ -13,7 +13,7 @@ import tempfile
 import s45cal
 import timebase as TB
 
-BOARD = dict(id="dna:0123456789abcdef01234567", src="試験")
+BOARD = dict(id="mac:" + ":".join(["0a"] * 6), src="試験")
 OTHER = "mac:" + ":".join(["02"] * 6)
 ADC = {a: dict(k_db=-69.3, provisional=False, valid_dbfs=[-47.0, -7.0], date="2026-10-06") for a in "ABCD"}
 IDS_WIDE = dict(win="02020000", adc="02010101", time="02010102", board=BOARD["id"])
