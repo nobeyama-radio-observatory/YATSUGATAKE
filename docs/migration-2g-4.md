@@ -201,6 +201,18 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 
 **直したもの**: `hw/common/rec_fr.v` の `np - 1` → `np - 1'b1`（2 か所）。**予言（回し直す前）**: Fine・Wide は NCH 4096 で旧版と同じ式なので、1・2 は前と同じ出力、**4・5 の FDRI が v1.0.0 と同じ**。2G-4（NCH 32768）は np = 0 の式が M5（proj031）と変わるので、**6 の FDRI は M5 と違う見込み**（sim の 3 は同じ出力。sim-recfr は旧版と NCH 4096 で比べるので通る）。2G-4 は M6 の判定をこの bit で回す
 
+### `hw/common/` の一本化の 2 回目の結果（eedc3dc、2026-10-29）と、2G-4 のタイミングを詰める予言
+
+1. Fine の sim: 通過（1 回目と同じ形: 399 個のうち 347 個が同じ、`tb` の 34 個は読み替えで同じ、18 個は 3 個を含む。9 個とも「全部通過」、sim-ring「総合: 通過」）
+2. Wide の sim: 通過（28 個、`tb` 以外の 152 個が前の木と同じ）
+3. 2G-4 の sim: 通過（18 個。252 個のうち 204 個が M5 と同じ、34 個は読み替えで同じ、14 個は rec_fr を含む `tb`。sim の出力は全部 M5 と同じ）
+4. **Fine のビルド: 合格**。FDRI `e095fa97…29f9`（v1.0.0 と同じ）・WNS / WHS +0.044057 / +0.009766 ns（v1.0.0 と同じ）・utilization_hier・cdc・net_check が v1.0.0 の build と同じ。1 回目の作り直しは `impl_1` の頭で Vivado が segfault（回し直しの仕組みの外）したので最初から作り直した
+5. **Wide のビルド: 合格**。FDRI `abc66e72…4d4736`（v1.0.0 と同じ）・WNS / WHS +0.000716 / +0.009500 ns。この回の中で Vivado が 5 回 segfault し、`build.tcl` の回し直しで完走
+6. **2G-4 のビルド（既定の戦略）: タイミングが閉じない**。WNS −0.351610 ns・WHS +0.009507 ns（M5 は +0.047 ns）。負けの経路は rec_fr ではなく全体に散る（PFB の sat_cnt −0.352、ひねり係数の掛け算 −0.188、FFT −0.146、u_cmn → gb_gate −0.076 など）。rec_fr の合成が変わって配置が組み替わり、もともとぎりぎり（+0.047）だった 2G-4 が負けた側に出た（予言は「FDRI が M5 と違う」までで、タイミングは読めていなかった）
+
+**扱い（2026-10-29、実験者の判断）**: `hw/common/` は今の形（Fine・Wide は v1.0.0 と同じ）のまま、2G-4 は新しい形で実装の戦略を替えてタイミングを詰める。M3 の「移植元と FDRI が同じ」はこの bit では成り立たなくなり、M6 はこの bit で回す。
+**予言（回す前）**: `IMPL=Performance_Explore` と `IMPL=Performance_ExtraTimingOpt` を並べて回す（BUILD_JOBS 8）。負けの量（−0.35 ns）は配置の運で出る幅（proj023 の Wide は既定で負け、PE で +0.0007）に入るので、どちらか 1 本は閉じる見込み（WNS ≧ 0・WHS ≧ 0・build.tcl の照合が全部通る）。閉じた方を 2G-4 の bit にし、FDRI・USR_ACCESS・WNS をここと 2G-4 の README に書く。2 本とも閉じなければ、負けの経路（PFB の sat_cnt）を見て RTL か制約で手を打つかを相談する
+
 ### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
 
 **M5b のフック**（7befb74）: Wide の Makefile・build.tcl の USR_ACCESS の部分（Makefile 12 行・build.tcl 22 行）をそのまま 2G-4 に写した。RTL・制約・配置には触れない。`make -n build` で USR_ACCESS が git から作られ、Vivado の後に `sw/pynq/bitinfo.py` の読み返しが走る。
