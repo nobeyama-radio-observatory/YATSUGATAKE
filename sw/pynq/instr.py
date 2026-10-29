@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
-"""proj019 — 測定器を LAN の SCPI（raw socket、既定 5025 番）で操作する: パワーメーター（N1913A ＋ E9300A）とプログラムアッテネータ（J7211C）。
+"""proj019 — 測定器を LAN の SCPI（raw socket、既定 5025 番）で操作する: パワーメーター（N1913A ＋ E9300A）とプログラムアッテネータ（J7211C）、
+ノイズソースの電源（KIKUSUI PMX18-2A、ADR 0024）。
 標準の socket だけ。**宛先はリポジトリに書かない**（引数か環境変数 RFSOC_PM / RFSOC_ATT、HOST[:PORT]）。
 
 約束（proj014 の sg.py と同じ）:
@@ -17,9 +18,17 @@
     pm.zero()                                                        # ノイズソースを切った状態で（入力 0 で零点を取る）
     pm.read()                                                        # dBm
     at = Atten("<アッテネータの IP>"); at.set(30.0); at.get()
+    with noise_off():                                                # ノイズソースを切る（環境変数 RFSOC_NS）。抜けたら必ず入れ直す
+        ...
+
+ノイズソースは**いつも ON**（ADR 0024）。OFF の要る測り（CW の応答・パワーメーターの零点）だけが道具の中で切り、終わりに入れ直す。
+単体で: python3 instr.py ns state|on|off（off はそのまま切っておく。戻すのは on）
 """
+import atexit
+import contextlib
 import os
 import socket
+import sys
 import time
 
 
@@ -145,3 +154,83 @@ class ManualAtten:
 
     def close(self):
         pass
+
+
+class NoiseSource(Scpi):
+    """ノイズソースの電源 KIKUSUI PMX18-2A（LAN の SCPI）。**既定は ON**（ADR 0024）: この道具が切ったら、close（atexit）で必ず入れ直す。
+    電圧・電流の上限（と OVP）は前面パネルで決めておき、道具は変えない（読み返してログに残すだけ）。
+    on() は出力と電流（≧ i_min）を読み返す: 電流が流れていなければ、ノイズソースがつながっていない（陽性対照を兼ねる）"""
+
+    def __init__(self, target=None, volt=None, i_min=0.005, timeout=5.0, log=print):
+        super().__init__(target, "RFSOC_NS", timeout, log, "ノイズソースの電源")
+        self.i_min, self._off_by_me = i_min, False
+        self.v_set = float(self.query("VOLT?"))
+        if volt is not None and abs(self.v_set - volt) > 0.05:
+            raise RuntimeError(f"ノイズソースの電源の設定が {self.v_set:.2f} V（期待 {volt:.2f} V）。前面パネルで確かめる")
+        v, i = self.measure()
+        self.log(f"ノイズソースの電源: 設定 {self.v_set:.2f} V・出力 {'ON' if self.is_on() else 'OFF'}（{v:.2f} V・{i * 1e3:.1f} mA）")
+        atexit.register(self.close)
+
+    def is_on(self):
+        return self.query("OUTP?").strip().upper() in ("1", "ON")
+
+    def measure(self):
+        return float(self.query("MEAS:VOLT?")), float(self.query("MEAS:CURR?"))
+
+    def on(self, settle=0.5):
+        self.write("OUTP ON")
+        time.sleep(settle)
+        v, i = self.measure()
+        if not self.is_on():
+            raise RuntimeError("ノイズソースの電源の出力が ON にならない")
+        if i < self.i_min:
+            raise RuntimeError(f"ノイズソースに電流が流れていない（{i * 1e3:.1f} mA < {self.i_min * 1e3:.1f} mA）。つながっているか確かめる")
+        self.check_err()
+        self._off_by_me = False
+        self.log(f"ノイズソース: ON（{v:.2f} V・{i * 1e3:.1f} mA）")
+
+    def off(self, keep=False):
+        """keep = True: 終わりに入れ直さない（単体の off だけ）"""
+        self.write("OUTP OFF")
+        time.sleep(0.2)
+        if self.is_on():
+            raise RuntimeError("ノイズソースの電源の出力が OFF にならない")
+        self.check_err()
+        self._off_by_me = not keep
+        v, i = self.measure()
+        self.log(f"ノイズソース: OFF（{v:.2f} V・{i * 1e3:.1f} mA）" + ("。そのまま切っておく" if keep else ""))
+
+    def close(self):
+        try:
+            if self._off_by_me and self.s.fileno() >= 0:
+                self.on()
+        except Exception as e:                        # 入れ直せなかったことは必ず見えるように
+            self.log(f"ERROR: ノイズソースを ON に戻せなかった: {e}。手で ON にする")
+        finally:
+            super().close()
+
+
+@contextlib.contextmanager
+def noise_off(target=None, log=print):
+    """with の中だけノイズソースを切る。例外・sys.exit でも抜けたら入れ直す"""
+    ns = NoiseSource(target, log=log)
+    try:
+        ns.off()
+        yield ns
+    finally:
+        ns.close()
+
+
+def main(argv):
+    if len(argv) != 2 or argv[0] != "ns" or argv[1] not in ("state", "on", "off"):
+        raise SystemExit("python3 instr.py ns state|on|off（宛先は環境変数 RFSOC_NS）")
+    ns = NoiseSource()
+    if argv[1] == "on":
+        ns.on()
+    elif argv[1] == "off":
+        ns.off(keep=True)
+    ns.close()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

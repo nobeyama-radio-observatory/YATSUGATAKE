@@ -366,6 +366,7 @@ def main():
     p.add_argument("--out", default="resp")
     p.add_argument("--plot", default=None, help="<out>.resp.npz から図と数字だけ")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--ns-off", action="store_true", help="測りの間ノイズソースを切る（電源の宛先は RFSOC_NS。終わりに入れ直す。ADR 0024）")
     a = p.parse_args()
     if a.plot:
         z, layout = load(a.plot)
@@ -390,7 +391,12 @@ def main():
         a.sg = os.environ.get("RFSOC_SG")
         if not a.sg:
             p.error("--sg か RFSOC_SG が要る（'fake' で SG なし）")
-    path = measure(a)
+    if a.ns_off:
+        import instr
+        with instr.noise_off():
+            path = measure(a)
+    else:
+        path = measure(a)
     z, layout = load(path)
     plot(path, report(z, layout))
     return 0

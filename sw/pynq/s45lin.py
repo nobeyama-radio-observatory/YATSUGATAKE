@@ -451,9 +451,14 @@ def main():
     pm = PowerMeter(a.pm, freq_mhz=a.freq, avg=a.avg)
     at = ManualAtten() if a.att == "manual" else Atten(a.att)
     if a.zero:
-        input("ノイズソースを切って Enter（零点を取る）: ")
-        pm.zero()
-        input("ノイズソースを入れて Enter: ")
+        if os.environ.get("RFSOC_NS"):                  # ADR 0024: ノイズソースの電源を遠隔で切って零点、入れ直す
+            from instr import noise_off
+            with noise_off():
+                pm.zero()
+        else:
+            input("ノイズソースを切って Enter（零点を取る）: ")
+            pm.zero()
+            input("ノイズソースを入れて Enter: ")
     s = S45(a.host)
     try:
         path = measure(s, pm, at, default_steps(a.lo, a.hi, a.step), n=a.n, settle=a.settle, out=a.out, note=a.note)
