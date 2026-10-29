@@ -8,6 +8,9 @@
     python3 wideresp.py --clkin 0 --ref 10 --sg $SG --dbm 0 --out h1a        # 掃引（≒ 3 分）→ h1a.h1.npz と判定
     python3 wideresp.py --analyze h1a.h1.npz                                  # 判定だけやり直す
 
+H-1 の前提（ノイズ OFF・PATT 0 dB）は道具の中で遠隔に作れる（ADR 0024）: --ns-off（ノイズソースの電源 RFSOC_NS を切り、終わりに入れ直す）・
+--patt 0（アッテネータ RFSOC_ATT を 0 dB にし、終わりに元の値へ戻す）。
+
 流れ（流れ 0 だけを使う）: A B 1（S0 6720, ch 2048）・B B 2（S0 2336, ch 2048）・C B 4（S0 0, ch 2192）・D B 1（A と同じ。ADC の違いの比べ）。
 4 本の的の ch の中心は細かい ch（125 kHz）で 8768・8768.5・8769.5・8768（ADC で 1096 MHz ＝ IF 3000 MHz の近く、BPF の通過域の中）。
 SG を細かい ch の 1/8（15.625 kHz）刻みで 8740〜8798 に動かし、点ごとに N_ACC 1280 × 2 ダンプを捕まえ、的の ch の電力 − P_off を記録する。
@@ -125,6 +128,8 @@ def main():
     p.add_argument("--shift", type=int, default=7)
     p.add_argument("--sg-settle", type=float, default=0.05)
     p.add_argument("--warm", type=float, default=0.0, help="掃引の前に SG を REF_X で温める [s]（2026-10-21 から 300 を勧める）")
+    p.add_argument("--ns-off", action="store_true", help="掃引の間ノイズソースを切る（電源の宛先は RFSOC_NS。終わりに入れ直す。ADR 0024）")
+    p.add_argument("--patt", type=float, default=None, help="掃引の間アッテネータ（RFSOC_ATT）をこの dB に（終わりに元の値へ戻す）")
     p.add_argument("--out", default="h1")
     a = p.parse_args()
     if a.analyze:
@@ -142,8 +147,19 @@ def main():
     s0 = {k: STREAMS[k][1] for k in keys}
     xs = np.arange(X0, X1 + STEP / 2, STEP)
     sg = SGM.SG(a.sg, log=lambda *x: None)
+    import contextlib
+    import instr
     rc = 0
+    stack = contextlib.ExitStack()
     try:
+        if a.ns_off:
+            stack.enter_context(instr.noise_off(log=log))
+        if a.patt is not None:
+            at = instr.Atten(log=log)
+            patt0 = at.get()
+            stack.callback(lambda: (at.set(patt0), log(f"アッテネータを {patt0:.1f} dB に戻した"), at.close()))
+            at.set(a.patt)
+            log(f"アッテネータ {patt0:.1f} → {a.patt:.1f} dB")
         ring.enable(True)
         def grab():
             res, ng = WD.capture(cores, ring, mode, s0, a.nacc, a.ndump, a.shift, 10.0)
@@ -180,7 +196,8 @@ def main():
         time.sleep(0.2)
         poff_end = np.array(grab())
         np.savez(a.out + ".h1.npz", x=xs, keys=np.array(keys), p=np.array(P), pref=np.array(Pref), pref1=np.array(Pref1),
-                 poff=(poff_beg + poff_end) / 2, poff_beg=poff_beg, poff_end=poff_end, dbm=a.dbm, sg=sg.state().get("idn", ""))
+                 poff=(poff_beg + poff_end) / 2, poff_beg=poff_beg, poff_end=poff_end, dbm=a.dbm, sg=sg.state().get("idn", ""),
+                 ns_off=a.ns_off, patt=np.nan if a.patt is None else a.patt)
         log(f"記録: {a.out}.h1.npz（{time.time() - t0:.0f} s）")
         rc = 0 if analyze(a.out + ".h1.npz") else 1
     except Exception:
@@ -191,7 +208,10 @@ def main():
         try:
             sg.close()
         finally:
-            ring.close(allst)
+            try:
+                stack.close()                       # ノイズソースを入れ直す・アッテネータを戻す
+            finally:
+                ring.close(allst)
     sys.exit(rc)
 
 

@@ -289,6 +289,7 @@ def main():
     p.add_argument("--golden", action="store_true", help="判定 W-G（N_ACC = 1 のダンプ = スナップショットの numpy FFT）")
     p.add_argument("--sg", default=None, help="SG の HOST[:PORT]（環境変数 RFSOC_SG でも可）。--tone を SG に設定する")
     p.add_argument("--sg-dbm", type=float, default=None, help="SG のレベル [dBm]（--sg と一緒に）")
+    p.add_argument("--ns-off", action="store_true", help="測りの間ノイズソースを切る（電源の宛先は RFSOC_NS。終わりに入れ直す。ADR 0024）")
     p.add_argument("--allow-nopreset", action="store_true")
     p.add_argument("--allow-rev1", action="store_true",
                    help="rev1 の .bit でも続ける（下見用）。IP の枠は起動の瞬間にずれるだけで、以後は途切れない 4096 点ずつなので、"
@@ -324,6 +325,9 @@ def main():
         cores_, _ = SC.discover(ol)
         if not SC.has_full(cores_):
             log(f"ERROR: {SC.NO_FULL_MSG}。--w6（W-6・W-1b）は 2-4 までの bit で"); sys.exit(1)
+    if args.ns_off:                                              # ADR 0024: 終わり（atexit）に NoiseSource.close が入れ直す
+        import instr
+        instr.NoiseSource(log=log).off()
     sg = None
     sg_state = None
     if args.tone is not None and not (args.sg or os.environ.get("RFSOC_SG")):
