@@ -10,7 +10,7 @@ SAM45-Fine・SAM45-Wide の .bit と PS のソフト（specd）を RFSoC 4x2 の
 | SD カード | RFSoC-PYNQ v3.1.1（版の表は [`../knowledge/environment.md`](../knowledge/environment.md)） |
 | bit | `.bit` と `.hwh`（同じ名前で同じ場所に置く）。リリースからは GitHub Releases、手元でビルドするなら `hw/bits/sam45-fine/` の `make`・`hw/bits/sam45-wide/` の `make IMPL=Performance_Explore` |
 | PS のソフト | このリポジトリの `sw/pynq/` の全部（版のタグで固定する）。**Fine と Wide で同じ** |
-| 較正 | 時刻: **設置の後にボードで測る**（`timecal.py`、[`calibration.md`](calibration.md)）。測るまでは `sw/pynq/timebase.py` の `CAL` が暫定で当たる。TP の dBm: `sw/pynq/tp_cal.json`（bit の (BIT_KIND, BIT_REV) で引く） |
+| 較正 | 時刻: **設置の後にボードで測る**（`timecal.py`、[`calibration.md`](calibration.md)）。測るまでは `sw/pynq/timebase.py` の `CAL` が暫定で当たる。TP の dBm: ボードの `/etc/yatsugatake/tp_cal.json`（ボードごとに測る。無ければ dBm は出ない） |
 
 **PS は、時刻の式を直した版（commit c3c3ceb、PR #25）より後のものを使う。** 今の較正（形 (b)、`pps_det_ns` が 0 でない）を前の式で使うと、データの時刻が 143 ns ずれる。
 
@@ -22,7 +22,6 @@ bit の版ごとに 1 つのディレクトリにまとめる（前の版と混�
 ~/sam45-fine-<版>/
   proj021.bit  proj021.hwh          # bit（名前は bits.json で指す）
   specd.py  s45acq.py  timebase.py … # sw/pynq/ の全部
-  tp_cal.json
   bits.json                          # このボードで LOAD を許す bit の一覧
 ```
 
@@ -30,7 +29,7 @@ bit の版ごとに 1 つのディレクトリにまとめる（前の版と混�
 # 制御 PC から（<board> はボードの宛先）
 ssh xilinx@<board> mkdir -p sam45-fine-<版>
 scp <bit>.bit <bit>.hwh xilinx@<board>:sam45-fine-<版>/
-scp sw/pynq/*.py sw/pynq/tp_cal.json xilinx@<board>:sam45-fine-<版>/
+scp sw/pynq/*.py xilinx@<board>:sam45-fine-<版>/
 ```
 
 ## bits.json
@@ -41,9 +40,9 @@ specd が `LOAD` で切り替えてよい bit の一覧。**ネットワーク�
 {
   "default": "sam45-fine",
   "bits": {
-    "sam45-fine": {"bit": "proj021.bit", "pydir": ".", "tp_cal": "tp_cal.json",
+    "sam45-fine": {"bit": "proj021.bit", "pydir": ".",
                    "sha256": "<sha256sum proj021.bit の値>"},
-    "sam45-wide": {"bit": "proj023.bit", "pydir": ".", "kind": "wide", "tp_cal": "tp_cal.json",
+    "sam45-wide": {"bit": "proj023.bit", "pydir": ".", "kind": "wide",
                    "sha256": "<sha256sum proj023.bit の値>"}
   }
 }
@@ -61,6 +60,7 @@ sha256sum proj021.bit                         # リリースの SHA256SUMS・bit
 python3 bitinfo.py proj021.bit                # USR_ACCESS = ビルドした commit（汚れの印が無いこと）
 python3 test_cal_b.py                         # 時刻の式の試験（PL なし）。「結果: 全部通過」
 python3 test_timecal.py                       # 時刻の較正ファイルの試験（PL なし）。「結果: 全部通過」
+python3 test_tpcal.py                         # TP の較正ファイルの試験（PL なし）。「結果: 全部通過」
 ```
 
 実機の短い確かめは判定の ID-1（自己記述）と F-0（1PPS）: [`../../test/acceptance/sam45-fine/`](../../test/acceptance/sam45-fine/)。SAM45-Wide は ID-1（`wide.py --list`）と、specd の `ID`（`win_id=02020000` = SLICE・usr。`kind: wide` は ID ではなく START の EVENT の ids に出る）・`STATUS` の `time_ok=1`: [`../../test/acceptance/sam45-wide/`](../../test/acceptance/sam45-wide/)。

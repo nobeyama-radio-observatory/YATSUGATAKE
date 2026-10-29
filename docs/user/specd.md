@@ -15,7 +15,7 @@ sudo -E $(which python3) specd.py --clkin 0 --ref 10 --bits bits.json
 - `--clkin 0 --ref 10`: CLK_IN の 10 MHz を基準にする（既定の `stock` はボードの水晶）。45m と試験台はこれ
 - `--bits bits.json`: LOAD で許す bit の一覧（[`install.md`](install.md)）。起こすときの bit は `--bit <名前>`（既定は bits.json の `default`）
 - 起きるまで数十秒（bit を載せ、RFDC と LMK/LMX を立て、1PPS を待つ）。ログに制御の口とデータの口を開いた行が出たら使える
-- `--tp-cal`（既定 `tp_cal.json`）が無いと、TP の dBm は出ない（dBFS は出る）
+- TP の較正ファイル（既定 `/etc/yatsugatake/tp_cal.json`、環境変数 `YATSUGATAKE_TP_CAL` か `--tp-cal`）が無い・別のボードのものなら、TP の dBm は出ない（dBFS は出る）。[`calibration.md`](calibration.md)
 - 時刻の較正ファイル（既定 `/etc/yatsugatake/time_cal.json`、環境変数 `YATSUGATAKE_TIME_CAL`）が無い・別のボードのものなら、時刻は開発の値（暫定）で動く。`ID` の `tcal` が `board` / `provisional`（[`calibration.md`](calibration.md)）
 
 その他の引数は `python3 specd.py -h`。`--buf-mb`（既定 256 MiB ≒ 38 秒ぶんの溜まり）・`--cpu`・`--rt` は試験で決めた値のまま使う。
@@ -26,7 +26,7 @@ sudo -E $(which python3) specd.py --clkin 0 --ref 10 --bits bits.json
 
 | 命令 | 何をするか |
 |---|---|
-| `ID` | 自己記述（bit の種類と版、ADC・窓の数、記録の版、時刻の較正の印 `tcal`）。置いた bit が思ったものかをまず見る |
+| `ID` | 自己記述（bit の種類と版、ADC・窓の数、記録の版、時刻の較正の印 `tcal`、ボードの印 `board`）。置いた bit が思ったものかをまず見る |
 | `STATUS` | 今の状態（下の表） |
 | `GET` / `GET CAL` | 今の設定 / 今の bit に当てている較正（時刻・TP） |
 | `SET key=val …` | 設定。`tint`・`cfg`・窓ごとの `A0.if` `A0.ns` `A0.bw` `A0.shift` `A0.bundle`・全部の `all.shift` など（SAM45-Fine）。SAM45-Wide のキーは下。**specd を起こし直すまで残る** |

@@ -405,6 +405,7 @@ class HwBackend:
             self._open_ring()
         self.ids["read"] = "ring" if self.use_ring else "axi"
         self.ids["tcal"] = self.tb.cal_state                      # ADR 0023: board（ボードの較正）/ provisional（開発の値）
+        self.ids["board"] = (self.tb.board or {}).get("id", "-")  # ADR 0025: TP の較正ファイルを照らす
         self.bit_kind = (self.cores[0].if_id >> 16) & 0xFF        # proj021 2-3c: v2 の SPEC の bit_kind
         self.anchor()
 
@@ -729,7 +730,7 @@ class FakeBackend:
     def open(self):
         import types
         self.t0 = time.time() - 100.0                # 偽の時刻: T = (time − t0)·256e6、UTC = t0 + T / 256e6
-        self.ids = dict(win="fake", adc="fake", time="fake", tcal="fake")
+        self.ids = dict(win="fake", adc="fake", time="fake", tcal="fake", board="fake")
         rng = np.random.default_rng(1)
         self.base = rng.integers(1 << 40, 1 << 41, (4 * NW, P.NCH), dtype=np.uint64)
         tb = types.SimpleNamespace(cal=dict(pps_det_ns=0, adc_to_core_ns=0), check=lambda: None,
@@ -879,6 +880,7 @@ class WideBackend(HwBackend):
         self._open_ring()
         self.ids["read"] = "ring"
         self.ids["tcal"] = self.tb.cal_state                      # ADR 0023
+        self.ids["board"] = (self.tb.board or {}).get("id", "-")  # ADR 0025
         self.bit_kind = c0.bit_kind
         self.anchor()
 
