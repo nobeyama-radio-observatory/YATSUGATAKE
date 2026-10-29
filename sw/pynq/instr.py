@@ -159,7 +159,9 @@ class ManualAtten:
 class NoiseSource(Scpi):
     """ノイズソースの電源 KIKUSUI PMX18-2A（LAN の SCPI）。**既定は ON**（ADR 0024）: この道具が切ったら、close（atexit）で必ず入れ直す。
     電圧・電流の上限（と OVP）は前面パネルで決めておき、道具は変えない（読み返してログに残すだけ）。
-    on() は出力と電流（≧ i_min）を読み返す: 電流が流れていなければ、ノイズソースがつながっていない（陽性対照を兼ねる）"""
+    on() は出力と電流（≧ i_min）を読み返す: 電流が流れていなければ、ノイズソースがつながっていない（陽性対照を兼ねる）。
+    on()・off() は出力の電圧が落ち着くまで待ってから戻る（PMX18-2A の実測で、立ち上がり・立ち下がりとも ≒ 1 s。
+    0.5 s では 3.3 V・51 mA の途中だった）。戻った直後から測りを始めてよい"""
 
     def __init__(self, target=None, volt=None, i_min=0.005, timeout=5.0, log=print):
         super().__init__(target, "RFSOC_NS", timeout, log, "ノイズソースの電源")
@@ -177,28 +179,40 @@ class NoiseSource(Scpi):
     def measure(self):
         return float(self.query("MEAS:VOLT?")), float(self.query("MEAS:CURR?"))
 
-    def on(self, settle=0.5):
+    def _wait(self, done, timeout):
+        """done(v, i) が 2 回続けて真になるまで読み返す。戻り値 (落ち着いたか, v, i, かかった秒)"""
+        t0, n = time.time(), 0
+        while True:
+            v, i = self.measure()
+            n = n + 1 if done(v, i) else 0
+            if n >= 2 or time.time() - t0 > timeout:
+                return n >= 2, v, i, time.time() - t0
+            time.sleep(0.1)
+
+    def on(self, timeout=5.0):
         self.write("OUTP ON")
-        time.sleep(settle)
-        v, i = self.measure()
         if not self.is_on():
             raise RuntimeError("ノイズソースの電源の出力が ON にならない")
+        ok, v, i, dt = self._wait(lambda v, i: v >= 0.98 * self.v_set and i >= self.i_min, timeout)
         if i < self.i_min:
             raise RuntimeError(f"ノイズソースに電流が流れていない（{i * 1e3:.1f} mA < {self.i_min * 1e3:.1f} mA）。つながっているか確かめる")
+        if not ok:
+            raise RuntimeError(f"ノイズソースの電源が {timeout:.0f} s で立ち上がらない（{v:.2f} V・設定 {self.v_set:.2f} V）")
         self.check_err()
         self._off_by_me = False
-        self.log(f"ノイズソース: ON（{v:.2f} V・{i * 1e3:.1f} mA）")
+        self.log(f"ノイズソース: ON（{v:.2f} V・{i * 1e3:.1f} mA・{dt:.1f} s）")
 
-    def off(self, keep=False):
+    def off(self, keep=False, timeout=5.0):
         """keep = True: 終わりに入れ直さない（単体の off だけ）"""
         self.write("OUTP OFF")
-        time.sleep(0.2)
         if self.is_on():
             raise RuntimeError("ノイズソースの電源の出力が OFF にならない")
-        self.check_err()
         self._off_by_me = not keep
-        v, i = self.measure()
-        self.log(f"ノイズソース: OFF（{v:.2f} V・{i * 1e3:.1f} mA）" + ("。そのまま切っておく" if keep else ""))
+        ok, v, i, dt = self._wait(lambda v, i: v <= 0.02 * self.v_set and i < self.i_min, timeout)
+        if not ok:
+            raise RuntimeError(f"ノイズソースの電源が {timeout:.0f} s で下がらない（{v:.2f} V・{i * 1e3:.1f} mA）")
+        self.check_err()
+        self.log(f"ノイズソース: OFF（{v:.2f} V・{i * 1e3:.1f} mA・{dt:.1f} s）" + ("。そのまま切っておく" if keep else ""))
 
     def close(self):
         try:
