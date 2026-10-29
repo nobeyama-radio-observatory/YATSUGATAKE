@@ -280,7 +280,7 @@ class Server:
         if cmd == "ID":
             r = self.acq_cmd(dict(op="id"))
             return self._rep(r, lambda r: kv_line(dict(version=r["version"], win_id=r["ids"]["win"], adc_id=r["ids"]["adc"],
-                                                       time_id=r["ids"]["time"], usr=r["ids"].get("usr", "-"), lmx_vco=r["ids"].get("lmx_vco", "-"), lmx_pwr=r["ids"].get("lmx_pwr", "-"),
+                                                       time_id=r["ids"]["time"], usr=r["ids"].get("usr", "-"), tcal=r["ids"].get("tcal", "-"), board=r["ids"].get("board", "-"), lmx_vco=r["ids"].get("lmx_vco", "-"), lmx_pwr=r["ids"].get("lmx_pwr", "-"),
                                                        adcs=r["adcs"], nw=r["nw"], fake=r["fake"],
                                                        proto=P.VERSION)))
         if cmd == "STATUS":
@@ -320,13 +320,18 @@ class Server:
         if cmd == "GET" and args and args[0].upper() == "CAL":
             r = self.acq_cmd(dict(op="cal"))
             def f(r):
+                t = r.get("time") or {}                       # ADR 0023: 時刻の較正（board / provisional）
+                dt = dict(tcal=t.get("state", "none"), tcal_file=t.get("file") or "-", tcal_date=t.get("date") or "-",
+                          tcal_bound_ns=t.get("bound_ns", "-"))
+                for i, v in sorted((t.get("adc_to_core_ns") or {}).items()):
+                    dt[f"{'ABCD'[int(i)]}.a2c_ns"] = round(v - (t.get("pps_det_ns") or 0), 1)
                 c = r.get("cal")
                 if not c:
-                    return kv_line(dict(cal="none", msg=r.get("msg")))
-                d = dict(file=c.get("file"), bits=c.get("bits"), unit=c.get("unit"))
+                    return kv_line(dict(cal="none", msg=r.get("msg"), **dt))
+                d = dict(file=c.get("file"), board=(c.get("board") or {}).get("id"), adc_path=c.get("adc_path"), unit=c.get("unit"))   # ADR 0025
                 for a, v in sorted(c["adc"].items()):
                     d[f"{a}.k"] = round(v["k_db"], 3); d[f"{a}.prov"] = bool(v.get("provisional")); d[f"{a}.date"] = v.get("date")
-                return kv_line(d)
+                return kv_line(d | dt)
             return self._rep(r, f)
         if cmd == "GET":
             r = self.acq_cmd(dict(op="get"))
@@ -661,7 +666,8 @@ def main():
     p.add_argument("--g24", action="store_true", help="proj027: 2G-4 の .bit（FULL の流れ 4 本・32768 ch × 4、鍵は A0〜D0。bits.json の項目の kind が優先）")
     p.add_argument("--g22", action="store_true", help="proj025: 2G-2 の .bit（FULL の流れ 2 本・65536 ch × 2、鍵は A0・B0。bits.json の項目の kind が優先）")
     p.add_argument("--no-malloc-tune", action="store_true", help="proj024 3d: 2G-1 の取得で mallopt（1 MiB の配列を mmap で取らせない）をしない（比べる用）")
-    p.add_argument("--tp-cal", default="tp_cal.json", help="TP の dBm の較正ファイル（無ければ使わない。s45cal.py）")
+    p.add_argument("--tp-cal", default=None, help="TP の dBm の較正ファイル（既定はボードの /etc/yatsugatake/tp_cal.json、"
+                   "環境変数 YATSUGATAKE_TP_CAL。無ければ使わない。ADR 0025・s45cal.py）")
     p.add_argument("--fake-notime", action="store_true", help="偽物で 1PPS が無い（時刻を答えられない）状態を作る")
     p.add_argument("--fake-stall", type=int, default=0, help="偽物の陽性対照: 窓 A0 の k がこの倍数のとき読み出しを 50 ms 止める")
     p.add_argument("--posctl-corrupt", type=int, default=0, help="陽性対照: seq がこの倍数の記録の中身を CRC の後に 1 bit 反転")
@@ -692,9 +698,9 @@ def main():
     signal.signal(signal.SIGTERM, _on_sig)
     signal.signal(signal.SIGHUP, _on_sig)          # ssh が切れたときも片付けてから止まる（既定の動作では片付けずに落ち、溜まりが残る）
     log(f"specd の PID {os.getpid()}（止める: Ctrl-C・kill {os.getpid()}・制御の口の SHUTDOWN confirm=1）")
-    cal_path, a.tp_cal = a.tp_cal, None
+    import s45cal
+    cal_path, a.tp_cal = a.tp_cal or s45cal.tp_cal_path(), None
     if cal_path and os.path.exists(cal_path):
-        import s45cal
         try:
             a.tp_cal = s45cal.load(cal_path)
             log(f"TP の較正ファイル: {a.tp_cal['_file']}（bit の ID は取得の起動の後に照らす）")

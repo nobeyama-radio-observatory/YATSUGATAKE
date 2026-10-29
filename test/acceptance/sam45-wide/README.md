@@ -11,7 +11,8 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 - **bit**: SAM45-Wide（`proj023.bit`）。`wide.py --list` で IF_ID 0x0201_0101（4 コア）・time_core 0x0201_0102・PROJ 0x0023_0100
 - **クロック**: 外部 10 MHz と 1PPS（PPS Clk の入力。入口に LPF を常設）。道具は `--clkin 0 --ref 10`
 - **LMX2594 の出力の強さ**: PWR 3（specd と Wide の道具の `--lmx-pwr` の既定。2026-10-23 に Fine と合わせた）。ID の `lmx_pwr` で記録に残る
-- **宛先**: 環境変数 `B`（ボード）・`SG`（信号発生器。Wide の道具は `RFSOC_SG` か `--sg`）・`PM`（パワーメーター）・`ATT`（プログラムアッテネータ）に入れる。宛先はファイルに書かない
+- **宛先**: 環境変数 `B`（ボード）・`SG`（信号発生器。Wide の道具は `RFSOC_SG` か `--sg`）・`PM`（パワーメーター）・`ATT`（プログラムアッテネータ。道具は `RFSOC_ATT`）・`RFSOC_NS`（ノイズソースの電源 KIKUSUI PMX18-2A）に入れる。宛先はファイルに書かない
+- **ノイズソースはいつも ON**（[ADR 0024](../../../docs/decisions/0024-noise-source-always-on-remote-off.md)）。OFF の要る判定（H-1）は道具の `--ns-off` が遠隔で切り、終わりに入れ直す。手で ON / OFF しない。単体で `python3 instr.py ns state|on|off`
 - **道具の置き場所**: ボードの Wide のディレクトリ（`sw/pynq/` の全部・`proj023.bit`・`proj023.hwh`・`bits.json`）と、制御 PC の `sw/pynq/` の受け側（specctl・specrecv・s45proto・s45client など）
 - **bits.json**: 既定は `sam45-wide`（`"kind": "wide"`・`sha256` 付き）。V2-d のために Fine の bit（`kind` なし）を 1 件
 - **2 つの動かし方**:
@@ -23,7 +24,7 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 | 名前 | 中身 | ADC での強さ |
 |---|---|---|
 | 配線 N | ノイズソース → BPF 2.1〜3.9 GHz → 2 分配器 A（もう一方の口に SG、出力 OFF）→ PATT 13 dB → 2 分配器 B →（ATT 20 dB → PM）・（ATT 3 dB → 4 分配器 → ADC_A〜D）。**SG は BPF を通らない**（2026-10-23 に実験者が確かめた。はじめ BPF を PATT の後に書いていたのは誤り） | ≒ −31.4 dBFS |
-| 配線 NS | 配線 N のまま SG の口を出力 ON（ノイズは入ったまま）。**H-1 だけはノイズソース OFF・PATT 0 dB**（P_off で消えるのは雑音の平均だけで、CW × 雑音の交差項の揺れが残る。H-1 の前提の改め、2026-10-23） | SG 0 dBm で CW が ch の中央値の 21.9・13.9・10.3 dB 上（H-2 の B 1・2・4、2026-10-23。proj023 の 10-17 は分配器を替える前で 25.0・20.5・16.1） |
+| 配線 NS | 配線 N のまま SG の口を出力 ON（ノイズは入ったまま）。**H-1 だけはノイズソース OFF・PATT 0 dB**（道具の `--ns-off --patt 0` が遠隔で作る）（P_off で消えるのは雑音の平均だけで、CW × 雑音の交差項の揺れが残る。H-1 の前提の改め、2026-10-23） | SG 0 dBm で CW が ch の中央値の 21.9・13.9・10.3 dB 上（H-2 の B 1・2・4、2026-10-23。proj023 の 10-17 は分配器を替える前で 25.0・20.5・16.1） |
 | 配線 P | 1PPS を分配して PPS Clk と ADC_A〜D に | — |
 
 - BPF の通過域の肩（2.1 GHz・3.9 GHz の近く）は、床の推定に幅のある形として出る（2130 MHz、2026-10-23 の櫛の比べで踏んだ）。線を数える判定では肩を避けるか、そうと書く
@@ -46,6 +47,8 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 | [S](S.md) | specd の SNAP（RAW の生サンプル） | specd | N | 通過 |
 | [P-8](P-8.md) | TP の線形性・流れ / TP・Wide の tp_cal | specd | N（＋ PM・ATT） | なし（新しく） |
 | [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | なし（Fine で通過。TP の作りは同じ） |
+
+**F-2（配線 P）は、これからの bit では回さない**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)、2026-10-29）。本番の時刻の較正はボードごとに設置の後で測る（[`docs/user/calibration.md`](../../../docs/user/calibration.md)）。F-2 を回すのは、ADC → コアの道（RFDC の設定・ギアボックス）を変えた bit を開発のボードで確かめるときだけ。上の表の F-2 の結果は `timebase.CAL`（開発の値・暫定）の出どころとして残す。
 
 **Wide では回さない判定**:
 - V2-c（窓の W-G をレコードの道で）: Wide には DDC の窓が無い。SLICE の中身は sim の A2（模型と bit 単位）・H-2・H-0 で見ている（proj023 の手順 4c）

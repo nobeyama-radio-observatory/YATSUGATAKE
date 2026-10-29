@@ -7,7 +7,8 @@
 
 - **bit**: proj021（2-5）。`s45core --list` で IF_ID 0x0202_0301（4 コア）・time_core 0x0202_0302・リング 0x0202_0303
 - **クロック**: 外部 10 MHz と 1PPS（PPS Clk の入力）。道具は `--clkin 0 --ref 10`
-- **宛先**: 環境変数 `B`（ボード）・`SG`（信号発生器）・`PM`（パワーメーター）・`ATT`（プログラムアッテネータ）に入れる。宛先はファイルに書かない
+- **宛先**: 環境変数 `B`（ボード）・`SG`（信号発生器）・`PM`（パワーメーター）・`ATT`（プログラムアッテネータ）・`RFSOC_NS`（ノイズソースの電源 KIKUSUI PMX18-2A）に入れる。宛先はファイルに書かない
+- **ノイズソースはいつも ON**（[ADR 0024](../../../docs/decisions/0024-noise-source-always-on-remote-off.md)、2026-10-29）。下の配線 S（ノイズソースを外す）は、これからは外さずに道具の `--ns-off`（`window.py`・`s45resp.py`）で遠隔で切る形に替える。ADC でのレベル（SG −0.9 dBm で ≒ −21.5 dBFS）は配線 S の値なので、次に回す前に新しい形で測って前提を書き直す
 - **道具の置き場所**: ボードの proj021 の道具のディレクトリ（`pynq/*.py`・`proj021.bit`・`proj021.hwh`・`bits.json`）と、制御 PC の `pynq/`
 - **2 つの動かし方**:
   - 「ボード直」: ボードで root、**specd を止めてから**（Overlay を自分で載せる道具）
@@ -45,5 +46,7 @@
 | [PS-1](PS-1.md) | float32 の丸め・utc_ns の補正 | specd | N | 通過 |
 | [PS-2](PS-2.md) | specd の 10 分の運転 | specd | N | 通過 |
 | [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | 通過 |
+
+**F-2（配線 P）は、これからの bit では回さない**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)、2026-10-29）。本番の時刻の較正はボードごとに設置の後で測る（[`docs/user/calibration.md`](../../../docs/user/calibration.md)）。F-2 を回すのは、ADC → コアの道（RFDC の設定・ギアボックス）を変えた bit を開発のボードで確かめるときだけ。上の表の F-2 の結果は `timebase.CAL`（開発の値・暫定）の出どころとして残す。
 
 **SAM45-Fine では回さない判定**（FULL = 全帯域のスペクトルが無い）: W-6・W-1b・全帯域の golden・F-5・`spectrometer --tp`。全帯域のある bit（SAM45-Wide など）の判定として扱う。

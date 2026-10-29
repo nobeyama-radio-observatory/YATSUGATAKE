@@ -48,7 +48,7 @@ PS のソフト（specd）と較正ファイルはソースから入れる（版
 
 ## BIT_REV と版
 
-- **RTL・係数・制約を変えたら BIT_REV を上げ、bit の版は minor 以上を上げる**（較正の表 CAL・tp_cal は (BIT_KIND, BIT_REV) で引くので、古い較正が新しい bit に黙って当たらない）
+- **RTL・係数・制約を変えたら BIT_REV を上げ、bit の版は minor 以上を上げる**（開発の CAL・遅れの定数は (BIT_KIND, BIT_REV) で引くので、古い値が新しい bit に黙って当たらない）。ADC → コアの道や TP の作りを変えたら `timebase.ADC_PATH` に新しい番号を足す（ボードの較正ファイルが当たらなくなる。ADR 0023・0025）
 - PS（specd・較正）だけの変更では bit の版を上げない（リポジトリ全体の版を上げる）
 - **同じ RTL の作り直し**（リリースの commit で焼き直すなど）は BIT_REV も bit の版も変えない。FDRI の sha256 が前と同じであることで同じものと言う（USR_ACCESS だけが違う。M5b）
 - 対応表（版 ↔ BIT_REV ↔ USR_ACCESS ↔ FDRI の sha256）は `hw/bits/<bit>/README.md` に置き、リリースごとに 1 行足す

@@ -61,3 +61,7 @@
 | [0020](0020-documentation-language.md) | ドキュメントは日本語で書き、英語版は後で足す | 採用 | 2026-10-08 |
 | [0021](0021-spec-canonical-in-yatsugatake.md) | 仕様の正典は YATSUGATAKE の docs/spec に置き、全 bit の約束をここで持つ | 採用 | 2026-10-21 |
 | [0022](0022-2g-1-fast-and-fine.md) | 2G の 1 ADC を 2G-1-Fast（1 段）と 2G-1-Fine（2 段・DDR の corner turn）の 2 本に | 採用 | 2026-10-28 |
+| [0023](0023-time-calibration-per-board.md) | 時刻の較正はボードごとに設置の後で測り、ボードにだけ置く（bit ごとには測らない） | 採用 | 2026-10-29 |
+| [0024](0024-noise-source-always-on-remote-off.md) | 評価のノイズソースは常時 ON、OFF の要る測りだけ道具が遠隔で切って戻す | 採用 | 2026-10-29 |
+| [0025](0025-tp-calibration-per-board.md) | TP の dBm の較正もボードごとに持ち、ボードにだけ置く（リポジトリの tp_cal.json をやめる） | 採用 | 2026-10-29 |
+| [0026](0026-board-id-mac.md) | ボードの印は eth0 の MAC にする（eFuse の DNA は読めない） | 採用 | 2026-10-29 |

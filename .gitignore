@@ -55,3 +55,10 @@ libs45fast.so
 
 # ---- Jupyter ----
 .ipynb_checkpoints/
+
+# ---- ボードの時刻の較正（ADR 0023。ボードの個体の値はリポジトリに戻さない）----
+time_cal.json
+time_cal.json.*
+# TP の dBm の較正も同じ（ADR 0025）
+tp_cal.json
+tp_cal.json.*

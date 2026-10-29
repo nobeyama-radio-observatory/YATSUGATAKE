@@ -404,7 +404,7 @@ TP のレコード（type 2）:
 | 積分時間 | **PS で基本の単位を束ねる**。tint は BASE の倍数（40.96 ms = 4 × 10.24、102.4 ms = 10 × 10.24）。区切りと揃う条件は 5.1、時刻は 5.2 |
 | bit の切り替え | **LOAD bit=<名前>**（IDLE のときだけ）。取得のプロセスを新しい bit で起動し直し、自己記述を読み、錨を打ち直す。制御のプロセスと受け側の接続は保つ。≒ 10〜20 s |
 | 許す bit | ボードの `bits.json`（名前 → .bit・.hwh・sha256・期待する IF_ID・較正ファイル）にあるものだけ。**ネットワークから任意のパスを受けない** |
-| 較正 | timebase の CAL・tp_cal・遅れの定数（5.2）は bit の ID（BIT_KIND・BIT_REV）ごと。無い bit は「未較正」と明示して動く（黙って別の bit の値を使わない） |
+| 較正 | 時刻と TP の dBm の較正はボードの較正ファイル（鍵はボードの印と ADC の道、[ADR 0023](../decisions/0023-time-calibration-per-board.md)・[0025](../decisions/0025-tp-calibration-per-board.md)）。遅れの定数（5.2）は bit の ID（BIT_KIND・BIT_REV）ごと。当たらないときは明示する（時刻は `tcal=provisional`、TP は dBm を出さない） |
 
 命令（今の HELP に足すもの）: `BITS`（許す bit の一覧）・`LOAD bit=<名前>`・`GET CAPS`（自己記述をそのまま返す）。
 `SET` の窓のキーは今と同じ（`A0.if`・`A0.bw`・`A0.ns`・`A0.shift`）に `A0.nfft`（点数を選べる bit）を足す。キーの頭は「ADC のラベル＋流れの番号 s」（`A0` = コア ADC_A の s = 0）。種類に固有のキーは KIND で決まる（DDC: `if`・`bw`・`ns`、SLICE: `nfft`・`ch0`）。**SLICE の実装（proj023 の specd `--wide`、2026-10-17）では `A.b`（束ね B 1・2・4。コアで 1 つ、`A0.b` もコアに効く）・`A.shift`（コアで 1 つ）・`A0.s0`（流れの最初の ch。`A0.ch0` は別名）・`all.b`・`all.shift` を正とする**（点数そのものより B のほうが、束ねる bit の作りに合う。`nfft` は使わない）。SRC を書き換えられる流れは `A2.src=B` のように入力を選ぶ。
@@ -477,7 +477,7 @@ TP のレコード（type 2）:
 
 - IF_VER は**意味か並びを変えたときだけ**上げる。予約の場所に足すだけなら上げない（CAPS で知らせる）
 - PS は IF_VER が知っている版でなければ止まる（黙って読まない）
-- BIT_KIND・BIT_REV で較正（CAL・tp_cal）を引く。PROJ は記録に残すだけ
+- BIT_KIND・BIT_REV で遅れの定数と開発の CAL を引き、ADC の道（`timebase.ADC_PATH`）でボードの較正ファイルを当てる。PROJ は記録に残すだけ
 
 ## 8. 未決事項
 

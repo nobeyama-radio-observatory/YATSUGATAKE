@@ -37,5 +37,7 @@ ID は Wide の判定と同じ意味のものは同じ ID（ID-1・H-0・H-2・F
 | [RING](RING.md) | リング 64 MiB が PS の 0.3 s の止まりを吸う | specd | N | なし（新しく。interface 8. の 11） |
 | [NET](NET.md) | 予算を越える tint を SET で断る | specd | どれでも | なし（M5 で入れた。interface 4.5） |
 
+**F-2（配線 P）は、M5 で PS を `sw/pynq/` に一本化した後は回さない**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)、2026-10-29）。本番の時刻の較正はボードごとに設置の後で測る（[`docs/user/calibration.md`](../../../docs/user/calibration.md)）。2G-4 の ADC → コアの道が共通コアと同じかは、一本化のときに確かめて `timebase.ADC_PATH` に書く（違えば新しい番号）。
+
 **2G-4 では回さない判定**: Wide の H-1（束ねた ch の応答）・H-4（モードの切り替え）・V2-d（LOAD の往復は 2G の PS を `sw/pynq/` に一本化した M5 の後に、Wide・Fine と組で V2-d を広げる）・P-8・PS-3（TP の線形性・跳ねの見張りは TP の作りが Wide と同じ。M6 で回すかを決める。L-1・L-2 は M5 で LMX の PWR 3 の確かめとして回し、通過: `docs/migration-2g-4.md` の M5 の結果）。
 sim の判定（D_S・D_eff は sim-g24ds、係数 URAM は sim-cu・sim-g24x4 の cudrop・cuclr）は `hw/bits/2g-4` の sim（M2 で移植元と同じ出力）。

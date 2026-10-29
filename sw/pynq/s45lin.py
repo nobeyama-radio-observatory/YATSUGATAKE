@@ -340,12 +340,18 @@ def make_cal(path, out="tp_cal.json", fs_dbm=5.9, note=""):
         adc[a] = dict(k_db=round(k, 3), provisional=True, valid_dbfs=[-47.0, -7.0], date=time.strftime("%Y-%m-%d"),
                       source=f"{os.path.basename(path)}: 0 dBFS = {fs_dbm:+.1f} dBm（3 GHz の正弦波、proj010）の見積もり",
                       lin_dbfs_minus_pm_db=None if c is None else round(c, 3))
-    cal = dict(version=1, bits=[_bit_of(head.get("server", {}).get("adc_id", ""))], unit="dBm at ADC input (SMA)",
+    import timebase as TB
+    srv = head.get("server", {})
+    if not srv.get("board") or srv.get("board") == "-":       # ADR 0025: 鍵はボードの印（specd の ID の board）
+        raise SystemExit("記録の specd の ID にボードの印（board）が無い。ADR 0025 の後の specd で測り直す")
+    bit = _bit_of(srv.get("adc_id", ""))
+    cal = dict(version=1, board=dict(id=srv["board"], src="specd の ID"), adc_path=TB.adc_path_of(tuple(bit)), measured_on_bits=[bit],
+               unit="dBm at ADC input (SMA)",
                adc=adc, note=note or f"暫定: {os.path.basename(path)} から。PM を ADC の口で測って置き換える")
     if os.path.exists(out):
         raise SystemExit(f"{out} がもうある（上書きしない。消すか別の名前に）")
     json.dump(cal, open(out, "w"), ensure_ascii=False, indent=1)
-    print(f"{out} を書いた: K = {k:+.3f} dB（全 ADC、暫定）。ボードの specd の起動の場所に置いて specd を起動し直す")
+    print(f"{out} を書いた: K = {k:+.3f} dB（全 ADC、暫定）。ボードの /etc/yatsugatake/tp_cal.json に置いて specd を起動し直す（リポジトリに入れない）")
     return cal
 
 
@@ -390,13 +396,17 @@ def adc_port_cal(s, pm, adc, cal_path="tp_cal.json", n=50, pad_db=0.0, repeat=1)
         print(f"ADC_{a}: K = {k:+.3f} dB（{repeat} 回の平均、ばらつき {np.std(ks):.3f} dB）・不確かさ ±{unc:.3f} dB")
     if os.path.exists(cal_path):
         cal = json.load(open(cal_path))
+        b_srv = s.id().get("board")
+        if (cal.get("board") or {}).get("id") != b_srv:              # ADR 0025: 別のボードのファイルを書き換えない
+            raise SystemExit(f"{cal_path} はボード {(cal.get('board') or {}).get('id')} のもの。測っているボードは {b_srv}")
         old = cal["adc"].get(a, {}).get("k_db")
         cal["adc"][a] = dict(k_db=round(k, 3), k_unc_db=round(unc, 3), provisional=False,
                              valid_dbfs=cal["adc"].get(a, {}).get("valid_dbfs", [-47.0, -7.0]), date=time.strftime("%Y-%m-%d"),
                              source=f"adc_port_cal: PM を ADC の口で、{repeat} 回（K {', '.join('%+.3f' % x for x in ks)}）", previous_k_db=old)
         os.replace(cal_path, cal_path + ".bak")
         json.dump(cal, open(cal_path, "w"), ensure_ascii=False, indent=1)
-        print(f"{cal_path} の ADC_{a} を置き換えた（前の K {old}、前のファイルは {cal_path}.bak）。specd を起動し直すと効く")
+        print(f"{cal_path} の ADC_{a} を置き換えた（前の K {old}、前のファイルは {cal_path}.bak）。"
+              "ボードの /etc/yatsugatake/tp_cal.json に置いて specd を起動し直すと効く")
     return k
 
 
@@ -451,9 +461,14 @@ def main():
     pm = PowerMeter(a.pm, freq_mhz=a.freq, avg=a.avg)
     at = ManualAtten() if a.att == "manual" else Atten(a.att)
     if a.zero:
-        input("ノイズソースを切って Enter（零点を取る）: ")
-        pm.zero()
-        input("ノイズソースを入れて Enter: ")
+        if os.environ.get("RFSOC_NS"):                  # ADR 0024: ノイズソースの電源を遠隔で切って零点、入れ直す
+            from instr import noise_off
+            with noise_off():
+                pm.zero()
+        else:
+            input("ノイズソースを切って Enter（零点を取る）: ")
+            pm.zero()
+            input("ノイズソースを入れて Enter: ")
     s = S45(a.host)
     try:
         path = measure(s, pm, at, default_steps(a.lo, a.hi, a.step), n=a.n, settle=a.settle, out=a.out, note=a.note)
