@@ -6,6 +6,8 @@
     "proj020": {"bit": "../proj020/proj020.bit", "pydir": "../proj020", "tp_cal": "../proj020/tp_cal.json",
                 "note": "SAM45-Fine v1（proj020。仮の読み窓・s45proto v1）。V2-d の往復の相手。tp_cal は前の版の PS の形なので、その項目だけ自分のファイルを指す"},
     "sam45-wide": {"bit": "proj023.bit", "pydir": ".", "kind": "wide",
-                "note": "SAM45-Wide（BIT_KIND 1）。kind は wide（SLICE の流れの取得）。TP の dBm の較正はボードの /etc/yatsugatake/tp_cal.json（ADR 0025）"}
+                "note": "SAM45-Wide（BIT_KIND 1）。kind は wide（SLICE の流れの取得）。TP の dBm の較正はボードの /etc/yatsugatake/tp_cal.json（ADR 0025）"},
+    "2g-4": {"bit": "proj031.bit", "pydir": ".", "kind": "g24",
+                "note": "2G-4（BIT_KIND 3）。kind は g24（FULL の流れ 4 本の取得）。bit の隣に係数の hex（g24_coef_lo.hex・g24_coef_hi.hex）。specd は --fast --fast-ring（build_fast.sh で libs45fast.so）"}
   }
 }

@@ -181,7 +181,7 @@
 #      GB_K（環境変数、既定 0）を spec_core の GB_K_RST に与える（ハードのリセットの起動に効くしきい値）
 #
 # RFDC・Clocking Wizard・ギアボックス・spec_core の本体は proj010 と同一。
-# ナイキストゾーン（2）は実行時に PYNQ から設定する（../../../sw/pynq-2g/spectrometer.py）。
+# ナイキストゾーン（2）は実行時に PYNQ から設定する（../../../sw/pynq/spectrometer.py）。
 
 set proj         proj031
 # proj015: **既定の part を -1 に**（実機の .bit を -1 で配置配線する。チップの刻印が未確認で、遅い方で閉じたものだけを載せる）。
@@ -1967,6 +1967,28 @@ if {$nd_seen != $nd_want} { puts "ERROR: 自作のセルの OOC の run が $nd_
 if {$nd_ng > 0} { puts "ERROR: ドライバの無いネットがある（RTL の書き漏れ）"; exit 1 }
 if {$rm_seen != $ncore} { puts "ERROR: s45_core_* の OOC の run が $ncore 個でない（$rm_seen）。run の名前: $ooc_names"; exit 1 }
 if {$rm_ng > 0} { puts "ERROR: ROM の中身（hex）を合成が読めていない"; exit 1 }
+
+# ---- YATSUGATAKE M5b: USR_ACCESS に commit を焼く（Makefile の USR_ACCESS）。write_bitstream の前のフックで設定するだけで、
+#      配置・配線には触れない（RTL も変えない）。make が書き出した .bit を sw/pynq/bitinfo.py で読み返して照らす ----
+# **expr で受けない**: expr の ? : は 0x… を数として読み、10 進の文字列にして返す（2026-10-15 の 1 回目で、下の形の照合が止めた）
+set usr_access ""
+if {[info exists ::env(USR_ACCESS)]} { set usr_access $::env(USR_ACCESS) }
+if {$usr_access eq ""} { puts "ERROR: USR_ACCESS が来ていない（make から回す。焼かないなら USR_ACCESS=none）"; exit 1 }
+if {[string tolower $usr_access] eq "none"} {
+    puts "USR_ACCESS (焼く): なし（USR_ACCESS=none。比べのためのビルド）"
+} else {
+    if {![regexp {^0x[0-9a-fA-F]{8}$} $usr_access]} { puts "ERROR: USR_ACCESS $usr_access が 0x と 16 進 8 桁でない"; exit 1 }
+    set hook [file normalize $outdir/usr_access_hook.tcl]
+    set fh [open $hook w]
+    puts $fh "set_property BITSTREAM.CONFIG.USR_ACCESS $usr_access \[current_design\]"
+    puts $fh "puts \"USR_ACCESS: \[get_property BITSTREAM.CONFIG.USR_ACCESS \[current_design\]\]\""
+    close $fh
+    set_property STEPS.WRITE_BITSTREAM.TCL.PRE $hook [get_runs impl_1]
+    if {[get_property STEPS.WRITE_BITSTREAM.TCL.PRE [get_runs impl_1]] ne $hook} {
+        puts "ERROR: write_bitstream の前のフックが設定されていない"; exit 1
+    }
+    puts "USR_ACCESS (焼く): $usr_access（commit [string range $usr_access 2 8]・汚れ [string index $usr_access end]）"
+}
 
 # ---- 合成〜実装〜ビットストリーム ----
 # proj023 4b: synth_1・impl_1 でも Vivado が落ちる（2026-10-15 のビルド 6 回目: impl_1 が始まってすぐ segfault、

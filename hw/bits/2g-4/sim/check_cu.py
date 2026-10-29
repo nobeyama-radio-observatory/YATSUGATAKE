@@ -10,7 +10,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..")
-sys.path.insert(0, os.path.join(ROOT, "..", "..", "..", "sw", "pynq-2g"))
+sys.path.insert(0, os.path.join(ROOT, "..", "..", "..", "sw", "pynq"))
 import g24cu  # noqa: E402
 
 LO = os.path.join(ROOT, "src", "g24", "g24_coef_lo.hex")

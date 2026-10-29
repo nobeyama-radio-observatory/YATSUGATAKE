@@ -49,6 +49,8 @@ runs/**/data/
 # ---- Python ----
 __pycache__/
 *.pyc
+# sw/pynq/build_fast.sh がボードの上で作る（s45fast.c から）
+libs45fast.so
 .venv/
 
 # ---- Jupyter ----

@@ -25,7 +25,8 @@ import argparse
 import sys
 
 IF_VER = 2
-BIT_KINDS = {1: "SAM45-Wide", 2: "SAM45-Fine", 3: "2G", 4: "512M", 5: "256M", 6: "SpW6", 7: "SpW8", 8: "SpW20", 9: "Fine"}
+BIT_KINDS = {1: "SAM45-Wide", 2: "SAM45-Fine", 3: "2G-4", 4: "512M", 5: "256M", 6: "SpW6", 7: "SpW8", 8: "SpW20", 9: "Fine",
+             10: "2G-2", 11: "2G-1"}   # proj024: 2G は ADC の本数ごとに 3 本（INTERFACE 2.4、D-9）
 CORE_KIND_ADC, CORE_KIND_TIME, CORE_KIND_RING = 1, 2, 3
 KIND_FULL, KIND_SLICE, KIND_DDC, KIND_RAW = 1, 2, 3, 4
 KIND_NAMES = {KIND_FULL: "FULL", KIND_SLICE: "SLICE", KIND_DDC: "DDC", KIND_RAW: "RAW"}
@@ -33,7 +34,13 @@ ADC_NAMES = ("ADC_A", "ADC_B", "ADC_C", "ADC_D")
 PROJ_EXPECT = 0x0021_0200        # この README の手順 2-1 の .bit（追跡のため。照合には使わない）
 BIT_REV_MIN = 2                  # proj021 2-2d: 仮の読み窓の無い 64 KiB の番地（道具は記憶をレコードでしか読まない）
 BIT_KIND_EXPECT = 2              # SAM45-Fine。SAM45-Wide の道具（wide.py・s45acq の WideBackend・widef2.py）は bit_kind=1, bit_rev_min=1 を渡す
-BIT_REV_MIN_BY_KIND = {1: 1, 2: 2}   # --list（どちらの bit も読む）の下限。SAM45-Wide は 1 から、SAM45-Fine は 2 から
+BIT_REV_MIN_BY_KIND = {1: 1, 2: 2, 3: 1, 10: 1, 11: 1}   # --list（どの bit も読む）の下限。SAM45-Wide・2G は 1 から、SAM45-Fine は 2 から
+PROJ_G21 = 0x0024_0100           # proj024: 2G-1（BIT_KIND 11・BIT_REV 1、コア 1 個）。discover(ol, bit_kind=BIT_KIND_G21, ncore=1)
+BIT_KIND_G21 = 11
+PROJ_G22 = 0x0025_0100           # proj025: 2G-2（BIT_KIND 10・BIT_REV 1、コア 2 個。コア 1 は RAW を持たず NSTREAM 1）。discover(ol, bit_kind=BIT_KIND_G22, ncore=2)
+BIT_KIND_G22 = 10
+PROJ_G24 = 0x0031_0200           # proj031 rev 2（coef_mis を START で消す。rev 1 は 0x0031_0100）。proj031（係数 URAM。timebase.CAL は未較正、R の F-2 で測る）。proj030（2-for-1。proj027 は 0x0027_0100。timebase.CAL は R-5 の F-2 で測った）。proj027: 2G-4（BIT_KIND 3・BIT_REV 1、コア 4 個。4 コアとも RAW を持ち NSTREAM 2）。discover(ol, bit_kind=BIT_KIND_G24, ncore=4)
+BIT_KIND_G24 = 3
 
 # ---- コアの共通（INTERFACE 2.4。0x20〜 は表 A を +0x10）----
 C_IF_ID, C_PROJ, C_NSTREAM, C_CAPS, C_BASE_BEATS, C_BUILD, C_CORE_PORT = 0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x18
