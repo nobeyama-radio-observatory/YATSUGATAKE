@@ -149,12 +149,12 @@ Vivado サーバで、移植先（`hw/bits/2g-4/`、commit 699c511 の木 = M2 �
 
 ### M4 の結果（2026-10-28）
 
-M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、ボードの写しが手元と sha256 で同じ）を、ボードの新しいディレクトリ（`2g-4-m4`、study-rfsoc の道具のディレクトリと混ぜない）に置き、`build_fast.sh`（「CRC: 命令」）の後に specd を `--g24 … --fast --fast-ring --loop-log-ms 0.1` で起こした。**1 回の Overlay の読み込みの中で**、ID-1 → H-0 → EQ-4 → tint 20.48 ms で 300 s の順に回した。配線は N（ノイズ ON、proj036 R-4 のまま）:
+M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、ボードの写しが手元と sha256 で同じ）を、ボードの新しいディレクトリ（`2g-4-m4`、study-rfsoc の道具のディレクトリと混ぜない）に置き、`build_fast.sh`（「CRC: 命令」）の後に specd を `--g24 … --fast --fast-ring --loop-log-ms 0.1` で起こした。**1 回の Overlay の読み込みの中で**、ID-1 → H-0 → EQ-4 → tint 20.48 ms で 300 s の順に回した。配線 N/S・ノイズ ON（2026-10-29 に訂正。前は「配線 N」と書いていた）。配線 N を前提にする判定（V2-b）は前提から外れて回した:
 
 | | 移植先（M4） | 移植元の記録 |
 |---|---|---|
 | ID-1 | 係数 URAM 4096 行を **0.73 s**・VERIFY 通過（CRC 0x891be197・STAT 0x15）、ID proj 00310200・kind g24、IDLE・time_ok 1・health 0・flags 0 | proj031 rev 2: 0.73 s・同じ CRC・STAT |
-| H-0（4 窓 × 200） | 800 本・CRC 0・説明のない欠け 0・照合 通過・`g24cw` 全部通過、陽性対照（`--src DCBA`）で 4 窓とも NG | proj031 R-1a: 同じ（床は配線 N/S の値なので比べない） |
+| H-0（4 窓 × 200） | 800 本・CRC 0・説明のない欠け 0・照合 通過・`g24cw` 全部通過、陽性対照（`--src DCBA`）で 4 窓とも NG | proj031 R-1a: 同じ（床は proj031 が N/S・ノイズ OFF の値なので比べない） |
 | EQ-4 | **50 / 50 組 × 3**、陽性対照 0 / 49 組 × 3 | proj031 R-1b: 50 / 50 組 × 3、0 / 49 組 × 3 |
 | tint 20.48 ms で 300 s | SPEC 58,505・7.36 GB（24.5 MB/s）・CRC・欠け・kgap・tdev 0・照合 通過、miss・pl_drop・pl_crc・pl_err 0・loop_slow 1・1 周の最長 22.74 ms・p99 11.2 ms・リングの山 3.2 MB・1 周の計 13.10 ms、AXI_MAX_PIPELINE 前後 0x102 | proj036 R-3・R-4: 取りこぼし 0・最長 23.2 / 23.09 ms・p99 11.2 ms・山 4.2 / 3.3 MB、R-1 の 1 周の計 13.4 ms |
 
@@ -201,7 +201,7 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 **予言**:
 1. **M2 の回し直し**（`make sim-all`、`sw/pynq/g24cu.py` の道で）: 18 個とも「全部通過」、`build-sim/` の出力は M2 と同じ（RTL も CU_WORDS の元も同じ。違うのは iverilog の `tb` の番地だけ）。COEF_CRC 0x891BE197
 2. **M3 の焼き直し**（7befb74、`make build`、`-1`・既定の戦略）: USR_ACCESS `0x7befb740`（commit 7befb74・汚れなし）が焼け、make の読み返しが通る。**FDRI は M3 と同じ**（`f05e1f62…3b1c`）、WNS / WHS は 0.047165 / 0.000000 で小数 6 桁まで同じ。構成の流れ（欄 e）の sha256 は USR_ACCESS の分だけ M3 と違う
-3. **M4 の回し直し**（ボードの新しいディレクトリ `2g-4-m5`、今回の bit と一本化した `sw/pynq/`、specd は `--g24` なしで bits.json の `"kind": "g24"`・`--ring-mib` なし・`--lmx-pwr` なし、配線 N）: 1 回の Overlay の読み込みの中で ID-1 → H-0 → EQ-4 → NET → tint 20.48 ms で 300 s。
+3. **M4 の回し直し**（ボードの新しいディレクトリ `2g-4-m5`、今回の bit と一本化した `sw/pynq/`、specd は `--g24` なしで bits.json の `"kind": "g24"`・`--ring-mib` なし・`--lmx-pwr` なし、配線 N/S・ノイズ ON（2026-10-29 に訂正。前は「配線 N」と書いていた））: 1 回の Overlay の読み込みの中で ID-1 → H-0 → EQ-4 → NET → tint 20.48 ms で 300 s。
    - ID-1: M4 と同じ（係数 URAM 0.7 s 台・CRC 0x891be197・STAT 0x15、ID proj 00310200・kind g24）に加えて、ID の **`usr=7befb740`・`lmx_pwr=3`**、ログに「リング 64 MiB」、錨が (3, 1) の CAL で「未較正」でない、「CRC: 命令」
    - H-0（4 窓 × 200、照合 通過・`g24cw` 全部通過、陽性対照 `--src DCBA` で 4 窓とも NG）・EQ-4（50 / 50 組 × 3、陽性対照 0 / 49 × 3）: M4 と同じ
    - NET: `SET tint=0.01024` が ERR で GET は変わらない、`SET tint=0.02048` が OK。陽性対照（`--net-budget-mbs 0` で起こし直す）は OK
@@ -224,7 +224,7 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 | runme の CRITICAL WARNING | 0 | 0 |
 | `.bit` / `.hwh` の sha256 | `79bb955a…` / `50b40685…` | `e3521f51650daa278a1d4b5ffb318c55dcb821f9c8e6f5030ee54f4300d4330d` / `36e3b23abb863de2e6526d096b49ad95a5cbf65ea4c18bfd7042ba1d5b752239` |
 
-**予言 3（M4 の回し直し）: 当たり**。ボードの `2g-4-m5`（今回の bit・hwh・係数の hex、一本化した `sw/pynq/` の 59 個は手元と sha256 で全部同じ、`build_fast.sh` で「CRC: 命令」）、配線 N。specd は **`--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring --loop-log-ms 0.1`**（`--g24`・`--ring-mib`・`--lmx-pwr` なし。bits.json の項目は `"kind": "g24"`）。1 回の Overlay の読み込みの中で ID-1 → H-0 → EQ-4 → NET → tint 20.48 ms で 300 s、最後に NET の陽性対照だけ起こし直した:
+**予言 3（M4 の回し直し）: 当たり**。ボードの `2g-4-m5`（今回の bit・hwh・係数の hex、一本化した `sw/pynq/` の 59 個は手元と sha256 で全部同じ、`build_fast.sh` で「CRC: 命令」）、配線 N/S・ノイズ ON（2026-10-29 に訂正。前は「配線 N」と書いていた）。specd は **`--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring --loop-log-ms 0.1`**（`--g24`・`--ring-mib`・`--lmx-pwr` なし。bits.json の項目は `"kind": "g24"`）。1 回の Overlay の読み込みの中で ID-1 → H-0 → EQ-4 → NET → tint 20.48 ms で 300 s、最後に NET の陽性対照だけ起こし直した:
 
 | | M5（今回） | M4 |
 |---|---|---|

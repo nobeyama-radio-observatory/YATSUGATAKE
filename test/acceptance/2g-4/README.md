@@ -19,7 +19,7 @@ ID は Wide の判定と同じ意味のものは同じ ID（ID-1・H-0・H-2・F
 - **SET の既定**: `A0.src=A B0.src=B C0.src=C D0.src=D shift=7 fmt=f32`。窓 A0〜D0 = コア 0〜3
 - **ネットワークの tint**: 2G-4 の最小は **20.48 ms**（interface 4.5、予算 1 ボード 30 MB/s）。それより短い tint（10.24 ms）は SET で断られる（NET、M5 から）。10.24 ms を使う判定（BUND）は specd を **`--net-budget-mbs 0`**（照合を外す試験の形）で起こし、受けの量が予算を越えることを承知で短い時間だけ使う
 - **レベルを tint や設定をまたいで比べるときは、1 回の Overlay の読み込みの中で切り替える**（載せ直すと 1 % 級の段が出る。proj036 R-2）
-- **配線**（Wide の判定の README と同じ名前）: N（ノイズ ON）・N/S（ノイズ OFF・SG の CW）・P（1PPS を ADC にも分配）
+- **配線**（Wide の判定の README と同じ名前）: N（ノイズ ON）・N/S（ノイズ OFF・SG の CW）・P（1PPS を ADC にも分配）。**2026-10-28 の M4・M5 は N/S ＋ ノイズ ON**（どの名前にも当たらない。記録は「配線 N/S・ノイズ ON」と書く）
 
 ## 一覧
 
