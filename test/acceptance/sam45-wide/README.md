@@ -47,6 +47,8 @@ proj023 の判定は README の中にだけあった（H-1〜H-4・SNAP・F-2・
 | [P-8](P-8.md) | TP の線形性・流れ / TP・Wide の tp_cal | specd | N（＋ PM・ATT） | なし（新しく） |
 | [PS-3](PS-3.md) | TP の跳ねの見張り | specd | N（＋ ATT） | なし（Fine で通過。TP の作りは同じ） |
 
+**F-2（配線 P）は、これからの bit では回さない**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)、2026-10-29）。本番の時刻の較正はボードごとに設置の後で測る（[`docs/user/calibration.md`](../../../docs/user/calibration.md)）。F-2 を回すのは、ADC → コアの道（RFDC の設定・ギアボックス）を変えた bit を開発のボードで確かめるときだけ。上の表の F-2 の結果は `timebase.CAL`（開発の値・暫定）の出どころとして残す。
+
 **Wide では回さない判定**:
 - V2-c（窓の W-G をレコードの道で）: Wide には DDC の窓が無い。SLICE の中身は sim の A2（模型と bit 単位）・H-2・H-0 で見ている（proj023 の手順 4c）
 - F-0・F-1・T-4・W-*・P-5・V2-g・PS-1: SAM45-Fine の窓・13 コアに付いた判定。Wide の時刻の見張りは V2-f、ch の形は H-1

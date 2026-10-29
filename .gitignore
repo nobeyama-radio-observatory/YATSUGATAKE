@@ -53,3 +53,7 @@ __pycache__/
 
 # ---- Jupyter ----
 .ipynb_checkpoints/
+
+# ---- ボードの時刻の較正（ADR 0023。ボードの個体の値はリポジトリに戻さない）----
+time_cal.json
+time_cal.json.*

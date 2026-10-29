@@ -24,9 +24,16 @@ PPS のスタンプは「同期器を抜けて縁を見たクロックの T」�
 ADC からコアの入口までの遅れ（RFDC ＋ ギアボックス、`CAL` の adc_to_core_ns）と、窓ではさらに PFB・DDC の遅れ
 （`WIN_DELAY_BEATS[NS]`、sim で出した値）を**引く**。どちらも要求 100 µs に対して小さいが、黙って 0 にしない:
 未較正のものは `accuracy()` に「未較正」と出す。
+
+## 較正（ADR 0023）
+
+ボードの較正ファイル（`timecal.py` が作る。鍵はボードの印）があればそれを、無ければ `CAL`（開発の値）を**暫定**として当てる。
+どちらを当てたかは `cal_state`（"board" / "provisional"）と `accuracy()` の state に出す。
 """
 
+import json
 import math
+import os
 import time
 
 BEATS_PER_SEC = 256_000_000
@@ -35,6 +42,8 @@ NS_NUM, NS_DEN = 125, 32          # 1 ビート = 125/32 ns（厳密）
 # ---- 較正定数（ビットストリームの ID と対）----
 #   pps_det_ns   : PPS の縁 → スタンプ（同期器 3 段 ＋ 入力の遅れ）。proj007 の COMP − TRIG = 58.6 ns（RC）は系統の差
 #   adc_to_core_ns: ADC のサンプル → ギアボックスの出口（コアの入口）。proj007/008 の L_adc − D_pps = 213 ns は fs が違うので使えない
+#   **ADR 0023（2026-10-29）: この表は開発の値（開発のボードの F-2）で、どの bit にも「暫定」として当てる。**
+#   本番のボードは、設置の後に timecal.py で測ってボードに置く較正ファイル（TIME_CAL_PATH、リポジトリに戻さない）を使う
 #   **どちらも T-2（1PPS を ADC にも入れる閉ループ）で測るまで未較正。** 上限の見当（bound_ns）だけ持つ
 #   **T-2（閉ループ）で測れるのは差 M = adc_to_core − pps_det（＋ 2 本のケーブルの差）の 1 つだけ**なので、M を adc_to_core_ns に入れ、
 #   pps_det_ns = 0 とする（式の上では引く量は M で同じ: サンプルの時刻 = 錨 ＋ (B − スタンプ) ＋ pps_det − adc_to_core）。
@@ -61,6 +70,82 @@ CAL = {
                         "平均 71.5・71.4・70.0・69.9 ns。pps_det_ns は LPF の遅れ（proj026 で同じ日の LPF なしとの差 ≒ 71.5 ns）、"
                         "adc_to_core_ns = M（LPF あり）＋ 71.5。bound_ns は (2, 3) と同じ 5 ns（±0.5 ビート ＋ LPF の分の ±2 ns）"),
 }
+# ---- ADR 0023: ボードの時刻の較正ファイル（timecal.py が作る。リポジトリには戻さない）----
+#   鍵は bit ではなくボード（board_id()）。1 本の bit（SAM45-Wide）で測った M を、ADC → コアの道が同じ bit すべてに当てる
+#   （SAM45-Fine と Wide の差 ≦ 1.6 ns は Overlay ごとの共通のずれ ≒ 1 ビートより小さい）。
+#   **ADC → コアの道（RFDC の設定・ギアボックス）を変えた bit は ADC_PATH に新しい番号で足す**（その bit には較正ファイルが当たらず、暫定になる）
+TIME_CAL_PATH = "/etc/yatsugatake/time_cal.json"      # 環境変数 YATSUGATAKE_TIME_CAL で替えられる
+ADC_PATH = {}                                           # (BIT_KIND, BIT_REV) → ADC → コアの道の版。無い bit は ADC_PATH_COMMON
+ADC_PATH_COMMON = 1                                     # 共通コアの道（SAM45-Fine (2, 3)・SAM45-Wide (1, 1)）
+CAL_PROVISIONAL_KEY = (1, 1)                            # CAL に無い bit（開発中）に暫定で当てる値
+TIME_CAL_VERSION = 1
+
+
+def time_cal_path():
+    return os.environ.get("YATSUGATAKE_TIME_CAL") or TIME_CAL_PATH
+
+
+def adc_path_of(key):
+    return ADC_PATH.get(tuple(key), ADC_PATH_COMMON)
+
+
+def board_id():
+    """このボードの印（dict(id, src)）。時刻の較正ファイルを別のボードで使わないため。
+    ZynqMP の eFuse の DNA（nvmem、root で読める）を先に、読めなければ eth0 の MAC。どちらも無ければ None"""
+    for dev in ("/sys/bus/nvmem/devices/zynqmp-nvmem0/nvmem",):
+        try:
+            with open(dev, "rb") as f:
+                b = f.read(0x18)
+            dna = b[0x0C:0x18]
+            if len(dna) == 12 and any(dna) and dna != b"\xff" * 12:
+                return dict(id="dna:" + dna.hex(), src=dev)
+        except OSError:
+            pass
+    try:
+        with open("/sys/class/net/eth0/address") as f:
+            mac = f.read().strip().lower()
+        if set(mac) - set("0:"):                           # 全部 0 は印にならない
+            return dict(id="mac:" + mac, src="eth0")
+    except OSError:
+        pass
+    return None
+
+
+def load_time_cal(path):
+    """較正ファイルを読んで形を確かめる。戻り値は CAL の 1 項目と同じ形の dict（adc_to_core_ns の鍵は int）＋ board・adc_path・_file"""
+    with open(path) as f:
+        d = json.load(f)
+    if d.get("version") != TIME_CAL_VERSION or d.get("kind") != "yatsugatake-time-cal":
+        raise ValueError(f"{path}: 形が違う（version {TIME_CAL_VERSION}・kind yatsugatake-time-cal が要る）")
+    a2c = {int(k): float(v) for k, v in d.get("adc_to_core_ns", {}).items()}
+    if sorted(a2c) != [0, 1, 2, 3]:
+        raise ValueError(f"{path}: adc_to_core_ns に ADC 0〜3 がそろっていない")
+    if not (d.get("board") or {}).get("id"):
+        raise ValueError(f"{path}: board.id が無い")
+    return dict(pps_det_ns=float(d.get("pps_det_ns", 0.0)), adc_to_core_ns=a2c, bound_ns=float(d["bound_ns"]),
+                adc_path=int(d["adc_path"]), board=d["board"], date=d.get("date"),
+                source=f"ボードの較正ファイル {path}（{d.get('date')}、{d.get('note', '')}）", _file=path)
+
+
+def select_cal(key, board_cal=None, this_board=None, cal=None):
+    """bit の鍵とボードの較正から、当てる定数を選ぶ。戻り値 (定数, 状態, 説明)。状態は "board"（ボードの較正）か "provisional"（暫定）"""
+    cal = CAL if cal is None else cal
+    why = "ボードの較正ファイルが無い"
+    if board_cal is not None:
+        want = (board_cal.get("board") or {}).get("id")
+        if this_board is None:
+            why = "このボードの印が読めない（較正ファイルを照らせない）"
+        elif want != this_board.get("id"):
+            why = f"較正ファイルは別のボード（{want}）のもの。このボードは {this_board.get('id')}"
+        elif board_cal["adc_path"] != adc_path_of(key):
+            why = f"較正ファイルは ADC → コアの道 {board_cal['adc_path']} で測った。この bit {key} は道 {adc_path_of(key)}"
+        else:
+            return dict(board_cal), "board", "ok"
+    base = cal[key] if key in cal else cal[CAL_PROVISIONAL_KEY]
+    src = "" if key in cal else f"（bit {key} の値は無いので {CAL_PROVISIONAL_KEY} の値）"
+    return dict(base, source="暫定: 開発の値" + src + "。" + base.get("source", "")), "provisional", why
+
+
 # 窓の PFB・DDC の遅れ（win_core の入口のビート → そのインパルスの |z|² の重心が wspec に入るまで、ビート）。NS → 値。
 #   make sim-wdelay（2026-10-02、iverilog・k = 5・Δφ = 0）。線形位相なので重心 = 群遅延 ＋ 経路の遅れ。**RTL を変えたら出し直す**
 #   窓の PFB（T = 4）は wspec の中（z の後）なので入らない（ずれ 1.5·L は D_eff で足す）。PFB 入りの RTL でも NS 1〜8 とも同じ値
@@ -168,13 +253,21 @@ class TimeCore:
 class Timebase:
     """時刻を返す層。**答えられないときは例外を投げる。**"""
 
-    def __init__(self, tc, path="trig", cal=None):
+    def __init__(self, tc, path="trig", cal=None, time_cal="auto", log=None):
+        """time_cal: "auto" = time_cal_path() にあれば読む・None = 読まない（暫定）・dict = 読んだもの（試験）"""
         self.tc = tc
-        cal = CAL if cal is None else cal
         key = (tc.bit_kind, tc.bit_rev)                                 # M5a: (BIT_KIND, BIT_REV)
-        if key not in cal:
-            raise TimebaseError(f"BIT_KIND {key[0]}・BIT_REV {key[1]} の較正定数を持っていない（未較正。F-2 で測って CAL に足す）")
-        self.cal = dict(cal[key])
+        if time_cal == "auto":
+            time_cal, p = None, time_cal_path()
+            if os.path.exists(p):
+                try:
+                    time_cal = load_time_cal(p)
+                except (ValueError, KeyError, OSError) as e:
+                    (log or print)(f"時刻の較正ファイルを読めない（暫定の値を使う）: {e}")
+        self.board = board_id() if time_cal is not None else None
+        self.cal, self.cal_state, self.cal_why = select_cal(key, time_cal, self.board, cal)   # ADR 0023
+        if self.cal_state != "board":
+            (log or print)(f"時刻の較正は暫定（開発の値）: {self.cal_why}")
         self.path = path
         self._anchor = None
 
@@ -244,4 +337,4 @@ class Timebase:
             unc.append(f"adc_to_core_ns[{adc}]")
         if ns is not None and ns not in WIN_DELAY_BEATS:
             unc.append(f"WIN_DELAY_BEATS[{ns}]")
-        return dict(uncalibrated=unc, bound_ns=c["bound_ns"], source=c["source"])
+        return dict(uncalibrated=unc, bound_ns=c["bound_ns"], source=c["source"], state=self.cal_state)

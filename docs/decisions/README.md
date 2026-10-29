@@ -61,3 +61,4 @@
 | [0020](0020-documentation-language.md) | ドキュメントは日本語で書き、英語版は後で足す | 採用 | 2026-10-08 |
 | [0021](0021-spec-canonical-in-yatsugatake.md) | 仕様の正典は YATSUGATAKE の docs/spec に置き、全 bit の約束をここで持つ | 採用 | 2026-10-21 |
 | [0022](0022-2g-1-fast-and-fine.md) | 2G の 1 ADC を 2G-1-Fast（1 段）と 2G-1-Fine（2 段・DDR の corner turn）の 2 本に | 採用 | 2026-10-28 |
+| [0023](0023-time-calibration-per-board.md) | 時刻の較正はボードごとに設置の後で測り、ボードにだけ置く（bit ごとには測らない） | 採用 | 2026-10-29 |

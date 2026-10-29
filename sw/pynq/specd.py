@@ -267,7 +267,7 @@ class Server:
         if cmd == "ID":
             r = self.acq_cmd(dict(op="id"))
             return self._rep(r, lambda r: kv_line(dict(version=r["version"], win_id=r["ids"]["win"], adc_id=r["ids"]["adc"],
-                                                       time_id=r["ids"]["time"], usr=r["ids"].get("usr", "-"), lmx_vco=r["ids"].get("lmx_vco", "-"), lmx_pwr=r["ids"].get("lmx_pwr", "-"),
+                                                       time_id=r["ids"]["time"], usr=r["ids"].get("usr", "-"), tcal=r["ids"].get("tcal", "-"), lmx_vco=r["ids"].get("lmx_vco", "-"), lmx_pwr=r["ids"].get("lmx_pwr", "-"),
                                                        adcs=r["adcs"], nw=r["nw"], fake=r["fake"],
                                                        proto=P.VERSION)))
         if cmd == "STATUS":
@@ -305,13 +305,18 @@ class Server:
         if cmd == "GET" and args and args[0].upper() == "CAL":
             r = self.acq_cmd(dict(op="cal"))
             def f(r):
+                t = r.get("time") or {}                       # ADR 0023: 時刻の較正（board / provisional）
+                dt = dict(tcal=t.get("state", "none"), tcal_file=t.get("file") or "-", tcal_date=t.get("date") or "-",
+                          tcal_bound_ns=t.get("bound_ns", "-"))
+                for i, v in sorted((t.get("adc_to_core_ns") or {}).items()):
+                    dt[f"{'ABCD'[int(i)]}.a2c_ns"] = round(v - (t.get("pps_det_ns") or 0), 1)
                 c = r.get("cal")
                 if not c:
-                    return kv_line(dict(cal="none", msg=r.get("msg")))
+                    return kv_line(dict(cal="none", msg=r.get("msg"), **dt))
                 d = dict(file=c.get("file"), bits=c.get("bits"), unit=c.get("unit"))
                 for a, v in sorted(c["adc"].items()):
                     d[f"{a}.k"] = round(v["k_db"], 3); d[f"{a}.prov"] = bool(v.get("provisional")); d[f"{a}.date"] = v.get("date")
-                return kv_line(d)
+                return kv_line(d | dt)
             return self._rep(r, f)
         if cmd == "GET":
             r = self.acq_cmd(dict(op="get"))
