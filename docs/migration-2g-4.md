@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 はほぼ済み**（2026-10-28、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。残りは LMX の PWR 3 での F-2 と TP の線形性（配線の替えが要る）
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は M が CAL どおりで CAL 据え置き（σ の線で失敗、扱いは保留）、TP の線形性は通過、CU も通過
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -208,7 +208,7 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
    - tint 20.48 ms で 300 s: 取りこぼし 0（miss・pl_drop・pl_crc・pl_err 0、受けの CRC・欠け・kgap・tdev 0、照合 通過）、1 周の計 ≒ 13 ms（M4 の 13.10 ms ± 1 ms）。LMX の PWR が 31 → 3 に変わるので、櫛の線の強さと床の形は M4 と違ってよい（判定の外。tp_dbfs は ±0.1 dB で同じはず: 入力の電力は PWR で変わらない、Wide の M5 の後の 1）
 4. **LMX の PWR 3 での測り直し**（Wide の「M5 の後」と同じ型）: F-2（配線 P、ケーブルの入れ替えあり 2 回）で M が CAL の (3, 1)（PWR 31 で測った値）と **4 ADC とも 1 ビート（3.9 ns）以内**（Wide は 31 → 3 で −0.03〜−0.62 ビート）。外れたら (3, 1) を PWR 3 の値で入れ直す。TP の線形性（配線 N ＋ PM・ATT、Wide の P-8 の L-1・L-2 の線）は PWR に依らず通る
 
-### M5 の結果（2026-10-28〜29）: 予言 1〜3 当たり。4 は F-2 の M が当たり（CAL 据え置き、判定は σ で失敗・扱いは保留）、TP の線形性が残り
+### M5 の結果（2026-10-28〜29）: 予言 1〜3 当たり。4 は F-2 の M が当たり（CAL 据え置き、判定は σ で失敗・扱いは保留）、TP の線形性は当たり
 
 **予言 1（M2 の回し直し、f8ee13d の木、`sw/pynq/g24cu.py` の道）: 当たり**。`make sim-all` が 18 個とも「全部通過」（16 分）。`build-sim/` の 252 個のうち 204 個が M2 の出力とバイト単位で同じ、違う 48 個は iverilog の `tb` だけで、番地（`0x…`）を読み替えると 48 個とも同じ。`build-sim-logs/` の 18 個のうち 15 個が同じ、違う 3 個は模型のログの経過秒だけ（今回はコマンドの行も同じ）。COEF_CRC 0x891BE197
 
@@ -245,7 +245,9 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 
 **CU（2026-10-29、配線 P のまま、ケーブルは A↔D・B↔C）: 通過**。M5 の bit・一本化した `sw/pynq/`、specd は bits.json の kind だけで起こした。(i)〜(iv) とも CU.md の合格どおり。(iv) の最初の取得は (i) の受けの後に溜まりに残った 222 個が混ざって g24cw が落ちた（D0 の DUMP_T・flags 0x1）。`CLEAR` してから取り直して通過（specd は起こし直さず）。記録は `~/m2/2g4m5/cu/`
 
-**残り**: TP の線形性（配線 N ＋ PM・ATT）
+**予言 4 の TP の線形性（2026-10-29 に測る前に書いた）**: 配線 N（ノイズ ON）＋ PM・ATT、specd は M5 の bit・bits.json の kind で、`SET tint=0.04096 fmt=f32 shift=7`（src は既定の ABCD）・`s45lin --lo 0 --hi 40 --step 2`。Wide の P-8 の線: L-1 は TP が −18〜−28 dBFS の段で 4 本とも残差の最大 ≦ 0.05 dB、L-2 は流れ / TP（A0〜D0、流れの中央 90 %）がレベルによらず ±0.02 dB。飽和・振り切れ 0 の段だけ。流れの絶対値は Fine の尺度なので記録だけ（Wide と同じ）。dBFS − PM は記録だけ（Wide M6 の −0.73〜−0.95 dB と同じ程度の見当。tp_cal の (3, 1) を足すかは M6 で決める）。PC の `specd --fake --g24` で `s45lin` が 4 窓と TP 4 本を読むことを確かめた（空の窓 A1〜D1 は飛ばす）
+
+**結果（2026-10-29、`~/m2/2g4m5/lin/lin_g24`）: L-1・L-2 とも当たり**。49 段（ATT 0〜40 dB を 2 往復・床 7 段）、飽和・振り切れ・health 0。L-1（TP −18〜−28 dBFS = ATT 0〜8 の 10 段、`analyze(pm_min=-26.5)`）: TP A・B・C・D の残差の最大 0.013・0.011・0.009・0.009 dB、流れ A0〜D0 も 0.009〜0.013 dB（Wide M6 の 0.010〜0.014 と同じ程度）。L-2（流れ / TP）: ずれの最大 A0 0.0006・B0 0.0010・C0 0.0008・D0 0.0088 dB（±0.02 の内）。dBFS − PM（記録だけ）: A −0.91・B −0.90・C −0.90・D −0.80 dB（Wide M6 の −0.85・−0.95・−0.82・−0.73 と 0.1 dB 以内）。`s45lin` 自身の OK/NG は −45 dBm までの全段で見るので範囲が違う（流れ A0・B0・C0 が NG、記録だけ。Wide と同じ扱い）。STATUS miss・pl_drop 0・time_ok 1、AXI_MAX_PIPELINE 前後 0x0102。制御 PC に matplotlib が無く図は描けなかった（数値の記録 `.lin.json` は出た）
 
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
