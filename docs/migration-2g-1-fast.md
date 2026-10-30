@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 の途中**（2026-10-30、ブランチ `2g-1-fast/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit は数え終えた。残りは「始める条件」の [ ] の 3 つ（判定の書き起こし・2 時間・tint 20.48 ms）
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。次は M1
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -19,9 +19,9 @@
 - [x] 2G-1-Fast の運用に使う bit を決めた → **proj033 の build-PE**（下の「移植元の bit」）。B-2 はやらない（7eab913）
 - [x] **タグ** `proj033-m0`（a12715d）を push した（2026-10-29）
 - [x] ボードの準備（AXI_MAX_PIPELINE 0x0102）は 2G-4 と同じボードに入っている（2G-4 の始める条件）
-- [ ] **判定を `test/acceptance/2g-1-fast/` の書き方で書き起こす**（2G-4 と同じく M0 で）。下の「判定（案）」
-- [ ] **2 時間の連続運転**: proj033・proj024 とも 30 分（R-3・4c）までで、2 時間は回していない。2G-4 は始める条件にした（proj036 R-4）。VCCINT 13.5 A は目安の 38 A よりずっと下なので、**M6 の V2-L で初めて回す**案（決めること 3）
-- [ ] **tint 20.48 ms（運用の最小）での 30 分**: proj033 R-3 は tint 40.96 ms。2G-1-Fast は 1 ダンプ 131,072 ch × 4 B で 20.48 ms のとき 25.6 MB/s（2G-4 と同じ量、interface 4.5）。2G-4 は proj036 R-3 で 20.48 ms を通してから始めた。**M6 の V2-b で初めて回す**案（決めること 3）
+- [x] **判定を `test/acceptance/2g-1-fast/` の書き方で書き起こした**（2026-10-30、2G-4 と同じく M0 で）: 7 判定（ID-1・H-0・H-2・V2-b・V2-L・RING・NET）。V2-b の 20.48 ms・V2-L・RING・NET は study-rfsoc で回していない（M6 で初めて）
+- [x] **2 時間の連続運転** → **M6 の V2-L で初めて回す**（決めること 3、2026-10-30）。proj033・proj024 とも 30 分（R-3・4c）までで、2 時間は回していない（2G-4 は始める条件にした、proj036 R-4）
+- [x] **tint 20.48 ms（運用の最小）での 30 分** → **M6 の V2-b で初めて回す**（決めること 3、2026-10-30）。proj033 R-3 は tint 40.96 ms。2G-1-Fast は 1 ダンプ 131,072 ch × 4 B で 20.48 ms のとき 25.6 MB/s（2G-4 と同じ量、interface 4.5）
 
 ### 移植元の bit（M3 の比べの相手）
 
@@ -76,7 +76,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 - 2G-1-Fast の build.tcl が `src/common/` から読むのは 13 個（core_cmn・raw_core・cmul・dft16f・tp_core・rec_fr・rec_arb・adc_ev・time_core・s45_ring・gb_adc・gb_gate・axis_sel4）。sim は ほかに `dft16.v`（sim-g21ch・ooc-ref の proj024 の鎖）を読む
 - `rec_fr.v` の写しを `hw/common/` の版に寄せるのは、2G-4 の写しと一緒に、別の PR で（どちらも FDRI が変わるかを作り直して数える）
 
-### s2_* の扱い（決めること 1）
+### s2_* の扱い（決めること 1、2026-10-30 に案どおり決めた）
 
 2G-4 の移植の M0 で「2-for-1 の部品 `s2_*` は 2G-1-Fast・2G-2 も使う見込み。そのときに `hw/common/` へ上げるかを決める」とした。3 本の版（proj031 = 2G-4・proj033 = 2G-1-Fast・proj034 = 2G-2）を比べた:
 
@@ -86,15 +86,15 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 | `s2_q.v` | proj033 で行の幅を KB のパラメータにした（34 行）。2G-4 の版は 12 bit の決め打ち | 既定（AB 11 → 10・KB 14 → 13）と注釈（15 行） | できる（proj033・034 の形で、2G-4 は AB 9・KB 12 を渡す） |
 | `s2_chain.v` | **式が違う**: 2G-4 は 2Y を 27 bit に飽和して cmul SH 19、2G-1-Fast は 2Y を 3 bit 丸めて SH 18（proj033 M-1b の (i)） | 52 行 | 今の形ではできない（丸めの段をパラメータにすれば、できるかもしれない） |
 
-**案**: M1 では 3 個とも `hw/bits/2g-1-fast/src/` に移植元のまま置く（原則 1。2G-4 の木に触らない）。
+**決め**: M1 では 3 個とも `hw/bits/2g-1-fast/src/` に移植元のまま置く（原則 1。2G-4 の木に触らない）。
 2G-2 の移植（M3 まで）の後に、`s2_sep`・`s2_q` を 1 本にして `hw/common/` に上げる PR を別に作る。合格は 3 本の bit を作り直して FDRI がそれぞれのリリースと同じこと（2G-4 の一本化と同じ型）。`s2_chain` は bit ごとに置いたままにする。
 3 本がそろってから一度に寄せるので、2G-4・2G-1-Fast の FDRI の確かめは 1 回で済む
 
-### 模型の名前（決めること 2）
+### 模型の名前（決めること 2、2026-10-30 に案どおり決めた）
 
 2G-4 の移植で、proj031 の `model/s2_model.py`（2G-4 の寸法: N 131072・M 4096）を `model/s2_model.py` に置いた。proj033 の `model/s2_model.py` は同じ名前で 2G-1-Fast の寸法（N 262144・M 16384）と鎖の入口 (i) の版（305 行違う）。
 
-**案**: proj033 の版を **`model/s2_model_g21.py`** に置き、読む側の `import s2_model` を `import s2_model_g21` に直す（`sim/check_s2.py`・`sim/check_g21.py` の 2 行と、Makefile の `model` の 1 行）。
+**決め**: proj033 の版を **`model/s2_model_g21.py`** に置き、読む側の `import s2_model` を `import s2_model_g21` に直す（`sim/check_s2.py`・`sim/check_g21.py` の 2 行と、Makefile の `model` の 1 行）。
 - `model/` に模型を集める今の形（2G-4 の `g24_fixed.py`・`g24_model.py`）を崩さない
 - 2G-4 の `model/s2_model.py` は名前を替えない（リリースした木に触らない）
 - ほかの案: 2G-1-Fast の模型を `hw/bits/2g-1-fast/model/` に置く（import の行は直さなくて済むが、`model/` に集める形から外れ、`g2_model.py` を 2 か所に置くか道を足すことになる）
@@ -119,7 +119,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 
 | 手順 | 2G-1-Fast ですること | 合格 |
 |---|---|---|
-| M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x] |
+| M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x]（**2026-10-30**） |
 | M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の 3 行だけ。在ってはいけない側の照合（上） |
 | M2 | sim を全部回す: model-g21・model、sim-g21c・g21t・g21p・g21ch・lane・g21a・g21s・recfr・g21core・g21s45・g21ds・sep・all2 | proj033-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
 | M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647） |
@@ -143,7 +143,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 
 ほかに 2G-4 の M5 で入れたもの（予算の照合 `check_net`・リング 64 MiB・LMX の PWR 3・ボードの印）は G21 にも効いている。2G-1-Fast で確かめるのは M4〜M6 の回帰で
 
-## 判定（案、`test/acceptance/2g-1-fast/` に書き起こす）
+## 判定（`test/acceptance/2g-1-fast/`、2026-10-30 に書き起こした）
 
 2G-4 の判定から 2G-1-Fast に当たるものを選んだ。ID は 2G-4 と同じ意味のものは同じ ID にする。
 
@@ -162,7 +162,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 
 ## 決めること
 
-1. **`s2_*` を `hw/common/` に上げるか** → 案: M1 では bit ごとに置き、2G-2 の移植の後に `s2_sep`・`s2_q` だけを 1 本にする（上の「s2_* の扱い」）
-2. **proj033 の `model/s2_model.py` の置き場所** → 案: `model/s2_model_g21.py` に名前を替える（上の「模型の名前」）
-3. **2 時間と tint 20.48 ms の 30 分を、始める条件にするか M6 で回すか** → 案: M6（V2-L・V2-b）。2G-4 は study-rfsoc で先に回したが、2G-1-Fast は電流が 2G-4 の半分以下で、取得の量は 2G-4 と同じ 25.6 MB/s（2G-4 で 30 分・2 時間とも通っている）。study-rfsoc で先に回すなら、proj033 は書き換えないので新しい proj の R にする
+1. **`s2_*` を `hw/common/` に上げるか** → **決め**（2026-10-30）: M1 では bit ごとに置き、2G-2 の移植の後に `s2_sep`・`s2_q` だけを 1 本にする（上の「s2_* の扱い」）
+2. **proj033 の `model/s2_model.py` の置き場所** → **決め**（2026-10-30）: `model/s2_model_g21.py` に名前を替える（上の「模型の名前」）
+3. **2 時間と tint 20.48 ms の 30 分を、始める条件にするか M6 で回すか** → **決め**（2026-10-30）: M6（V2-L・V2-b）。2G-4 は study-rfsoc で先に回したが、2G-1-Fast は電流が 2G-4 の半分以下で、取得の量は 2G-4 と同じ 25.6 MB/s（2G-4 で 30 分・2 時間とも通っている）。study-rfsoc で先に回すなら、proj033 は書き換えないので新しい proj の R にする
 4. **G21Backend で PROJ を照らすか**（上の「PS」の 1）→ M5 で
