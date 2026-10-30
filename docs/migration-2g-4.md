@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr だけ M5 の写しを読み、既定の戦略で M5 と FDRI まで同じ bit。下の「`hw/common/` の一本化」の 3 節）。**M6 の判定は全部通過**（2026-10-30、ブランチ `2g-4/m6`。V2-b の陽性対照は 2G の取得の直しの後。下の「M6 の結果」）。性能評価は `docs/performance/2g-4/v1.0.0.md`（下書き）。残りは M7（リリース）。**M7**（2026-10-30〜31、ブランチ `2g-4/m7-docs`）: 仕様・設計・使い方の 2G-4 の分、CHANGELOG の v1.2.0、性能評価を確定。リリース `2g-4/v1.0.0`・`v1.2.0`
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr だけ M5 の写しを読み、既定の戦略で M5 と FDRI まで同じ bit。下の「`hw/common/` の一本化」の 3 節）。**M6 の判定は全部通過**（2026-10-30、ブランチ `2g-4/m6`。V2-b の陽性対照は 2G の取得の直しの後。下の「M6 の結果」）。性能評価は `docs/performance/2g-4/v1.0.0.md`（下書き）。残りは M7（リリース）。**M7**（2026-10-30〜31、ブランチ `2g-4/m7-docs`）: 仕様・設計・使い方の 2G-4 の分、CHANGELOG の v1.2.0、性能評価を確定。リリース `2g-4/v1.0.0`・`v1.2.0` を出した（下の「M7 の結果」）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -412,6 +412,15 @@ M5 の main の取り込み（上）で、PS は ADR 0023・0025 の形にもう
 **V2-b の陽性対照の再現（2026-10-30、実験者がボードのそば、測る前）**: 同じ `--posctl-ring-stall 8` でもう 1 回。固まれば再現する不具合 → 入れ直しの後 2・4 s で切り分け。固まらず予言どおり（kgap 4・tdev 0・pl_drop > 0）なら前回は偶然と読み、もう 1 回回す
 
 **V2-b の陽性対照の再現の結果（2026-10-30）**: 2 回目（同じ引数）は固まらず、止まりの効き目も無かった（pl_drop 0・kgap 0・SPEC 7,723 が欠けなく届く）。`s45acq.py` を読むと、止まりの仕掛け（RUN の 100 周目に `stall_at` 秒眠る）は `HwBackend.pump` の中だけにあり、**G21・G22（G24 は G22 を継ぐ）の `pump()` は自前で上書きしていて持っていなかった** → 2G-4 では陽性対照が黙って空振りしていた（M5 の一本化で 2G の `pump` を持ち込んだときの取りこぼし）。`HwBackend._posctl_stall()` にまとめて 3 つの `pump()` から呼ぶよう直し（`test_fake.sh all` 通過）、ボードで 3 回目: 「リングを 8.0 秒読まない」・1 周の最長 8,343 ms・pl_drop 6,009・miss 3,005・pl_peak 64 MiB・受けの kgap 4・tdev 0・説明のない欠け 0 → **予言どおり、V2-b の陽性対照は通過**、ボードは固まらない。**1 回目にボードが固まったのはリングの溢れではない**（止まりは起きていなかった）。原因は分からず、V2-b（30 分）・V2-L（2 時間）・ほかの判定では起きていない。性能評価の既知の制限に「1 回、原因の分からない固まり」として残す
+
+### M7 の結果（2026-10-30〜31）: リリースした
+
+- 文書（PR #77）: 仕様・設計（`docs/design/2g-4/`）・使い方（ボードの準備を install.md に）・CHANGELOG v1.2.0・性能評価を確定
+- リリースのビルド（main f2c22aa、既定の戦略、ほかのビルドと重ねず）: **FDRI `f05e1f62…3b1c`・WNS / WHS +0.047165 / 0.000000 ns（判定した .bit と同じ）**、USR_ACCESS f2c22aa0（汚れなし）。合成で 1 回 segfault（回し直しで完走）、`impl_1` の中では落ちていない
+- `tools/release_files.py`（`--bitfile proj031`）で組を作り、照合 通過。`.bit` sha256 `9820e959…0fff`
+- 実機（配る .bit・.hwh と f2c22aa の `sw/pynq/`、ボードの `2g-4-v1.0.0`）: 係数 URAM 0.71 s で VERIFY、ID usr f2c22aa0・tcal board・lmx_pwr 3、STATUS time_ok 1・health 0・flags 0、4 窓 × 200 の短い取得で欠け 0・`g24cw` 全部通過。前に動いていた proj034 の amslog は実験者の了解で止めた
+- タグ `2g-4/v1.0.0`・`v1.2.0`（注釈付き、f2c22aa）、GitHub Release「2G-4 v1.0.0」に 7 個と SHA256SUMS
+- 気づいたこと: 手元の gh（2.4.0）は `gh release create --verify-tag` を持たない
 
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
