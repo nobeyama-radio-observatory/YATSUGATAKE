@@ -2,7 +2,7 @@
 # proj033 — 2G-1-Fast にレーン FFT の 2-for-1（README）。proj024-m0 の Makefile を写し（proj024 の model は model-g21 に）、proj033 の段を後ろに足した
 # 以下は proj024 の注: 2G の模型と資源の見積もり、2G-1 の RTL の単体の sim（手順 1a〜2e）、2G-1 の .bit（2f、`make build`、Vivado サーバ）
 #
-# Vivado のインストール先（survey・s2・build が使う）。settings64.sh を .bashrc で source しないこと（VERSIONS.md）
+# Vivado のインストール先（build・ooc-* が使う）。settings64.sh を .bashrc で source しないこと（VERSIONS.md）
 XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.1
 VIVADO        := $(XILINX_VIVADO)/bin/vivado
 
@@ -34,26 +34,13 @@ export BOARD_REPO PART OUTDIR GB_K IMPL
 PYTHON        ?= python3
 IVERILOG      ?= iverilog
 VVP           ?= vvp
-# survey の OOC 合成を同時に走らせる数（9 個）
-JOBS ?= 9
 
-.PHONY: model model-g21 estimate survey s2 gen build sim-g21ds sim-g21c sim-g21t sim-g21p sim-g21ch sim-lane sim-g21a sim-g21s sim-recfr sim-g21core sim-g21s45 clean
+.PHONY: model model-g21 gen build sim-all sim-g21ds sim-g21c sim-g21t sim-g21p sim-g21ch sim-lane sim-g21a sim-g21s sim-recfr sim-g21core sim-g21s45 clean
 
 # proj024 の模型（numpy だけ）。M-1〜M-8。成否は最後の「まとめ」の行で読む（make の成功を信用しない）。proj033 の model は下
 model-g21:
 	mkdir -p runs
 	$(PYTHON) ../../../model/g2_model.py all | tee runs/model-g21.log
-
-# 資源の見積もり（E-1）。レーン FFT の数字は既定が外挿の仮の値。S-1 の後は EST_ARGS="--fft '4096,rev,…' …" で置き換える
-estimate:
-	mkdir -p runs
-	$(PYTHON) tools/estimate.py $(EST_ARGS) | tee runs/estimate.log
-
-# Vivado サーバ: レーン FFT 1 個の OOC の配置配線（S-2）。-1・256 MHz で閉じるか。結果は build-s2/s2.txt（数十分〜1 時間）
-# proj023 のビルドと重ならないときに回す
-s2:
-	mkdir -p build-s2
-	$(VIVADO) -mode batch -nojournal -log build-s2/vivado.log -source tools/ip_impl.tcl -tclargs 4
 
 # Vivado サーバ: 2G-1-Fast の .bit（B-1。合成〜ビットストリーム、1 時間前後）。成果物は $(OUTDIR)/proj033.bit・.hwh。
 # **ビルドの後、今のディレクトリで今の RTL が焼けたかを確かめる**（grep BUILD_TAG $(OUTDIR)/vivado.log）。成否は make の終了状態でなくログの ERROR・TIMING (確定) で読む
@@ -64,12 +51,6 @@ build:
 # 2G-1 の ROM の中身（../../../model/g21_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす（M-8 の続き）
 gen:
 	$(PYTHON) tools/gen_g21_tables.py build-gen
-
-# Vivado サーバ: レーン FFT の OOC 合成（S-1）。ライセンスが要る。結果は build-survey/survey.txt
-# proj023 のビルドと重ならないときに回す（同じサーバ。壊れはしないが互いに遅くなる）
-survey:
-	mkdir -p build-survey
-	$(VIVADO) -mode batch -nojournal -log build-survey/vivado.log -source tools/ip_survey.tcl -tclargs $(JOBS)
 
 # ---- RTL の単体の sim（手順 1。成否は各ログの「結果:」の行で読む）----
 SIMDIR := build-sim
@@ -152,11 +133,12 @@ sim-g21a:
 	@grep -q '結果: 全部通過' $(SIMDIR)/g21a_normal/check.log && grep -q '結果: 不合格' $(SIMDIR)/g21a_err/check.log \
 	  && echo "sim-g21a: 全部通過（陽性対照は落ちた）" || (echo "sim-g21a: NG"; exit 1)
 
-# 2c. g21_spec（分光の本体。proj033: IP 8 個 → s2_sep → s2_chain → s2_q）。ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
+# 2c. g21_spec（分光の本体。proj033: IP 8 個 → s2_sep → s2_chain → s2_q）。x.hex は無ければ作る（毎回作り直すと、並べた 2d・2e が書きかけの x.hex を読む。2G-4 と同じ）。
+#     ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
 G21S_RTL := ../../common/cmul.v ../../common/dft16f.v src/g21/g21_coef.v src/g21/g21_pfb_core.v src/g21/g21_pfb.v \
             src/g21/g21_tw.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/g21/g21_acc.v src/g21/g21_spec.v sim/lane_fft_g21_model.v sim/tb_g21_spec.v
 sim-g21s:
-	@o0=$(SIMDIR)/g21s_in; mkdir -p $$o0; $(PYTHON) sim/check_g21.py spec-gen $$o0; \
+	@o0=$(SIMDIR)/g21s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g21.py spec-gen $$o0; \
 	for v in normal ipq; do \
 	  o=$(SIMDIR)/g21s_$$v; mkdir -p $$o; ln -sf ../g21s_in/x.hex $$o/x.hex; d="-DFFT_STALL_AT=3"; \
 	  [ $$v = ipq ] && d="$$d -DIPQ_POSCTL"; \
@@ -238,7 +220,7 @@ sim-g21ds:
 	  && echo "sim-g21ds: 全部通過（陽性対照は落ちた）" || (echo "sim-g21ds: NG"; exit 1)
 
 # ==== proj033 の段（M-1・M-2 模型、P-1〜P-3 部品、S の OOC）====
-.PHONY: sim-sep sim-all2 ooc-sep ooc-chain ooc-q ooc-ref ooc-all
+.PHONY: sim-sep sim-all2 ooc-sep ooc-chain ooc-q
 
 # M-1・M-2: 2-for-1 の式・鎖の全体・溜めの深さ・(B) の鎖と均しの待ち行列。成否は最後の「まとめ」の行で読む
 model:
@@ -282,18 +264,37 @@ sim-all2:
 	  && echo "sim-all2: 全部通過（陽性対照 3 本は落ちた）" || (echo "sim-all2: NG"; exit 1)
 
 # ---- S 部品の OOC（`-1`・256 MHz、合成まで）。結果は build-ooc/ooc-<名前>.txt。Synth 8-3848（ドライバの無いネット）があれば NG ----
-# ooc-ref は比べる相手の今の鎖 g21_chain（proj024-m0 の src/g21/g21_chain.v。電力まで含む）。4 本は出力先が別なので並べてよい（ooc-all）
+# 3 本は出力先が別なので並べてよい
 OOC_sep   := s2_sep    src/s2_sep.v
 OOC_chain := s2_chain  ../../common/cmul.v ../../common/dft16f.v src/s2_chain.v
 OOC_q     := s2_q      src/s2_q.v
-OOC_ref   := g21_chain ../../common/cmul.v ../../common/dft16.v src/g21/g21_chain.v
-ooc-sep ooc-chain ooc-q ooc-ref:
+ooc-sep ooc-chain ooc-q:
 	@n=$(@:ooc-%=%); set -- $(OOC_$(@:ooc-%=%)); top=$$1; shift; o=build-ooc/$$n; mkdir -p $$o; \
 	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs $$top 3.906 clk $$(for x in "$$@"; do echo ../../$$x; done) > /dev/null 2>&1; \
 	  grep '^OOC ' vivado.log | tee ../ooc-$$n.txt; m=$$(grep -c 'Synth 8-3848' vivado.log); echo "Synth 8-3848: $$m" | tee -a ../ooc-$$n.txt; \
 	  grep -c 'CRITICAL WARNING' vivado.log | sed 's/^/CRITICAL WARNING: /' | tee -a ../ooc-$$n.txt; [ $$m -eq 0 ]
-ooc-all:
-	$(MAKE) -j4 ooc-sep ooc-chain ooc-q ooc-ref
+
+# 2G-1-Fast の模型と sim を全部（YATSUGATAKE の M2 の表）。模型 2 本は「まとめ」の行に「不合格」が無いこと、
+# sim 13 本は最後の行「sim-…: 全部通過」で読む（make の成功を信用しない）。ログは build-sim-logs/ に目標ごとに 1 個、15 個。
+# 共有の入力（g21s_in/x.hex）は先に作る。目標は SIM_J 本ずつ並べる（各目標の中でも変種を並べる。g21core・g21s45・g21ds が重いので先に）
+G21_MODELS := model-g21 model
+G21_SIMS   := sim-g21core sim-g21s45 sim-g21ds sim-g21s sim-g21p sim-g21c sim-g21t sim-g21ch sim-lane sim-g21a \
+              sim-recfr sim-sep sim-all2
+SIM_J      ?= 4
+sim-all:
+	@mkdir -p build-sim-logs; rm -f build-sim-logs/*.log
+	@o0=$(SIMDIR)/g21s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g21.py spec-gen $$o0 > /dev/null
+	@for t in $(G21_MODELS); do $(MAKE) --no-print-directory $$t > build-sim-logs/$$t.log 2>&1; done
+	@echo $(G21_SIMS) | tr ' ' '\n' | xargs -P $(SIM_J) -I{} sh -c '$(MAKE) --no-print-directory {} > build-sim-logs/{}.log 2>&1'
+	@echo "---- sim-all ----"
+	@for t in $(G21_MODELS); do printf '%-14s %s\n' "$$t" "$$(grep 'まとめ:' build-sim-logs/$$t.log | tail -1 || true)"; done
+	@for t in $(G21_SIMS); do printf '%-14s %s\n' "$$t" "$$(grep "^$$t: " build-sim-logs/$$t.log | tail -1 || true)"; done
+	@fail=""; \
+	  for t in $(G21_MODELS); do grep 'まとめ:' build-sim-logs/$$t.log | tail -1 | grep -q '通過' && ! grep 'まとめ:' build-sim-logs/$$t.log | tail -1 | grep -q '不合格' || fail="$$fail $$t"; done; \
+	  for t in $(G21_SIMS); do grep -q "^$$t: 全部通過" build-sim-logs/$$t.log || fail="$$fail $$t"; done; \
+	  n=$$(ls build-sim-logs/*.log | wc -l); \
+	  if [ -n "$$fail" ]; then echo "FAIL:$$fail"; exit 1; \
+	  elif [ $$n -ne 15 ]; then echo "FAIL: ログが $$n 個（15 個のはず）"; exit 1; else echo "sim-all: 全部通過（模型 2・sim 13）"; fi
 
 clean:
 	rm -rf build build-* .Xil *.jou *.log

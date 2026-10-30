@@ -5,7 +5,7 @@
 | SAM45-Wide | [`sam45-wide/`](sam45-wide/) | 移植中（[docs/migration-sam45-wide.md](../../docs/migration-sam45-wide.md)） |
 | SAM45-Fine | [`sam45-fine/`](sam45-fine/) | study-rfsoc proj021 で開発中 |
 | 2G-4 | `2g-4/` | 移植中（M4 まで済み、[docs/migration-2g-4.md](../../docs/migration-2g-4.md)） |
-| 2G-1-Fast | [`2g-1-fast/`](2g-1-fast/) | 移植中（M1、[docs/migration-2g-1-fast.md](../../docs/migration-2g-1-fast.md)） |
+| 2G-1-Fast | [`2g-1-fast/`](2g-1-fast/) | 移植中（M2 まで済み、[docs/migration-2g-1-fast.md](../../docs/migration-2g-1-fast.md)） |
 | 2G-1-Fine・2G-2 | `2g-1-fine/`・`2g-2/` | 未着手（2G-1-Fast の後） |
 | 512M | `512m/` | 未着手 |
 | 256M | `256m/` | 未着手 |
