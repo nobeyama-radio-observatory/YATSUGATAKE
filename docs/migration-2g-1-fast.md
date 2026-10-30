@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。次は Makefile から試行の目標を外す PR、その後 M2
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。次は M3（ビルド）
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -123,7 +123,20 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 
 1. **Makefile から試行の目標を外す**（2G-4 の `2g-4/makefile-trim` と同じ型）: `estimate`（`tools/estimate.py` を移さない）・`s2`・`survey`・`ooc-*`（とくに `ooc-ref` は proj024 の鎖 `g21_chain.v` を合成する比べの相手）。`sim-all` が無いので、2G-1-Fast の sim の全部（下の M2 の表）を回す目標を足す。外した後に M2
    - `src/g21/g21_chain.v`・`sim/tb_g21_chain.v`（`sim-g21ch`）は proj024 の鎖で、今の bit は使わない（`s2_chain` に替わった）。M1 では移植元のまま置き、ここで外すかを決める
+   - **済み（2026-10-31、ブランチ `2g-1-fast/makefile-trim`、3b19edb）**: `estimate`・`s2`・`survey`・`ooc-ref`・`ooc-all` と、それだけが使う `JOBS` を外した。部品の OOC（`ooc-sep`・`ooc-chain`・`ooc-q`）は 2G-4 と同じく残した（M0 の案の「`ooc-*`」より狭くした）。`tools/ip_impl.tcl`・`ip_survey.tcl` は 2G-4 と同じく置いたまま
+   - `sim-all` は模型 2 本（`model-g21`・`model`、「まとめ」の行に「不合格」が無いこと）と sim 13 本（M2 の表の全部、最後の行「sim-…: 全部通過」）を回し、`build-sim-logs/` の 15 個で判定する。共有の入力 `g21s_in/x.hex` を先に作ってから、目標を `SIM_J`（既定 4）本ずつ並べる。判定の陽性対照: ログの写しに「不合格」・NG・ログの欠けを入れると 3 つとも拾う
+   - **`sim-g21s` は `x.hex` が在れば作り直さないようにした**（2G-4 の `sim-g24s` と同じ形、1 行）。移植元は毎回作り直すので、並べた `g21core`・`g21s45` が書きかけの `x.hex` を読むおそれがある（proj027 で踏んだ穴）。中身は同じ乱数の種で作るので出力は変わらない（下の M2 で確かめた）
+   - **`g21_chain.v`・`sim-g21ch` は残す**: 2G-4 も `g24_chain`・`sim-g24ch` を残した。`g21_tw` と `dft16.v` の回帰を兼ね、軽い（M2 の表にも入れてある）
 2. `s2_sep`・`s2_q` の一本化 → 2G-2 の移植の後（上）
+
+### M2 の結果（2026-10-31、ブランチ `2g-1-fast/makefile-trim`）
+
+この PC（Icarus Verilog 11.0・Python 3.10.12・numpy 1.21.5）で、移植先（`hw/bits/2g-1-fast/`、3b19edb）の `make sim-all` と、**タグ `proj033-m0` の proj033 を `git archive` で取り出して同じ 15 個を回したもの**を比べた（同じ PC・同じ版の道具で、同じ時間に並べて回した。移植先 53 分・移植元 77 分）:
+
+- **15 個とも「全部通過」**（模型 2 本は「まとめ」の行が全部通過、sim 13 本は最後の行が全部通過）。陽性対照は 19 本がすべて落ちるべきところで落ちた（g21ds の陽性対照は D_S +0 のところだけで落ちる）。両側で同じ
+- 移植元の `sim-g21s` は `x.hex` を毎回作り直すので、移植元の側だけ `sim-g21s` を先に 1 本で回し、残りの 12 本を 4 本ずつ並べた（Makefile には触っていない）
+- **`build-sim/` の出力 224 個のうち 187 個がバイト単位で同じ**（各変種の `tb.log`・`check.log`・入力の hex を含む）。違う 37 個は iverilog のコンパイル物 `tb` だけで、**パス（`src/common/` ↔ `../../common/`・写しの `rec_fr.v` は `src/`）と、コンパイルごとに変わる番地（`0x…`）を読み替えると 37 個とも同じ**（陽性対照: 1 行に字を足すと不一致になる）
+- **`build-sim-logs/` の 15 個のうち 13 個がバイト単位で同じ**。違う 2 個は模型のログで、違うのは make が出すコマンドの行（`model/` ↔ `../../../model/`、`s2_model.py` ↔ `s2_model_g21.py`）と経過秒（`[m2: 7.2 s]` ↔ `[m2: 7.1 s]` など）だけ。`runs/model.txt`・`runs/model-g21.log` も経過秒だけが違う
 
 ## 手順
 
@@ -131,7 +144,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x]（**2026-10-30**） |
 | M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上）（**2026-10-31**: 上の「M1 の結果」） |
-| M2 | sim を全部回す: model-g21・model、sim-g21c・g21t・g21p・g21ch・lane・g21a・g21s・recfr・g21core・g21s45・g21ds・sep・all2 | proj033-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
+| M2 | sim を全部回す: model-g21・model、sim-g21c・g21t・g21p・g21ch・lane・g21a・g21s・recfr・g21core・g21s45・g21ds・sep・all2 | proj033-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-31**: 上の「M2 の結果」） |
 | M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647） |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値 |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-1-Fast に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS で FDRI は変わる。2G-4 の M5 と同じ） |
