@@ -641,14 +641,19 @@ class HwBackend:
             d.clear()
         self.ring.release()                        # proj029 2: 列を空にしたので、写していないレコードも残っていない
 
+    def _posctl_stall(self):
+        """陽性対照（--posctl-ring-stall）: RUN の 100 周目にリングを stall_at 秒読まない。pump を上書きする裏（2G）も呼ぶ
+        （2G-4 の M6 で、G21・G22 の pump がこれを持たず、陽性対照が黙って空振りしていた）"""
+        if self.stall_at and self.n_pump == 100:
+            self.log(f"陽性対照: リングを {self.stall_at} 秒読まない")
+            time.sleep(self.stall_at)
+
     def pump(self):
         """1 周の頭に 1 回: リングを [R, W) まで読み、SPEC は窓ごとの列へ、TP は TpStream へ"""
         if not self.use_ring:
             return 0
         self.n_pump += 1
-        if self.stall_at and self.n_pump == 100:
-            self.log(f"陽性対照: リングを {self.stall_at} 秒読まない")
-            time.sleep(self.stall_at)
+        self._posctl_stall()
         t0 = time.perf_counter()
         recs = self.ring.read()
         t1 = time.perf_counter()
@@ -1342,6 +1347,7 @@ class G21Backend(HwBackend):
     def pump(self):
         """リングを [R, W) まで読み、SPEC は窓 A0 の列へ、TP は FULL の TP（s 0）とコアの TP（s 0xFF）をそれぞれの欄へ"""
         self.n_pump += 1
+        self._posctl_stall()
         t0 = time.perf_counter()
         c0 = self.core.adc
         lazy = ((lambda core, s, ty: ty == TYPE_SPEC and core == c0 and s == 0)       # proj029 2: 窓 A0 の SPEC を写さずに
@@ -1641,6 +1647,7 @@ class G22Backend(HwBackend):
     def pump(self):
         """リングを [R, W) まで読み、SPEC は窓 A0・B0（2G-4 は〜D0）の列へ、TP は (コア, s) の欄へ（tp_slot）"""
         self.n_pump += 1
+        self._posctl_stall()
         t0 = time.perf_counter()
         lw, jm = self.lazy_wins, self.jmap
         lazy = ((lambda core, s, ty: ty == TYPE_SPEC and jm.get((core, s)) in lw)    # proj029 2: その窓の SPEC を写さずに
