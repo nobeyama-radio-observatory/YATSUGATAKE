@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr の合成が変わり `IMPL=Performance_ExtraTimingOpt` で閉じた新しい bit `a9a01b81…`。下の「`hw/common/` の一本化」の 3 節）
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr だけ M5 の写しを読む（既定の戦略で M5 と同じ bit の見込み）。下の「`hw/common/` の一本化」の 3 節）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -230,6 +230,9 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 **次の手（2026-10-30、実験者の判断）: `IMPL=Performance_Explore` を 1 本だけ**。予言: 閉じるかは五分五分（Wide を閉じた戦略だが、2G-4 は既定と PETO の一続きの回が同じ −0.35 ns に落ちた）。`impl_1` の中で Vivado が落ちて dcp から回し直したら、その回は作り直せない道筋なので閉じても保留にする。閉じたら同じ戦略でもう 1 回作り直し、FDRI がそろうことを確かめてから 2G-4 の bit にする
 
 **Performance_Explore の結果（2026-10-30）: 閉じない**。WNS −0.230648 ns（118 端点）・WHS +0.001482 ns。合成の段で 2 回 segfault（回し直しで続いた）、`impl_1` の中では落ちていない（一続きの回）。今の rec_fr の 2G-4 は、既定（−0.352）・PETO の一続き（−0.351）・PE（−0.231）のどれでも閉じない
+
+**扱い（2026-10-30、実験者の判断）: rec_fr だけ 2G-4 に写しを戻す**。`hw/bits/2g-4/src/rec_fr.v` を main 6ee64b1 の版（= proj031・M5）に戻し、2G-4 の Makefile（2 行）・build.tcl（1 行）の rec_fr をそちらへ。core_cmn・tp_core は `hw/common/` のまま（中身が M5 の写しとバイト単位で同じ）。`hw/common/` は変えない（Fine・Wide は v1.0.0 と FDRI まで同じことを確かめ済み）。rec_fr は 2 版が残る（`hw/common/` = NCH を引数・`np − 1'b1`、2G-4 = NCH を引数・`np − 1`）。
+**予言**: 2G-4 が読む中身が全部 M5 と同じなので、既定の戦略 1 本で **FDRI `f05e1f62…3b1c`・WNS +0.047165 ns・WHS 0.000000 ns（M3・M5 と同じ）**、`make sim-all` の出力も M5 と同じ（`tb` は core_cmn・tp_core のパスだけ違う）
 
 ### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
 
