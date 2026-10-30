@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-4）
 
-- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr だけ M5 の写しを読み、既定の戦略で M5 と FDRI まで同じ bit。下の「`hw/common/` の一本化」の 3 節）
+- 状態: **M1 済み**（2026-10-28。表の行き先に置き、パスだけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-4/makefile-trim`）。**M2・M3・M4 済み**（下の「M2 の結果」「M3 の結果」「M4 の結果」）。**M5 済み**（2026-10-28〜29、ブランチ `2g-4/m5-ps`: PS を `sw/pynq/` に一本化・M5a の鍵 (3, 1)・M5b の USR_ACCESS・予算の照合・M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。LMX の PWR 3 での F-2 は 1 回の値を最多の山で読んで通過・CAL 据え置き、TP の線形性は通過、CU も通過。**`hw/common/` の一本化済み**（2026-10-29〜30、ブランチ `2g-4/common-unify`: Fine・Wide は v1.0.0 と FDRI まで同じ、2G-4 は rec_fr だけ M5 の写しを読み、既定の戦略で M5 と FDRI まで同じ bit。下の「`hw/common/` の一本化」の 3 節）。**M6 の判定は全部通過**（2026-10-30、ブランチ `2g-4/m6`。V2-b の陽性対照は 2G の取得の直しの後。下の「M6 の結果」）。性能評価は `docs/performance/2g-4/v1.0.0.md`（下書き）。残りは M7（リリース）
 - 移植元: **`study-rfsoc@proj031-m0`**（RTL・ビルド・sim・模型。proj031 rev 2）と **`study-rfsoc@proj036-m0`**（PS。proj031 の PS に束ねの取得の C を足したもの）。どちらも注釈つきタグで、同じ commit f97b060（2026-10-28 に push）
 - 土台にする決め方: SAM45-Wide の [`migration-sam45-wide.md`](migration-sam45-wide.md)（= SAM45-Fine の [`migration.md`](migration.md) の M0〜M7）と同じ段取り。違うところだけをここに書く
 - 2G の 4 本の移植の順（2026-10-28 に決めた）: **2G-4** → 2G-1-Fast（study-rfsoc proj033 の後）→ 2G-2（proj034 の後）→ 2G-1-Fine（製品の形にする study の proj を先に）。仕様は [ADR 0022](decisions/0022-2g-1-fast-and-fine.md)・[`spec/bits.md`](spec/bits.md)・[`spec/interface.md`](spec/interface.md) 2.4
@@ -351,6 +351,67 @@ M5 の main の取り込み（上）で、PS は ADR 0023・0025 の形にもう
    - `GET CAL` に `board`・`adc_path` が出る（PR #70）
    - ノイズソースの待ち（PR #71）
    - ただし、ボードの `2g-4-m5/` にある `sw/pynq/` の写しは PR #70・#71 より前のもの（`instr.py`・`timebase.py`・`specd.py` の sha256 が手元と違う）。切り替えのときに送り直す
+
+**切り替えた日**: 2026-10-30。最初に新しい形で回した判定は M6 の ID-1（ボードの `time_cal.json`・`tp_cal.json`、ノイズは常時 ON で H-2 だけ道具で切る）
+
+### M6 の手順と予言（2026-10-30、ブランチ `2g-4/m6`、測る前）
+
+**bit と PS**: main 64dbf45 の作り直し（`hw/bits/2g-4/build/`、FDRI `f05e1f62…3b1c` = M3・M5 と同じ、USR_ACCESS 64dbf450）と、main be0370e の `sw/pynq/`（PR #70・#71 の後）。ボードの新しいディレクトリ `2g-4-m6` に置き、`build_fast.sh`（「CRC: 命令」）。specd は `--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring --loop-log-ms 0.1`（bits.json の kind g24、`tp_cal` は書かない = ボードの `/etc/yatsugatake/tp_cal.json`）。
+
+**配線 N/S（ノイズ ON が既定・SG の口）で、1 回の Overlay の読み込みの中で** ID-1 → H-0 → EQ-4 → H-2 → CU → NET、最後に NET の陽性対照だけ specd を `--net-budget-mbs 0` で起こし直す。H-2 は `instr.py ns off` → 4 点 → `ns on`。
+
+**予言**:
+1. ID-1: adc 02030101・time 02030102・proj 00310200・kind g24・**usr 64dbf450**・lmx_pwr 3・**tcal board**（ボードの time_cal.json、ADR 0023 の後の初めての 2G-4）。係数 URAM 0.6〜1.0 s・CRC 0x891be197・STAT 0x15。STATUS IDLE・time_ok 1・health 0・flags 0。AXI_MAX_PIPELINE 0x0102。`GET CAL` は time の a2c_ns が A 69.6・B 71.2・C 69.7・D 69.7（ボードの M）、TP は道 1 の K でボードの tp_cal.json が当たる（M5 までは「bit が違う」で使わなかった）
+2. H-0: 4 窓 × 200・CRC 0・説明のない欠け 0・`g24cw` 全部通過・flags・health・miss 0。床は M4・M5（同じ N/S・ノイズ ON）の 6.33e3〜6.48e3 と ±0.7 dB。陽性対照 `--src DCBA` で 4 窓とも NG
+3. EQ-4: 50 / 50 組 × 3、陽性対照 0 / 49 組 × 3（M4・M5 と同じ）
+4. H-2: 4 点（3000.25・2500.5・3396.5・2597.25 MHz）× 4 窓とも CW が見え、ピークの送る番号 i が期待と一致・軸と SG の差 ≦ df / 2（proj030 R-6 は 0 Hz）・sat 0。陽性対照 `--posctl` で 4 点とも落ちる。ノイズは `ns off` の後に `ns state` で OFF、終わりに ON に戻る
+5. CU: M5 と同じ（(i) STAT 0x15 → 0x14・4 窓とも同じダンプから flags bit 0、(ii)(iii) START を断る・CRC 0x8d342791、(iv) `CLEAR` の後 4 窓 × 50・`g24cw` 通過・flags 0）
+6. NET: 10.24 ms は ERR で GET は変わらず、20.48 ms は OK。陽性対照（`--net-budget-mbs 0`）で 10.24 ms が OK
+
+配線 N に替えてから: BUND・V2-b（30 分）・V2-L（2 時間）・RING、TP の dBm の Wide との比べ（上の 3.）
+
+### M6 の結果（配線 N/S の分、2026-10-30）: 予言 1〜6 とも当たり
+
+ボードの `2g-4-m6`（bit `2ef9394c…`・FDRI `f05e1f62…3b1c`、`sw/pynq/` の 62 個は手元と sha256 で全部同じ、「CRC: 命令」）。前に study-rfsoc proj034 の amslog が動いていたので、実験者の了解で止めた。AXI_MAX_PIPELINE 前後 0x0102。
+
+| 判定 | 結果 |
+|---|---|
+| ID-1 | usr 64dbf450・lmx_pwr 3・**tcal board**（a2c_ns A 69.6・B 71.2・C 69.7・D 69.7、bound 5）・TP は adc_path 1 の K が当たる（prov 0）。係数 URAM 0.73 s・CRC 0x891be197。STATUS IDLE・time_ok 1・health 0・flags 0 |
+| H-0 | 4 窓 × 200・CRC・欠け 0・`g24cw` 全部通過。床 6.41e3・6.34e3・6.33e3・6.45e3（M5 と ±0.1 dB）。陽性対照 4 窓とも NG |
+| EQ-4 | 50 / 50 組 × 3、陽性対照 0 / 49 組 × 3 |
+| H-2 | 4 点 × 4 窓とも通過（軸と SG の差 0.0 Hz、ピーク / 中央値 64.6〜69.0 dB）。陽性対照 4 点とも落ちた。ノイズは道具で OFF → ON に戻った（ADR 0024 の形で初めて） |
+| CU | (i)〜(iv) とも M5 と同じ |
+| NET | 10.24 ms は ERR・GET は変わらず、20.48 ms は OK、陽性対照で 10.24 ms が OK |
+
+記録は制御 PC の `~/m2/2g4m6/`。残り（配線 N）: BUND・V2-b・V2-L・RING、TP の dBm の Wide との比べ
+
+### M6 の手順と予言（配線 N の分、2026-10-30、測る前）
+
+**配線**: N/S の SG の出力を切った形（= 配線 N。N/S は N に SG の口を足しただけで、ノイズは常時 ON、PM の口も同じ）。bit・PS は N/S の分と同じ `2g-4-m6`。
+**順**: ① specd を `--net-budget-mbs 0 --loop-log-ms 0.1` で起こし、2 分空回し → BUND（10.24 → 30.72 → 20.48 → 10.24 → 30.72 → 20.48 ms、各 20 s）→ RING（tint 20.48 ms で 2 分走らせ、取得の子のプロセス（s45acq、specd の子。`ps` で確かめる）を 0.3 s 止める → 1 分 → 0.8 s 止める（陽性対照））。② BUND の陽性対照（`--posctl-noacc`）。③ V2-b の陽性対照（`--posctl-ring-stall 8`、40 s）。④ V2-b（既定の引数、30 分、受けは制御 PC に書く）。⑤ V2-L（既定、2 時間、`--out` なし、ボードで amslog 10 s・STATUS と AXI を 1 分ごと）。⑥ TP の dBm: 同じ配線で 2G-4 と Wide（main の `hw/bits/sam45-wide/build-PE/proj023.bit`、FDRI は v1.0.0 と同じ）を `s45lin --lo 0 --hi 40 --step 2` で続けて測り、`analyze(pm_min=-26.5)` の dBFS − PM を並べる。
+
+**予言**:
+1. BUND: 4 窓とも 0.999〜1.001（proj036 R-2 は 0.9995〜1.0004）。陽性対照で 30.72 ms が 0.333 ± 0.01 倍
+2. RING: 0.3 s で pl_drop 0・kgap 0・pl_peak ≒ 31 MB（< 64 MiB）。0.8 s で pl_drop > 0、受けの kgap は DROP の EVENT で説明される（説明のない欠け 0）
+3. V2-b: SPEC ≒ 351,560（4 × 87,890）・24〜26 MB/s・CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap 0・照合 通過・health・flags・sat 0、STATUS の miss・pl_drop・pl_crc・pl_err 0・time_ok 1・loop_slow ≦ 5、1 周の計 ≦ 16 ms（M4・M5 の 300 s は 13.0〜13.1 ms）。陽性対照で kgap 4・tdev 0・pl_drop > 0
+4. V2-L: 7,200 s で受けの CRC・欠け・説明のない欠け・kgap・tdev 0、STATUS の miss・pl_drop 0 が毎分、AXI 毎分 0x0102、VCCINT ≦ 34 A で平ら（proj027 4f の 2G-4 は ≒ 31 A）、PL の温度が平ら、ボードが落ちない
+5. TP の dBm: 2G-4 と Wide の dBFS − PM の差が 4 本とも ≦ 0.07 dB（TP の作りが同じで、同じ日・同じ配線。M5 の 2G-4 は A −0.91・B −0.90・C −0.90・D −0.80）。2G-4 の TP の L-1・L-2 も M5 と同じく通る
+
+### M6 の結果（配線 N の分、2026-10-30）: 予言 1〜5 のうち 4 つ当たり、V2-b の陽性対照でボードが固まった
+
+| 判定 | 結果 |
+|---|---|
+| BUND | 0.99991〜1.00068（4 窓とも線の内）。陽性対照 0.3330〜0.3332 倍 |
+| RING | 0.3 s で pl_drop 0・kgap 0、pl_peak 48.3 MB（予言の 31 MB より多いが 64 MiB の内、ゆとり 28 %）。0.8 s で pl_drop 385・kgap 4 は `BDROP` で説明・説明のない欠け 0 |
+| V2-b | 30 分で SPEC 351,479・24.6 MB/s・欠け 0・loop_slow 1・1 周の計 13.26 ms・AXI 前後 0x0102。**陽性対照（`--posctl-ring-stall 8`）でボードが固まった**（下） |
+| V2-L | 2 時間で欠け 0・毎分の STATUS と AXI に異常なし・VCCINT 32.3〜33.0 A で平ら・PL の温度 55〜59 ℃ で平ら |
+| TP の dBm | 同じ日・同じ配線で 2G-4 と Wide（eedc3dc の作り直し、FDRI は v1.0.0 と同じ、`LOAD` で切り替え）の dBFS − PM: 2G-4 A −0.82・B −0.79・C −0.78・D −0.67、Wide −0.85・−0.82・−0.79・−0.69、**差 +0.01〜+0.03 dB（≦ 0.07）** → ボードの tp_cal.json（道 1）が 2G-4 にそのまま当たる。TP の道を分ける ADR は要らない。2G-4 の L-1 0.010〜0.013 dB・L-2 ≦ 0.0093 dB、Wide の L-1 0.013〜0.014 dB・L-2 ≦ 0.0084 dB |
+
+**V2-b の陽性対照でボードが固まった件（未解決）**: specd を `--posctl-ring-stall 8`（RUN の 100 周目に 8 秒リングを読まない）で起こして START すると、受けに ≒ 18 s 分（SPEC 3,564）届いたところで流れが止まり、制御の口も ssh も ping も応えなくなった。電源の入れ直しで戻った。前の起動の journal は 03:37:19 で途切れ、カーネルの異常の記録は無い（書き残す前に固まった）。RING の 0.8 s（64 MiB を溢れさせた）は正しく落ちを数えて捨てたので、違いは溢れ続けた長さ（8 s ≒ 820 MB 分）。見当: リングの書き手（s45_ring）が長く溢れ続けると番地を取り違えてリングの外の DDR を書く、または偶然。Wide では同じ陽性対照が通っている（2G-4 は 102.4 MB/s で速い）。**再現と止まりの長さ（2・4・8 s）による切り分けを、実験者がボードのそばにいるときに回す**
+
+**V2-b の陽性対照の再現（2026-10-30、実験者がボードのそば、測る前）**: 同じ `--posctl-ring-stall 8` でもう 1 回。固まれば再現する不具合 → 入れ直しの後 2・4 s で切り分け。固まらず予言どおり（kgap 4・tdev 0・pl_drop > 0）なら前回は偶然と読み、もう 1 回回す
+
+**V2-b の陽性対照の再現の結果（2026-10-30）**: 2 回目（同じ引数）は固まらず、止まりの効き目も無かった（pl_drop 0・kgap 0・SPEC 7,723 が欠けなく届く）。`s45acq.py` を読むと、止まりの仕掛け（RUN の 100 周目に `stall_at` 秒眠る）は `HwBackend.pump` の中だけにあり、**G21・G22（G24 は G22 を継ぐ）の `pump()` は自前で上書きしていて持っていなかった** → 2G-4 では陽性対照が黙って空振りしていた（M5 の一本化で 2G の `pump` を持ち込んだときの取りこぼし）。`HwBackend._posctl_stall()` にまとめて 3 つの `pump()` から呼ぶよう直し（`test_fake.sh all` 通過）、ボードで 3 回目: 「リングを 8.0 秒読まない」・1 周の最長 8,343 ms・pl_drop 6,009・miss 3,005・pl_peak 64 MiB・受けの kgap 4・tdev 0・説明のない欠け 0 → **予言どおり、V2-b の陽性対照は通過**、ボードは固まらない。**1 回目にボードが固まったのはリングの溢れではない**（止まりは起きていなかった）。原因は分からず、V2-b（30 分）・V2-L（2 時間）・ほかの判定では起きていない。性能評価の既知の制限に「1 回、原因の分からない固まり」として残す
 
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
