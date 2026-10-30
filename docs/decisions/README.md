@@ -65,3 +65,4 @@
 | [0024](0024-noise-source-always-on-remote-off.md) | 評価のノイズソースは常時 ON、OFF の要る測りだけ道具が遠隔で切って戻す | 採用 | 2026-10-29 |
 | [0025](0025-tp-calibration-per-board.md) | TP の dBm の較正もボードごとに持ち、ボードにだけ置く（リポジトリの tp_cal.json をやめる） | 採用 | 2026-10-29 |
 | [0026](0026-board-id-mac.md) | ボードの印は eth0 の MAC にする（eFuse の DNA は読めない） | 採用 | 2026-10-29 |
+| [0027](0027-2g-1-fine-records-time-rounding.md) | 2G-1-Fine の流れは KIND 5 STAGE2・荒い ch ごとのレコード、ブロックの位相は T に固定、荒い段の丸めは変えない | 採用 | 2026-10-30 |
