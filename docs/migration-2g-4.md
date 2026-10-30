@@ -229,6 +229,8 @@ M3 で作った bit（FDRI `f05e1f62…3b1c`）と `sw/pynq-2g/`（PS 52 個、�
 
 **次の手（2026-10-30、実験者の判断）: `IMPL=Performance_Explore` を 1 本だけ**。予言: 閉じるかは五分五分（Wide を閉じた戦略だが、2G-4 は既定と PETO の一続きの回が同じ −0.35 ns に落ちた）。`impl_1` の中で Vivado が落ちて dcp から回し直したら、その回は作り直せない道筋なので閉じても保留にする。閉じたら同じ戦略でもう 1 回作り直し、FDRI がそろうことを確かめてから 2G-4 の bit にする
 
+**Performance_Explore の結果（2026-10-30）: 閉じない**。WNS −0.230648 ns（118 端点）・WHS +0.001482 ns。合成の段で 2 回 segfault（回し直しで続いた）、`impl_1` の中では落ちていない（一続きの回）。今の rec_fr の 2G-4 は、既定（−0.352）・PETO の一続き（−0.351）・PE（−0.231）のどれでも閉じない
+
 ### M5 の手順と予言（2026-10-28、ブランチ `2g-4/m5-ps`、測る前）
 
 **M5b のフック**（7befb74）: Wide の Makefile・build.tcl の USR_ACCESS の部分（Makefile 12 行・build.tcl 22 行）をそのまま 2G-4 に写した。RTL・制約・配置には触れない。`make -n build` で USR_ACCESS が git から作られ、Vivado の後に `sw/pynq/bitinfo.py` の読み返しが走る。
