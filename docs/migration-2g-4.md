@@ -385,6 +385,18 @@ M5 の main の取り込み（上）で、PS は ADR 0023・0025 の形にもう
 
 記録は制御 PC の `~/m2/2g4m6/`。残り（配線 N）: BUND・V2-b・V2-L・RING、TP の dBm の Wide との比べ
 
+### M6 の手順と予言（配線 N の分、2026-10-30、測る前）
+
+**配線**: N/S の SG の出力を切った形（= 配線 N。N/S は N に SG の口を足しただけで、ノイズは常時 ON、PM の口も同じ）。bit・PS は N/S の分と同じ `2g-4-m6`。
+**順**: ① specd を `--net-budget-mbs 0 --loop-log-ms 0.1` で起こし、2 分空回し → BUND（10.24 → 30.72 → 20.48 → 10.24 → 30.72 → 20.48 ms、各 20 s）→ RING（tint 20.48 ms で 2 分走らせ、取得の子のプロセス（s45acq、specd の子。`ps` で確かめる）を 0.3 s 止める → 1 分 → 0.8 s 止める（陽性対照））。② BUND の陽性対照（`--posctl-noacc`）。③ V2-b の陽性対照（`--posctl-ring-stall 8`、40 s）。④ V2-b（既定の引数、30 分、受けは制御 PC に書く）。⑤ V2-L（既定、2 時間、`--out` なし、ボードで amslog 10 s・STATUS と AXI を 1 分ごと）。⑥ TP の dBm: 同じ配線で 2G-4 と Wide（main の `hw/bits/sam45-wide/build-PE/proj023.bit`、FDRI は v1.0.0 と同じ）を `s45lin --lo 0 --hi 40 --step 2` で続けて測り、`analyze(pm_min=-26.5)` の dBFS − PM を並べる。
+
+**予言**:
+1. BUND: 4 窓とも 0.999〜1.001（proj036 R-2 は 0.9995〜1.0004）。陽性対照で 30.72 ms が 0.333 ± 0.01 倍
+2. RING: 0.3 s で pl_drop 0・kgap 0・pl_peak ≒ 31 MB（< 64 MiB）。0.8 s で pl_drop > 0、受けの kgap は DROP の EVENT で説明される（説明のない欠け 0）
+3. V2-b: SPEC ≒ 351,560（4 × 87,890）・24〜26 MB/s・CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap 0・照合 通過・health・flags・sat 0、STATUS の miss・pl_drop・pl_crc・pl_err 0・time_ok 1・loop_slow ≦ 5、1 周の計 ≦ 16 ms（M4・M5 の 300 s は 13.0〜13.1 ms）。陽性対照で kgap 4・tdev 0・pl_drop > 0
+4. V2-L: 7,200 s で受けの CRC・欠け・説明のない欠け・kgap・tdev 0、STATUS の miss・pl_drop 0 が毎分、AXI 毎分 0x0102、VCCINT ≦ 34 A で平ら（proj027 4f の 2G-4 は ≒ 31 A）、PL の温度が平ら、ボードが落ちない
+5. TP の dBm: 2G-4 と Wide の dBFS − PM の差が 4 本とも ≦ 0.07 dB（TP の作りが同じで、同じ日・同じ配線。M5 の 2G-4 は A −0.91・B −0.90・C −0.90・D −0.80）。2G-4 の TP の L-1・L-2 も M5 と同じく通る
+
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
 ### `check_g24.py ds`（proj030 からの持ち越し）
