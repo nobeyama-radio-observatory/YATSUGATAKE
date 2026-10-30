@@ -3,6 +3,29 @@
 リリースごとに、何が変わったか・互換性（インターフェースの版）・対応する性能評価を書く。
 書き方は [`docs/release.md`](docs/release.md)。
 
+## v1.2.0（`v1.2.0`・`2g-4/v1.0.0`、2026-10-31）— 2G-4 を足す・較正をボードごとのファイルに
+
+study-rfsoc の proj031 rev 2（`proj031-m0`）と proj036 の PS を移した 2G-4 を、3 本目の bit として出す。SAM45-Fine・SAM45-Wide の bit は変えない（`sam45-fine/v1.0.0`・`sam45-wide/v1.0.0` のまま。`hw/common/` の一本化の後に作り直して FDRI まで同じことを確かめた）。
+
+- **bit**: 2G-4（4 ADC、コアごとに全帯域の FFT 32,768 ch・62.5 kHz、2-for-1 のレーン FFT、PFB の係数は共有の URAM に PS が書いて VERIFY。ダンプ 10.24 ms を束ねて tint、ADC ごとの TP）。BIT_KIND 3・BIT_REV 1。FDRI は移植元と同じ（`f05e1f62…`）。USR_ACCESS にタグの commit
+- **インターフェース**: v2 のまま。**ネットワークの予算 1 ボード 30 MB/s を specd が SET で照らす**（interface 4.5。越える tint は `ERR ARG` で断る。2G-4 の tint の最小は 20.48 ms。試験は `--net-budget-mbs 0`）。2G のリングは 64 MiB が既定。specd の `ID` に `tcal`・`board`、`GET CAL` に時刻の較正と `board`・`adc_path`
+- **ボードの準備（2G-4 に要る）**: GEM1 の AXI_MAX_PIPELINE を 0x0102 にする（起動時の systemd のユニット。4 本以上にしない）・ボードで `build_fast.sh` を回して `libs45fast.so` を作る（最後の行が「CRC: 命令」）。手順は [`docs/user/install.md`](docs/user/install.md)
+- **較正（Fine・Wide にも効く）**: 時刻の較正（ADR 0023）と TP の dBm の較正（ADR 0025）を、**ボードごとの較正ファイル** `/etc/yatsugatake/time_cal.json`・`tp_cal.json` にした。設置の後に `timecal.py`（時刻）・`s45cal.py`（TP）で作り、リポジトリには戻さない。ファイルが無い・当たらないときは開発の値を「暫定」（`tcal provisional`）で当てて止めない。鍵はボードの印（eth0 の MAC、ADR 0026）。bit ごとの F-2 はやめ、ADC → コアの道（`timebase.ADC_PATH`）ごとに同じ値を使う。手順は [`docs/user/calibration.md`](docs/user/calibration.md)
+- **測り方（ADR 0024）**: ノイズソースはいつも ON。OFF の要る測りは道具が遠隔で切って入れ直す（`instr.py ns off|on`・`--ns-off`。電源 KIKUSUI PMX18-2A、宛先は `RFSOC_NS`）
+- **判定**: `test/acceptance/2g-4/` の 11 本。10 本が通過、F-2 は ADR 0023 で 2G-4 では回さない（最後の F-2 の M はボードの較正と ±1.0 ns）
+- **性能評価**: [`docs/performance/2g-4/v1.0.0.md`](docs/performance/2g-4/v1.0.0.md)（既知の制限 6 件）
+- **文書**: 仕様（`bits.md`・`timing.md`・`units.md`・`interface.md` の 2G-4 の分）・設計（`docs/design/2g-4/`）・使い方（`install.md` のボードの準備と bits.json の `"kind": "g24"`・`specd.md` の 2G-4 の SET・`client.md` の FULL の流れ・`calibration.md`）
+- **既知の制限のうち運転に効くもの**: ネットワークの tint の最小 20.48 ms・リングのゆとり（102.4 MB/s で、空のリングから PS が ≒ 0.65 s 止まると落ちる）・M6 の途中で 1 回、原因の分からないボードの固まり（電源の入れ直しで戻った）
+
+このほかに、v1.1.0 の後に入った変更:
+
+- **PS**: 2G の PS（`sw/pynq-2g/`）を `sw/pynq/` に一本化した（2G-1・2G-2・2G-4 の取得と `s45fast.c`）。2G の取得も LMX2594 を PWR 3 で書き、ID に `usr` を出す。陽性対照 `--posctl-ring-stall` が 2G の取得で黙って空振りしていたのを直した
+- **HW**: `hw/common/` の `core_cmn.v`・`tp_core.v`・`rec_fr.v` を 2G-4 の版（口 `F0_EXT`・`NCH` を足したもの）に一本化。rec_fr の `np − 1` を `np − 1'b1` にして Fine・Wide の合成を v1.0.0 と同じに保った。2G-4 は rec_fr だけ `hw/bits/2g-4/src/` の写しを読む（`hw/common/` の版ではどの戦略でもタイミングが閉じなかった）
+- **リリースの道具**: `release_files.py` が .hwh の絶対パスをファイル名だけにする
+- **仕様**: 2G-1 を 2G-1-Fast / 2G-1-Fine の 2 本に（ADR 0022）、2G-1-Fine の流れの形・時刻・丸め（ADR 0027、docs だけ）。ネットワークの予算 1 ボード 30 MB/s・2G のリング 64 MiB（interface 4.1・4.5・8. の 10〜12）
+- **知見**: 資源の内訳（BRAM・URAM・DSP を構成要素ごとに）
+- **判定の F-2 の読み方**: 2G-4 の `g24f2.py` は 1 回の値を最多の山で読む（1PPS のスタンプがビートの境目に乗る回の平均と σ を避ける）。Fine・Wide の F-2 は変えていない
+
 ## v1.1.0（`v1.1.0`・`sam45-wide/v1.0.0`、2026-10-26）— SAM45-Wide を足す
 
 study-rfsoc の proj023（ビルド 11、`proj023-m0`）を移した SAM45-Wide を、2 本目の bit として出す。SAM45-Fine の bit は変えない（`sam45-fine/v1.0.0` のまま）。
