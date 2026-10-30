@@ -370,6 +370,21 @@ M5 の main の取り込み（上）で、PS は ADR 0023・0025 の形にもう
 
 配線 N に替えてから: BUND・V2-b（30 分）・V2-L（2 時間）・RING、TP の dBm の Wide との比べ（上の 3.）
 
+### M6 の結果（配線 N/S の分、2026-10-30）: 予言 1〜6 とも当たり
+
+ボードの `2g-4-m6`（bit `2ef9394c…`・FDRI `f05e1f62…3b1c`、`sw/pynq/` の 62 個は手元と sha256 で全部同じ、「CRC: 命令」）。前に study-rfsoc proj034 の amslog が動いていたので、実験者の了解で止めた。AXI_MAX_PIPELINE 前後 0x0102。
+
+| 判定 | 結果 |
+|---|---|
+| ID-1 | usr 64dbf450・lmx_pwr 3・**tcal board**（a2c_ns A 69.6・B 71.2・C 69.7・D 69.7、bound 5）・TP は adc_path 1 の K が当たる（prov 0）。係数 URAM 0.73 s・CRC 0x891be197。STATUS IDLE・time_ok 1・health 0・flags 0 |
+| H-0 | 4 窓 × 200・CRC・欠け 0・`g24cw` 全部通過。床 6.41e3・6.34e3・6.33e3・6.45e3（M5 と ±0.1 dB）。陽性対照 4 窓とも NG |
+| EQ-4 | 50 / 50 組 × 3、陽性対照 0 / 49 組 × 3 |
+| H-2 | 4 点 × 4 窓とも通過（軸と SG の差 0.0 Hz、ピーク / 中央値 64.6〜69.0 dB）。陽性対照 4 点とも落ちた。ノイズは道具で OFF → ON に戻った（ADR 0024 の形で初めて） |
+| CU | (i)〜(iv) とも M5 と同じ |
+| NET | 10.24 ms は ERR・GET は変わらず、20.48 ms は OK、陽性対照で 10.24 ms が OK |
+
+記録は制御 PC の `~/m2/2g4m6/`。残り（配線 N）: BUND・V2-b・V2-L・RING、TP の dBm の Wide との比べ
+
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
 ### `check_g24.py ds`（proj030 からの持ち越し）
