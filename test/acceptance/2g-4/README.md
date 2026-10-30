@@ -14,12 +14,14 @@ ID は Wide の判定と同じ意味のものは同じ ID（ID-1・H-0・H-2・F
 - **クロック**: 外部 10 MHz と 1PPS（入口に LPF を常設）。`--clkin 0 --ref 10`
 - **specd**（M5 の後、`sw/pynq/`）: `sudo -E $(which python3) specd.py --g24 --bitfile proj031.bit --clkin 0 --ref 10 --prefault --fast --fast-ring`（bits.json の項目なら `"kind": "g24"` で `--g24` と同じ）。リング 64 MiB・LMX の PWR 3・予算 30 MB/s の照合は既定（M4 までの `sw/pynq-2g/` は `--ring-mib 64` を渡し、LMX は出荷時の 31 のままだった）。止めるときは `SHUTDOWN confirm=1` か pid のファイルで（`pkill -f specd.py` は ssh のコマンド行にも当たる）
 - **送り出し**: specd を起こした後、受けを取る前に一度 **`SEND ON`** を打つ（打たないと記録が specd の溜まりに残り、受けのファイルが空になる。照合は「通過」のまま spec 0 で出るので気づきにくい。proj031 R-1a と 2G-4 の M4 で踏んだ）。溜まりに残った分は `CLEAR` で捨ててから取り直す
-- **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`。宛先はファイルに書かない。STATUS の `data_client`・`data_drop` には受け手の IP が出るので、記録に残すときは伏せる
+- **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`・`RFSOC_NS`（ノイズソースの電源 KIKUSUI PMX18-2A）。宛先はファイルに書かない。STATUS の `data_client`・`data_drop` には受け手の IP が出るので、記録に残すときは伏せる
+- **ノイズソースはいつも ON**（[ADR 0024](../../../docs/decisions/0024-noise-source-always-on-remote-off.md)、2026-10-29 から）。OFF の要る判定（H-2）は、測る前に `python3 instr.py ns off`、測り終えたら `python3 instr.py ns on`（Python の中なら `with instr.noise_off():`）。手で ON / OFF しない。`on`・`off` は電源の出力が落ち着くまで待ってから戻る（PR #71）
+- **時刻の較正**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)、2026-10-29 から）: ボードの `/etc/yatsugatake/time_cal.json` が当たり、specd の `ID` が `tcal=board` になる。記録には `tcal`（`board` / `provisional`）を書く。2026-10-29 より前の 2G-4 の記録は `provisional`（`timebase.CAL[(3, 1)]`、bound_ns 50）。TP の dBm もボードの `tp_cal.json`（ADR 0025）
 - **2 つの動かし方**: 「specd」（制御 PC から specctl・specrecv）と「ボード直」（specd を止め、root で道具が Overlay を載せる。F-2 だけ）
 - **SET の既定**: `A0.src=A B0.src=B C0.src=C D0.src=D shift=7 fmt=f32`。窓 A0〜D0 = コア 0〜3
 - **ネットワークの tint**: 2G-4 の最小は **20.48 ms**（interface 4.5、予算 1 ボード 30 MB/s）。それより短い tint（10.24 ms）は SET で断られる（NET、M5 から）。10.24 ms を使う判定（BUND）は specd を **`--net-budget-mbs 0`**（照合を外す試験の形）で起こし、受けの量が予算を越えることを承知で短い時間だけ使う
 - **レベルを tint や設定をまたいで比べるときは、1 回の Overlay の読み込みの中で切り替える**（載せ直すと 1 % 級の段が出る。proj036 R-2）
-- **配線**（Wide の判定の README と同じ名前）: N（ノイズ ON）・N/S（ノイズ OFF・SG の CW）・P（1PPS を ADC にも分配）。**2026-10-28 の M4・M5 は N/S ＋ ノイズ ON**（どの名前にも当たらない。記録は「配線 N/S・ノイズ ON」と書く）
+- **配線**（Wide の判定の README と同じ名前）: N（ノイズ ON）・N/S（SG の CW を足す。**ノイズ ON が既定、OFF は道具が作る**）・P（1PPS を ADC にも分配。2026-10-29 から F-2 を回さないので使わない）。2026-10-28 の M4・M5 の記録の「配線 N/S・ノイズ ON」は、今の N/S の既定の形
 
 ## 一覧
 
