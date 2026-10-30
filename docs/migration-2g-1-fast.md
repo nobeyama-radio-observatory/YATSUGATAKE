@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。次は M1
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。次は Makefile から試行の目標を外す PR、その後 M2
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -109,6 +109,16 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 - `runs/` は git に入れない（`.gitignore` に `/hw/bits/2g-1-fast/runs/`）
 - **在ってはいけない側の照合**: 2G-1-Fast の Makefile・build.tcl が `hw/common/rec_fr.v` と、`hw/bits/2g-4/` の下のファイルを指していないこと（指していると、2G-4 の寸法の `s2_*` か 1'b1 の版の rec_fr で作られる）。`model/s2_model.py`（2G-4 の版）を読む行が無いこと
 
+### M1 の結果（2026-10-31、ブランチ `2g-1-fast/m1-place`）
+
+- **置く**（c9051ec）: 付録の 43 個（置く 42・写し 1）を `git show study-rfsoc@proj033-m0:…` から取り出して置いた。43 個とも移植元と blob が同じ（`model/s2_model.py` は `model/s2_model_g21.py` に、`src/common/rec_fr.v` は `src/rec_fr.v` に）。既にある 80 個のうち M0 で「同じ」だった 62 個は、今の main（f2c22aa）でも同じ（M0 の比べの後に変わっていない）
+- **パスの直し**（6d58805）: 5 個・43 行（Makefile 13・build.tcl 24・Python 6）。**違う行はすべてパスの行か模型の名前の行**: 新しい行のパスと名前を元に戻すと 43 行とも古い行と一致（機械で照合）。名前の行は 4 行（`import s2_model_g21` 2・docstring 1・Makefile の `model` 1）で、M0 で数えた 3 行に `check_s2.py` の docstring の 1 行が加わった。`src/g21/`・`src/s2_*.v` は直していない。`model/` の 2 個と `sw/pynq/g21cw.py` は移植元のまま
+- **在ってはいけない側**: 2G-1-Fast の Makefile・build.tcl・sim・tools が `hw/common/rec_fr.v`（`src/common/rec_fr`）・`hw/bits/2g-4/`・`model/s2_model.py`（`import s2_model as`）を指す行は 0（直す前の版 c9051ec に当てると Makefile 2・build.tcl 1・check_s2.py 1・check_g21.py 1 行を拾う = 照合が働いている）。build.tcl と Makefile が読むファイル（コメントの行を除く）はすべて在る
+- **動かして確かめたこと**（Vivado は使っていない）: `make model-g21`（M1〜M8）・`model`（M-1a〜M-2b、鎖の入口 (i)）が全部通過。`make gen` の出力が `src/g21/` の hex 4 個とバイト単位で同じ。`sim-recfr`（写しの `rec_fr.v`）・`sim-sep` が「全部通過」、陽性対照 4 本は落ちた。Tcl 4 個が `info complete` で完結、Python 6 個（`sw/pynq/g21cw.py`・`model/` の 2 個・sim と tools の 3 個）が `py_compile` を通る
+- **`runs/` は git に入れない**（`.gitignore` に `/hw/bits/2g-1-fast/runs/`）
+- **動かないままにしたもの**: Makefile の `estimate`（`tools/estimate.py` を移していない）。`s2`・`survey`・`ooc-*` は Vivado で動くはずだが回していない。外すのは下の 1
+- `hw/bits/2g-1-fast/README.md` を足し、`hw/bits/README.md` の行を分けた
+
 ### M1 の後にすること（それぞれ別の PR）
 
 1. **Makefile から試行の目標を外す**（2G-4 の `2g-4/makefile-trim` と同じ型）: `estimate`（`tools/estimate.py` を移さない）・`s2`・`survey`・`ooc-*`（とくに `ooc-ref` は proj024 の鎖 `g21_chain.v` を合成する比べの相手）。`sim-all` が無いので、2G-1-Fast の sim の全部（下の M2 の表）を回す目標を足す。外した後に M2
@@ -120,7 +130,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 | 手順 | 2G-1-Fast ですること | 合格 |
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x]（**2026-10-30**） |
-| M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の 3 行だけ。在ってはいけない側の照合（上） |
+| M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上）（**2026-10-31**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g21・model、sim-g21c・g21t・g21p・g21ch・lane・g21a・g21s・recfr・g21core・g21s45・g21ds・sep・all2 | proj033-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
 | M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647） |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値 |
