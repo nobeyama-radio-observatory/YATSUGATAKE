@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
-"""proj033 P-1〜P-3 — s2_sep の単体・s2_sep → s2_chain → s2_q をつないだ sim の入力を書き、出口を模型（model/s2_model.py）と bit 単位で照らす。
+"""proj033 P-1〜P-3 — s2_sep の単体・s2_sep → s2_chain → s2_q をつないだ sim の入力を書き、出口を模型（model/s2_model_g21.py）と bit 単位で照らす。
 proj030 の sim/check_s2.py を 2G-1-Fast の寸法（M 16384・Z 30 bit・2Y 31 bit）と proj033 の模型に直したもの。
 
   python3 sim/check_s2.py gen   <dir>            # <dir>/zre.hex・zim.hex（1 行 = 1 ビートの IP 8 個の Z、30 bit × 8）
@@ -14,9 +14,9 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
 import g21_fixed as F  # noqa: E402
-import s2_model as S  # noqa: E402
+import s2_model_g21 as S  # noqa: E402
 
 ZW, YW, NF = S.ZW, S.ZW + 1, 3
 NROW = F.M // 2 + 1        # 1 フレームの出口の行（0..M/2）

@@ -9,7 +9,7 @@ VIVADO        := $(XILINX_VIVADO)/bin/vivado
 # ---- 2f: 2G-1 の .bit（Vivado サーバ。`make build`。proj023 の Makefile の build の部分を写した）----
 # RealDigitalOrg/RFSoC4x2-BSP を clone した先の board_files（Vivado のインストールツリーの中には置かない。VERSIONS.md）
 BOARD_REPO ?= $(HOME)/src/RFSoC4x2-BSP/board_files
-# part。既定は -1（実機の .bit。PS には src/board/ps_preset.tcl を当てる）。-2 は PART=xczu48dr-ffvg1517-2-e → build-2-e/
+# part。既定は -1（実機の .bit。PS には ../../board/ps_preset.tcl を当てる）。-2 は PART=xczu48dr-ffvg1517-2-e → build-2-e/
 PART_DEFAULT := xczu48dr-ffvg1517-1-e
 PART         ?= $(PART_DEFAULT)
 # gb_gate のしきい値の既定（core_cmn の GB_K_RST）。proj012 rev3 から 2
@@ -42,7 +42,7 @@ JOBS ?= 9
 # proj024 の模型（numpy だけ）。M-1〜M-8。成否は最後の「まとめ」の行で読む（make の成功を信用しない）。proj033 の model は下
 model-g21:
 	mkdir -p runs
-	$(PYTHON) model/g2_model.py all | tee runs/model-g21.log
+	$(PYTHON) ../../../model/g2_model.py all | tee runs/model-g21.log
 
 # 資源の見積もり（E-1）。レーン FFT の数字は既定が外挿の仮の値。S-1 の後は EST_ARGS="--fft '4096,rev,…' …" で置き換える
 estimate:
@@ -61,7 +61,7 @@ build:
 	mkdir -p $(OUTDIR)
 	$(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado.log -source build.tcl -tclargs $(BUILD_JOBS)
 
-# 2G-1 の ROM の中身（model/g21_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす（M-8 の続き）
+# 2G-1 の ROM の中身（../../../model/g21_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす（M-8 の続き）
 gen:
 	$(PYTHON) tools/gen_g21_tables.py build-gen
 
@@ -90,7 +90,7 @@ sim-g21t:
 	@for v in normal err; do \
 	  o=$(SIMDIR)/g21t_$$v; mkdir -p $$o; d=""; [ $$v = err ] && d="-DTW_HI_ERR"; \
 	  $(IVERILOG) -g2005 $$d -DOUT=\"$$o\" -DTA=\"src/g21/g21_tw_a.hex\" -DTB=\"src/g21/g21_tw_b.hex\" \
-	    -o $$o/tb src/common/cmul.v src/g21/g21_tw.v sim/tb_g21_tw.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
+	    -o $$o/tb ../../common/cmul.v src/g21/g21_tw.v sim/tb_g21_tw.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
 	  $(PYTHON) sim/check_g21.py tw $$o $$o/tb.log > $$o/check.log 2>&1; \
 	  printf '%-14s %s\n' "g21t_$$v" "$$(grep '結果:' $$o/check.log || echo '結果の行が無い')"; \
 	done
@@ -114,7 +114,7 @@ sim-g21p:
 	  && echo "sim-g21p: 全部通過（陽性対照 2 本は落ちた）" || (echo "sim-g21p: NG"; exit 1)
 
 # 1d. g21_tw ＋ g21_chain（鎖）。ふつう（SHIFT 7）・飽和（SHIFT 4）・陽性対照 2 本（-DCHAIN_TW_LAT_ERR・-DCHAIN_NORND、落ちるべき）
-G21CH_RTL := src/common/cmul.v src/common/dft16.v src/g21/g21_tw.v src/g21/g21_chain.v sim/tb_g21_chain.v
+G21CH_RTL := ../../common/cmul.v ../../common/dft16.v src/g21/g21_tw.v src/g21/g21_chain.v sim/tb_g21_chain.v
 sim-g21ch:
 	@o0=$(SIMDIR)/g21ch_in; mkdir -p $$o0; $(PYTHON) sim/check_g21.py chain-gen $$o0 > /dev/null; \
 	for v in normal sat twlat nornd; do \
@@ -153,7 +153,7 @@ sim-g21a:
 	  && echo "sim-g21a: 全部通過（陽性対照は落ちた）" || (echo "sim-g21a: NG"; exit 1)
 
 # 2c. g21_spec（分光の本体。proj033: IP 8 個 → s2_sep → s2_chain → s2_q）。ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
-G21S_RTL := src/common/cmul.v src/common/dft16f.v src/g21/g21_coef.v src/g21/g21_pfb_core.v src/g21/g21_pfb.v \
+G21S_RTL := ../../common/cmul.v ../../common/dft16f.v src/g21/g21_coef.v src/g21/g21_pfb_core.v src/g21/g21_pfb.v \
             src/g21/g21_tw.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/g21/g21_acc.v src/g21/g21_spec.v sim/lane_fft_g21_model.v sim/tb_g21_spec.v
 sim-g21s:
 	@o0=$(SIMDIR)/g21s_in; mkdir -p $$o0; $(PYTHON) sim/check_g21.py spec-gen $$o0; \
@@ -173,7 +173,7 @@ sim-g21s:
 sim-recfr:
 	@for v in normal posctl; do \
 	  o=$(SIMDIR)/recfr_$$v; mkdir -p $$o; d=""; [ $$v = posctl ] && d="-DEQ_POSCTL"; \
-	  ( $(IVERILOG) -g2005 $$d -o $$o/tb sim/rec_fr_ref.v src/common/rec_fr.v sim/tb_recfr_eq.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1 ) & \
+	  ( $(IVERILOG) -g2005 $$d -o $$o/tb sim/rec_fr_ref.v src/rec_fr.v sim/tb_recfr_eq.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1 ) & \
 	done; wait; \
 	for v in normal posctl; do printf '%-14s %s\n' "recfr_$$v" "$$(grep '結果:' $(SIMDIR)/recfr_$$v/tb.log || echo '結果の行が無い')"; done
 	@grep -q '結果: 全部通過' $(SIMDIR)/recfr_normal/tb.log && grep -q '結果: 不合格' $(SIMDIR)/recfr_posctl/tb.log \
@@ -182,7 +182,7 @@ sim-recfr:
 # 2d. g21_core（FULL の流れのブロック・SPEC のレコード 1 MiB・FULL の TP・SRC）。入力は 2c と同じ x.hex（sim-g21s の g21s_in を作る）。
 #     ふつう・陽性対照 2 本（-DG21C_POSCTL: 積分器の読みの口に 1 段多い / -DG21C_TP_POSCTL: TP の F0 の × 32 を忘れる）。
 #     G21CORE_V で回す変種を選べる（コア 2 個の環境で 3 本を同時に回して 20 分前後。1 MiB のレコードを出す 13 万クロックが長い）
-G21CORE_RTL := src/common/cmul.v src/common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/common/adc_ev.v src/common/tp_core.v src/common/rec_fr.v src/common/rec_arb.v \
+G21CORE_RTL := ../../common/cmul.v ../../common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v ../../common/adc_ev.v ../../common/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
                src/g21/g21_coef.v src/g21/g21_pfb_core.v src/g21/g21_pfb.v src/g21/g21_tw.v src/g21/g21_acc.v \
                src/g21/g21_spec.v src/g21/g21_core.v sim/lane_fft_g21_model.v sim/tb_g21_core.v
 G21CORE_V ?= normal posctl tp
@@ -202,7 +202,7 @@ sim-g21core:
 
 # 2e. g21_s45_core（コアの共通・FULL（s 0）・RAW（s 1）・axis_sel4 × 2 は tb がブロックデザインと同じく外に置く）。
 #     ふつうと陽性対照（-DDROP_POSCTL: FULL の TP の drop を数え忘れる。rec_drop の和と LATE の和が合わなくなるべき）。2 本を同時に
-G21S45_RTL := $(filter-out sim/tb_g21_core.v,$(G21CORE_RTL)) src/common/core_cmn.v src/common/raw_core.v src/common/axis_sel4.v \
+G21S45_RTL := $(filter-out sim/tb_g21_core.v,$(G21CORE_RTL)) ../../common/core_cmn.v ../../common/raw_core.v ../../common/axis_sel4.v \
               src/g21/g21_s45_core.v sim/tb_g21_s45.v
 G21S45_V ?= normal drop
 sim-g21s45:
@@ -243,7 +243,7 @@ sim-g21ds:
 # M-1・M-2: 2-for-1 の式・鎖の全体・溜めの深さ・(B) の鎖と均しの待ち行列。成否は最後の「まとめ」の行で読む
 model:
 	@mkdir -p runs
-	$(PYTHON) model/s2_model.py | tee runs/model.txt
+	$(PYTHON) ../../../model/s2_model_g21.py | tee runs/model.txt
 
 # ---- P-1 s2_sep の単体の sim（成否は各ログの「結果:」の行で読む）----
 # normal・gap は通るべき、addr・swap・pos（陽性対照）は落ちるべき。入力の hex は変種ごとのディレクトリに書く（proj028 F-5a）
@@ -263,7 +263,7 @@ sim-sep:
 
 # ---- P-2・P-3 s2_sep → s2_chain（＋ g21_tw）→ s2_q をつないだ sim（6 フレーム、積分器の口を模型と bit 単位で）----
 # normal（SHIFT 7）・sat（SHIFT 4、q の飽和あり）・gap は通るべき、d2（-DCHAIN_D2）・nornd（-DCHAIN_NORND）・bubble（-DQ_BUBBLE）は落ちるべき
-ALL2_RTL := src/s2_sep.v src/common/cmul.v src/common/dft16f.v src/g21/g21_tw.v src/s2_chain.v src/s2_q.v sim/tb_s2_all.v
+ALL2_RTL := src/s2_sep.v ../../common/cmul.v ../../common/dft16f.v src/g21/g21_tw.v src/s2_chain.v src/s2_q.v sim/tb_s2_all.v
 ALL2_V   := normal sat gap d2 nornd bubble
 sim-all2:
 	@for v in $(ALL2_V); do \
@@ -284,9 +284,9 @@ sim-all2:
 # ---- S 部品の OOC（`-1`・256 MHz、合成まで）。結果は build-ooc/ooc-<名前>.txt。Synth 8-3848（ドライバの無いネット）があれば NG ----
 # ooc-ref は比べる相手の今の鎖 g21_chain（proj024-m0 の src/g21/g21_chain.v。電力まで含む）。4 本は出力先が別なので並べてよい（ooc-all）
 OOC_sep   := s2_sep    src/s2_sep.v
-OOC_chain := s2_chain  src/common/cmul.v src/common/dft16f.v src/s2_chain.v
+OOC_chain := s2_chain  ../../common/cmul.v ../../common/dft16f.v src/s2_chain.v
 OOC_q     := s2_q      src/s2_q.v
-OOC_ref   := g21_chain src/common/cmul.v src/common/dft16.v src/g21/g21_chain.v
+OOC_ref   := g21_chain ../../common/cmul.v ../../common/dft16.v src/g21/g21_chain.v
 ooc-sep ooc-chain ooc-q ooc-ref:
 	@n=$(@:ooc-%=%); set -- $(OOC_$(@:ooc-%=%)); top=$$1; shift; o=build-ooc/$$n; mkdir -p $$o; \
 	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs $$top 3.906 clk $$(for x in "$$@"; do echo ../../$$x; done) > /dev/null 2>&1; \
