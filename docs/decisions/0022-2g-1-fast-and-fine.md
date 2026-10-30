@@ -30,4 +30,4 @@ proj028 は実験枠（YATSUGATAKE とは別）として、荒い PFB の後に 
 ## 影響
 
 - 2G-1-Fine は、dt が 10.24 ms・40.96 ms の倍数でなく df が fs / 2^k でない唯一の bit になる。dt はダンプの区切りが時刻の格子 G（2.048 ms）に乗るので時刻の約束（[0009](0009-time-grid-and-integration-time.md)）は守る。Overlay をまたいだ区切りの一致はもともと求めていない
-- 移すまでに: 1PPS・DUMP_T を載せる、流れの形（レコードを荒い ch ごとに分ける案）、荒い段の丸めの線（f ± k·fs/56）を下げるかを決める
+- 移すまでに: 1PPS・DUMP_T を載せる、流れの形（レコードを荒い ch ごとに分ける案）、荒い段の丸めの線（f ± k·fs/56）を下げるかを決める → [ADR 0027](0027-2g-1-fine-records-time-rounding.md) で決めた

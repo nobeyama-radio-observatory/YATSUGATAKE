@@ -46,6 +46,7 @@
 | RAW | 0（生サンプルのフレームの最初のビート） | 決定 |
 | DDC（PFB T = 4、SAM45-Fine の窓） | D(NS) ＋ 1.5·L(NS) | 決定。D(NS) は `timebase.WIN_DELAY_BEATS`（`hw/bits/sam45-fine` の `make sim-wdelay`）。窓の PFB は wspec の中（z の後）にあるので D(NS) に入らず、そのずれは 1.5·L(NS) で足す |
 | SLICE（PFB T = 4、SAM45-Wide） | D_S ＋ 1.5·L = 0 ＋ 3072 ビート = 12 µs | 決定（proj023 の sim-wds） |
+| STAGE2（2G-1-Fine） | 1.5·N_f·56 ＋ 836 サンプル ＋ D_S = 688,180.25 ビート（2.688204 ms）＋ D_S | 式は決定（study-rfsoc proj037 T-4、[ADR 0027](../decisions/0027-2g-1-fine-records-time-rounding.md)）。D_S は移植の RTL の sim で |
 
 TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初のフレームの頭）。
 
