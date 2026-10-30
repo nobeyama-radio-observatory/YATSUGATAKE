@@ -352,6 +352,24 @@ M5 の main の取り込み（上）で、PS は ADR 0023・0025 の形にもう
    - ノイズソースの待ち（PR #71）
    - ただし、ボードの `2g-4-m5/` にある `sw/pynq/` の写しは PR #70・#71 より前のもの（`instr.py`・`timebase.py`・`specd.py` の sha256 が手元と違う）。切り替えのときに送り直す
 
+**切り替えた日**: 2026-10-30。最初に新しい形で回した判定は M6 の ID-1（ボードの `time_cal.json`・`tp_cal.json`、ノイズは常時 ON で H-2 だけ道具で切る）
+
+### M6 の手順と予言（2026-10-30、ブランチ `2g-4/m6`、測る前）
+
+**bit と PS**: main 64dbf45 の作り直し（`hw/bits/2g-4/build/`、FDRI `f05e1f62…3b1c` = M3・M5 と同じ、USR_ACCESS 64dbf450）と、main be0370e の `sw/pynq/`（PR #70・#71 の後）。ボードの新しいディレクトリ `2g-4-m6` に置き、`build_fast.sh`（「CRC: 命令」）。specd は `--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring --loop-log-ms 0.1`（bits.json の kind g24、`tp_cal` は書かない = ボードの `/etc/yatsugatake/tp_cal.json`）。
+
+**配線 N/S（ノイズ ON が既定・SG の口）で、1 回の Overlay の読み込みの中で** ID-1 → H-0 → EQ-4 → H-2 → CU → NET、最後に NET の陽性対照だけ specd を `--net-budget-mbs 0` で起こし直す。H-2 は `instr.py ns off` → 4 点 → `ns on`。
+
+**予言**:
+1. ID-1: adc 02030101・time 02030102・proj 00310200・kind g24・**usr 64dbf450**・lmx_pwr 3・**tcal board**（ボードの time_cal.json、ADR 0023 の後の初めての 2G-4）。係数 URAM 0.6〜1.0 s・CRC 0x891be197・STAT 0x15。STATUS IDLE・time_ok 1・health 0・flags 0。AXI_MAX_PIPELINE 0x0102。`GET CAL` は time の a2c_ns が A 69.6・B 71.2・C 69.7・D 69.7（ボードの M）、TP は道 1 の K でボードの tp_cal.json が当たる（M5 までは「bit が違う」で使わなかった）
+2. H-0: 4 窓 × 200・CRC 0・説明のない欠け 0・`g24cw` 全部通過・flags・health・miss 0。床は M4・M5（同じ N/S・ノイズ ON）の 6.33e3〜6.48e3 と ±0.7 dB。陽性対照 `--src DCBA` で 4 窓とも NG
+3. EQ-4: 50 / 50 組 × 3、陽性対照 0 / 49 組 × 3（M4・M5 と同じ）
+4. H-2: 4 点（3000.25・2500.5・3396.5・2597.25 MHz）× 4 窓とも CW が見え、ピークの送る番号 i が期待と一致・軸と SG の差 ≦ df / 2（proj030 R-6 は 0 Hz）・sat 0。陽性対照 `--posctl` で 4 点とも落ちる。ノイズは `ns off` の後に `ns state` で OFF、終わりに ON に戻る
+5. CU: M5 と同じ（(i) STAT 0x15 → 0x14・4 窓とも同じダンプから flags bit 0、(ii)(iii) START を断る・CRC 0x8d342791、(iv) `CLEAR` の後 4 窓 × 50・`g24cw` 通過・flags 0）
+6. NET: 10.24 ms は ERR で GET は変わらず、20.48 ms は OK。陽性対照（`--net-budget-mbs 0`）で 10.24 ms が OK
+
+配線 N に替えてから: BUND・V2-b（30 分）・V2-L（2 時間）・RING、TP の dBm の Wide との比べ（上の 3.）
+
 ## 持ち越しを閉じた記録（M0、2026-10-28）
 
 ### `check_g24.py ds`（proj030 からの持ち越し）
