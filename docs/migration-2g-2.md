@@ -201,6 +201,19 @@ specd を root の ssh で `--g22 --bitfile proj034.bit --clkin 0 --ref 10` で�
 
 ほかに 2G-4 の M5 で入れたもの（予算の照合 `check_net`・リング 64 MiB・LMX の PWR 3・ボードの印・2G の pump の止まりの仕掛け）は G22 にも効いている。2G-2 で確かめるのは M4〜M6 の回帰で。`bits.example.json` に `"2g-2"`（`"kind": "g22"`）を足す
 
+### M5 でしたこと（2026-10-31、ブランチ `2g-2/m5`）
+
+- **決めること 3（案 A）のとおり PROJ は照合しない**。`s45core.PROJ_G22` を 0x0034_0100 に直し、「追跡のため。照合には使わない」と注釈した。G22Backend は今までどおり (BIT_KIND 10, BIT_REV 1) で開く
+- **ADC → コアの道は共通の道**（`timebase.ADC_PATH` に (10, 1) を足さない。注釈だけ足した）: 道の RTL は `hw/common/` の同じファイル、RFDC のセルの組み立てと fs・spw_adc 12 → spw 16 が Wide と同じ、ビルドの `rfdc_params.rpt` がほかの 4 本のビルドと 1 行も違わない（M0 で数えた。M3 の作り直しでも同じ）。M4 の `tcal=board` はこれで正しい
+- **USR_ACCESS のフック**（M5b、Fine・Wide・2G-4・2G-1-Fast と同じ）: Makefile に 12 行・build.tcl に 22 行（2G-1-Fast の行をそのまま）。RTL・制約は変えない
+- `bits.example.json` に `"2g-2"`（`"kind": "g22"`）。PC で `test_fake.sh all`・`test_timecal`・`test_tpcal`・`test_nch` が全部通過
+
+### M5 の予言（作り直しと回し直しの前に書いた、2026-10-31）
+
+1. **M2 の回し直し**: `make sim-all` が 16 個とも通過。`build-sim/` は M2 の出力と、iverilog の `tb` の番地（`0x…`）を除いてバイト単位で同じ（RTL も sim も変えていない）
+2. **M3 の焼き直し**（`make build BUILD_JOBS=4`、この commit の木）: USR_ACCESS が commit（汚れ 0）。**FDRI は M3 と同じ**（`b9dec08c…313f`。USR_ACCESS は FDRI の外）、構成の流れの sha256 は変わる。WNS / WHS は M3 と小数 6 桁まで同じ（0.073585 / 0.009528）。報告は drc.rpt の並びの入れ替わりのほかは同じ。外れて WNS が負になったら、作り直しはやめて決め直す（「M3 の心配」）
+3. **M4 の回し直し**（ボードの新しいディレクトリ `~/2g-2-m5`、specd は `--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring --loop-log-ms 0.1`、`--g22` なし）: ID の `usr` が commit・`tcal=board`、H-0 通過（床は M4 と ±0.1 dB）、EQ-2 50 / 50 組、NET（10.24 ms は ERR・20.48 ms は OK、陽性対照 `--net-budget-mbs 0` で 10.24 ms が OK）、tint 20.48 ms で 300 s 取りこぼし 0・1 周の計 ≦ 16 ms（`loopsum.py`）。ID-1 の陽性対照: ボードの proj025 の bit で起こすと ID の proj が 00250100（案 A なので START は通る）
+
 ### 持ち越し（proj034 から）
 
 - **fmt both の運転の loop_max 72〜76 ms・loop_slow 26〜28**（tint 40.96 ms、proj025 も同じ。miss・drop 0）。PS の側の話。→ **M4 で `--fast` ありなら loop_max 16.7 ms・loop_slow 0 と分かったので閉じる**（上の「M4 の結果」）

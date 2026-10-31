@@ -38,7 +38,8 @@ BIT_REV_MIN_BY_KIND = {1: 1, 2: 2, 3: 1, 10: 1, 11: 1}   # --list（どの bit �
 PROJ_G21 = 0x0033_0100           # proj033: 2G-1-Fast（2-for-1。proj024 は 0x0024_0100。同じ BIT_KIND 11・BIT_REV 1、コア 1 個）。discover(ol, bit_kind=BIT_KIND_G21, ncore=1)。
                                  # 追跡のため。照合には使わない（YATSUGATAKE 2G-1-Fast の M5 の決めること 4: Fine・Wide・2G-2 と同じく (BIT_KIND, BIT_REV) で開く）
 BIT_KIND_G21 = 11
-PROJ_G22 = 0x0025_0100           # proj025: 2G-2（BIT_KIND 10・BIT_REV 1、コア 2 個。コア 1 は RAW を持たず NSTREAM 1）。discover(ol, bit_kind=BIT_KIND_G22, ncore=2)
+PROJ_G22 = 0x0034_0100           # proj034: 2G-2（2-for-1。proj025 は 0x0025_0100。同じ BIT_KIND 10・BIT_REV 1、コア 2 個。コア 1 は RAW を持たず NSTREAM 1）。discover(ol, bit_kind=BIT_KIND_G22, ncore=2)。
+                                 # 追跡のため。照合には使わない（YATSUGATAKE 2G-2 の M0 の決めること 3: 2G-1-Fast と同じく (BIT_KIND, BIT_REV) で開く）
 BIT_KIND_G22 = 10
 PROJ_G24 = 0x0031_0200           # proj031 rev 2（coef_mis を START で消す。rev 1 は 0x0031_0100）。proj031（係数 URAM。timebase.CAL は未較正、R の F-2 で測る）。proj030（2-for-1。proj027 は 0x0027_0100。timebase.CAL は R-5 の F-2 で測った）。proj027: 2G-4（BIT_KIND 3・BIT_REV 1、コア 4 個。4 コアとも RAW を持ち NSTREAM 2）。discover(ol, bit_kind=BIT_KIND_G24, ncore=4)
 BIT_KIND_G24 = 3
