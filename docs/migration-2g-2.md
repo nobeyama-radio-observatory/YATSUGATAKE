@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-2）
 
-- 状態: **M0**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31）
+- 状態: **M0 済み**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31、PR #88）。**M1 済み**（2026-10-31、ブランチ `2g-2/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）
 - 移植元: **`study-rfsoc@proj034-m0`**（注釈つきタグ、commit c8b90cb、2026-10-30）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-1-Fast と同じ形）
   - proj034 は proj025-m0（2G-2 の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj025 と同じで、DSP 1,848 → 1,256・LUT 37.1 → 26.9 %・BRAM 759.5 → 635.5・VCCINT（実測）25.1 → 18.8 A
   - 移植元を proj025-m0 から proj034-m0 に替えた（2026-10-30、開発者。proj034 README の「結論・次にやること」）。2G-1-Fast を proj033-m0 に替えたのと同じ
@@ -97,6 +97,15 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 - `runs/` は git に入れない（`.gitignore` に `/hw/bits/2g-2/runs/`）
 - **在ってはいけない側の照合**: 2G-2 の Makefile・build.tcl・sim・tools が `hw/common/rec_fr.v` と、`hw/bits/2g-4/`・`hw/bits/2g-1-fast/` の下のファイルを指していないこと（指していると、別の寸法の `s2_*` か 1'b1 の版の rec_fr で作られる）。`import s2_model as`（2G-4 の版）・`s2_model_g21` を読む行が無いこと
 
+### M1 の結果（2026-10-31、ブランチ `2g-2/m1-place`）
+
+- **置く**（fc39902）: 付録の 46 個（置く 45・写し 1）を `git show study-rfsoc@proj034-m0:…` から取り出して置いた。46 個とも移植元と blob が同じ（`model/s2_model.py` は `model/s2_model_g22.py` に、`src/common/rec_fr.v` は `src/rec_fr.v` に）
+- **パスの直し**: 6 個・43 行（Makefile 13・build.tcl 20・build_post.tcl 4・Python 6）。**違う行はすべてパスの行か模型の名前の行**: 新しい行のパスと名前を元に戻すと 43 行とも古い行と一致（機械で照合。陽性対照: 行に 1 字足すと不一致になる）。名前の行は 4 行（`import s2_model_g22` 2・`check_s2.py` の docstring 1・Makefile の `model` 1）。`src/g22/`・`src/s2_*.v` は直していない。`model/` の 3 個と `sw/pynq/g22cw.py` は移植元のまま
+- **在ってはいけない側**: 2G-2 の Makefile・build.tcl・build_post.tcl・sim・tools が `hw/common/rec_fr.v`（`src/common/rec_fr`）・`hw/bits/2g-4/`・`hw/bits/2g-1-fast/`・`import s2_model as`・`s2_model_g21` を指す行は 0（直す前の版 fc39902 に当てると Makefile 2・check_s2.py 1 行を拾う = 照合が働いている）。build.tcl は `include` を使う RTL を読まない（include_dirs は要らない）
+- **動かして確かめたこと**（この PC、Vivado は使っていない）: `make model-g22`（M-a〜M-d）・`model`（M-1a〜M-2b、鎖の入口 (i)）が全部通過。`make gen` の出力が `src/g22/` の hex 4 個とバイト単位で同じ（係数 524,288 タップ・ひねり係数 16 × 8192 の読み返しも一致）。`sim-recfr`（写しの `rec_fr.v`）・`sim-sep` が「全部通過」、陽性対照 4 本（recfr_posctl・sep_addr・sep_swap・sep_pos）は落ちた。Tcl 5 個が `info complete` で完結、Python 7 個（`sw/pynq/g22cw.py`・`model/` の 3 個・sim と tools の 3 個）が `py_compile` を通る
+- **`runs/` は git に入れない**（`.gitignore` に `/hw/bits/2g-2/runs/`）。`hw/bits/2g-2/README.md` を足し、`hw/bits/README.md` の行を直した
+- **動かないままにしたもの**: Makefile の `s2`・`survey`・`ooc-*` は Vivado で動くはずだが回していない。`sim-all` は 1a〜1d の 4 つだけ。直すのは下の 1
+
 ### M1 の後にすること（それぞれ別の PR）
 
 1. **Makefile から試行の目標を外す**（2G-4・2G-1-Fast の makefile-trim と同じ型）: `s2`・`survey`・`ooc-ref`・`ooc-all` と、それだけが使う `JOBS`（proj034 の Makefile は `PYTHON`・`IVERILOG`・`VVP`・`JOBS` を 2 回定義している。重なりを外すのも中身を変えない直しとして数える）。部品の OOC（`ooc-sep`・`ooc-chain`・`ooc-q`）は 2G-4・2G-1-Fast と同じく残す。
@@ -109,7 +118,7 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 | 手順 | 2G-2 ですること | 合格 |
 |---|---|---|
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x] |
-| M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上） |
+| M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上）（**2026-10-31**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g22・model、sim-g22c・g22t・g22p・g22ch・lane・g22a・g22s・recfr・g22core・g22s45・g22x2・g22ds・sep・all2 | proj034-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ |
 | M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`b9dec08c…313f`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.073585 / +0.009528） |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g22`） | ID・H-0・EQ-2・tint 40.96 ms で 300 s 取りこぼし 0 が proj034 R-1・R-1c・R-3 と同じ値。`--fast` の有無を両方回して決める（下の「M4 の予定」） |
