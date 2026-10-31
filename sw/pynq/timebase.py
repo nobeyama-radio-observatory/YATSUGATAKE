@@ -70,7 +70,8 @@ CAL = {
                         "平均 71.5・71.4・70.0・69.9 ns。pps_det_ns は LPF の遅れ（proj026 で同じ日の LPF なしとの差 ≒ 71.5 ns）、"
                         "adc_to_core_ns = M（LPF あり）＋ 71.5。bound_ns は (2, 3) と同じ 5 ns（±0.5 ビート ＋ LPF の分の ±2 ns）"),
     # YATSUGATAKE（2G-4 の M5）: (3, 1) は study-rfsoc の proj031 rev 2（BIT_KIND 3・BIT_REV 1、PROJ 0x0031_0200）の R-5 の F-2。
-    #   2G-1（BIT_KIND 11）・2G-2（BIT_KIND 10）は移植のときに、その bit の F-2 で足す（proj024・proj025 の値は別の配置なので持ち込まない）
+    #   2G-1（BIT_KIND 11）・2G-2（BIT_KIND 10）は移植のときに、その bit の F-2 で足す（proj024・proj025 の値は別の配置なので持ち込まない）。
+#   ADR 0023 の後は CAL に足さない（2G-1-Fast は proj033 の CAL[0x0033_0100] を持ち込まず、下の ADC_PATH で共通の道とした）
     (3, 1): dict(pps_det_ns=71.5, adc_to_core_ns={0: 140.9, 1: 141.1, 2: 141.6, 3: 141.9}, bound_ns=50,
                  source="proj031 rev 2 R-5 の F-2（2026-10-28、配線 P・1PPS の入口に LPF BLP-10.7+）: RAW の流れ（コア 0 の s 1、SRC で ADC を選ぶ）の生サンプルで "
                         "1PPS の縁がコアに入った T − スタンプを 4 ADC、ケーブルを A↔D・B↔C に入れ替えて 2 回（f2_31a・f2_31b）。M = A 69.4・B 69.6・C 70.1・D 70.4 ns。"
@@ -85,6 +86,8 @@ ADC_PATH = {}                                           # (BIT_KIND, BIT_REV) �
 ADC_PATH_COMMON = 1                                     # 共通コアの道（SAM45-Fine (2, 3)・SAM45-Wide (1, 1)）
 #   2G-4 (3, 1) も共通の道（M5 で確かめた: gb_adc・gb_gate・raw_core・dstamp・adc_ev・time_core・axis_sel4 は hw/common の同じファイル、
 #   RFDC のセルの組み立てと fs・spw_adc 12 → spw 16 が Wide と同じ、PWR 3 の F-2 の M は Wide M6 と ≦ 1.0 ns）
+#   2G-1-Fast (11, 1) も共通の道（M5 で確かめた: 上の RTL は hw/common の同じファイル、RFDC のセルの組み立てと fs・spw_adc 12 → spw 16 が
+#   Wide と同じで、ビルドの rfdc_params.rpt（869 行）が Wide の build-PE と同じ。proj033 の F-2 の M 68.5〜70.2 ns は Wide と ±1.4 ns）
 CAL_PROVISIONAL_KEY = (1, 1)                            # CAL に無い bit（開発中）に暫定で当てる値
 TIME_CAL_VERSION = 1
 

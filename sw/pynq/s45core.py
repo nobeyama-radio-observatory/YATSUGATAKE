@@ -35,7 +35,8 @@ PROJ_EXPECT = 0x0021_0200        # この README の手順 2-1 の .bit（追跡
 BIT_REV_MIN = 2                  # proj021 2-2d: 仮の読み窓の無い 64 KiB の番地（道具は記憶をレコードでしか読まない）
 BIT_KIND_EXPECT = 2              # SAM45-Fine。SAM45-Wide の道具（wide.py・s45acq の WideBackend・widef2.py）は bit_kind=1, bit_rev_min=1 を渡す
 BIT_REV_MIN_BY_KIND = {1: 1, 2: 2, 3: 1, 10: 1, 11: 1}   # --list（どの bit も読む）の下限。SAM45-Wide・2G は 1 から、SAM45-Fine は 2 から
-PROJ_G21 = 0x0024_0100           # proj024: 2G-1（BIT_KIND 11・BIT_REV 1、コア 1 個）。discover(ol, bit_kind=BIT_KIND_G21, ncore=1)
+PROJ_G21 = 0x0033_0100           # proj033: 2G-1-Fast（2-for-1。proj024 は 0x0024_0100。同じ BIT_KIND 11・BIT_REV 1、コア 1 個）。discover(ol, bit_kind=BIT_KIND_G21, ncore=1)。
+                                 # 追跡のため。照合には使わない（YATSUGATAKE 2G-1-Fast の M5 の決めること 4: Fine・Wide・2G-2 と同じく (BIT_KIND, BIT_REV) で開く）
 BIT_KIND_G21 = 11
 PROJ_G22 = 0x0025_0100           # proj025: 2G-2（BIT_KIND 10・BIT_REV 1、コア 2 個。コア 1 は RAW を持たず NSTREAM 1）。discover(ol, bit_kind=BIT_KIND_G22, ncore=2)
 BIT_KIND_G22 = 10
