@@ -13,11 +13,11 @@ ID は 2G-4 の判定と同じ意味のものは同じ ID にした（ID-1・H-0
 - **ファン**: proj027 4f の配置のまま（2G-1-Fast は VCCINT ≒ 13.5 A）
 - **クロック**: 外部 10 MHz と 1PPS（入口に LPF を常設）。`--clkin 0 --ref 10`
 - **specd**: `sudo -E $(which python3) specd.py --g21 --bitfile proj033.bit --clkin 0 --ref 10`（bits.json の項目なら `"kind": "g21"`）。リング 64 MiB・LMX の PWR 3・予算 30 MB/s の照合は既定。
-  proj033 の R は `--fast` を付けずに回した。**`--prefault --fast --fast-ring`（2G-4 の形）を G21 で使うかは M4 で両方回して決め**、ここに書き足す。記録には付けたかどうかを書く。止めるときは `SHUTDOWN confirm=1` か pid のファイルで
+  proj033 の R は `--fast` を付けずに回した。**M4 で両方回し、`--prefault --fast --fast-ring`（2G-4 の形）を付けると決めた**（2026-10-31。tint 20.48 ms で 1 周の p99 が `--fast` なし 16.4 ms・あり 5.4 ms。migration の「M4 の結果」）。判定は `sudo -E $(which python3) specd.py --g21 --bitfile proj033.bit --clkin 0 --ref 10 --prefault --fast --fast-ring` で起こす。記録には付けたかどうかを書く。止めるときは `SHUTDOWN confirm=1` か pid のファイルで
 - **送り出し**: specd を起こした後、受けを取る前に一度 **`SEND ON`** を打つ（proj033 R-1 でも付け忘れて受けが 0 個になった）。溜まりに残った分は `CLEAR` で捨ててから取り直す。specrecv は同じファイルに足して書くので、取り直すときはファイルを消してから
 - **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`・`RFSOC_NS`。宛先はファイルに書かない。STATUS の `data_client`・`data_drop` には受け手の IP が出るので、記録に残すときは伏せる
 - **ノイズソースはいつも ON**（[ADR 0024](../../../docs/decisions/0024-noise-source-always-on-remote-off.md)）。OFF の要る判定（H-2）は、測る前に `python3 instr.py ns off`、測り終えたら `python3 instr.py ns on`。手で ON / OFF しない
-- **時刻の較正**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)）: ボードの `/etc/yatsugatake/time_cal.json` が当たり、specd の `ID` が `tcal=board` になる（M5 で `ADC_PATH` を確かめた後）。記録には `tcal` を書く。M4 までは `provisional`。TP の dBm もボードの `tp_cal.json`（ADR 0025）
+- **時刻の較正**（[ADR 0023](../../../docs/decisions/0023-time-calibration-per-board.md)）: ボードの `/etc/yatsugatake/time_cal.json` が当たり、specd の `ID` が `tcal=board` になる（M5 で `ADC_PATH` を確かめた後）。記録には `tcal` を書く。`timebase.ADC_PATH` に (11, 1) が無いと共通の道とみなされ、M4 の時点でも `tcal=board` になった（M5 で道を確かめるまでは時刻の確かさの証拠にしない）。TP の dBm もボードの `tp_cal.json`（ADR 0025）
 - **SET の既定**: `src=A shift=7 fmt=f32`。流れは FULL の 1 本（鍵 A0）。`src` は FULL と RAW の入力の ADC（次の WRST で効く）
 - **ネットワークの tint**: 2G-1-Fast の最小は **20.48 ms**（131,072 ch × 4 B で 25.6 MB/s、interface 4.5、予算 1 ボード 30 MB/s）。10.24 ms は SET で断られる（NET）
 - **レベルを tint や設定をまたいで比べるときは、1 回の Overlay の読み込みの中で切り替える**（載せ直すと 1 % 級の段が出る。proj036 R-2）

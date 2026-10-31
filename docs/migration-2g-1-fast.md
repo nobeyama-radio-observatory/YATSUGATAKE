@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。次は M4（実機の短い回帰）
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-1-fast/m4`。ID・H-0・tint 40.96 ms で 300 s が proj033 R-1・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。次は M5（PS）
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -146,7 +146,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 | M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上）（**2026-10-31**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g21・model、sim-g21c・g21t・g21p・g21ch・lane・g21a・g21s・recfr・g21core・g21s45・g21ds・sep・all2 | proj033-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-31**: 上の「M2 の結果」） |
 | M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647）（**2026-10-31**: 下の「M3 の結果」） |
-| M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値 |
+| M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値（**2026-10-31**: 下の「M4 の結果」） |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-1-Fast に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS で FDRI は変わる。2G-4 の M5 と同じ） |
 | M6 | 2G-1-Fast の判定（`test/acceptance/2g-1-fast/`）を全部通し、性能評価を書く | `docs/performance/2g-1-fast/<版>.md` |
 | M7 | spec・design・user の 2G-1-Fast の分を書き、リリース | `release.md` |
@@ -172,6 +172,24 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 - **`drc.rpt`** は、RTSTAT-10（ロードの無いネット **31 本**）の「最初の 15 本」の並びが 1 本入れ替わった（`m00_w_node` ↔ `s00_ar_node`）だけ。本数と残りの行は同じ。並びはツールの出し方で、構成データには効かない（FDRI が同じ）
 - a12715d の注釈 1 行（`g21_s45_core.v`）は FDRI を変えなかった（M0 の見込みどおり）
 - `bitinfo.py`（`sw/pynq/`）で読んだ。USR_ACCESS は焼いていない（M5 で入れる）。.bit は git に入れない（ADR 0018）
+
+### M4 の結果（2026-10-31）
+
+M3 で作った bit（FDRI `6bdecddf…d8e4`）と `sw/pynq/`（63 個、ボードの写しが手元と sha256 で同じ）を、ボードの新しいディレクトリ（`~/2g-1-fast-m4`、study-rfsoc の道具のディレクトリと混ぜない）に置き、specd を `--g21 --bitfile proj033.bit --clkin 0 --ref 10` で起こした（root の ssh で。`/etc/profile.d/` の boardname・pynq_venv・xrt_setup を読んでから）。受けは制御 PC。配線は前のまま（ノイズ ON・ATT 13 dB・src A、SG なし）。
+**specd を 2 回起こし**、1 回目は `--fast` なし（移植元の R と同じ形）、2 回目は `--prefault --fast --fast-ring`（2G-4 の形、libs45fast.so は「CRC: 命令」）。それぞれの 1 回の Overlay の読み込みの中で、ID-1 → H-0 → tint 40.96 ms で 300 s → tint 20.48 ms で 300 s の順に回した:
+
+| | 移植先（M4、`--fast` なし） | 移植先（M4、`--fast` あり） | 移植元の記録（proj033、`--fast` なし） |
+|---|---|---|---|
+| ID-1 | adc 020b0101・time 020b0102・proj 00330100・kind g21・usr none・lmx_pwr 3・**tcal board**、IDLE・time_ok 1・health 0・flags 0 | 同じ | R-1: 同じ ID（tcal は「未較正」） |
+| H-0（200 本） | SPEC 200・CRC 0・説明のない欠け 0・照合 通過・`g21cw` 全部通過・flags 0・sat 0、陽性対照（`--src C`）で NG。TP A −31.43 dBFS・床 1.51e3、loop_max 15.16 ms | 同じ（床 1.51e3・TP −31.42 dBFS）、loop_max 6.31 ms | R-1: 同じ。TP −31.28〜−31.30・床 1,636〜1,644・loop_max 12.8〜15.3 ms |
+| tint 40.96 ms で 300 s | SPEC 7,324・3.67 GB・CRC・欠け・kgap・tdev 0・照合 通過、miss・drop・pl_drop・pl_crc・pl_err・loop_slow・tp_rec_lost 0、**loop_max 12.83 ms**・p99 12.1 ms・pl_peak 3.1 MB | 同じ取りこぼし 0、**loop_max 5.96 ms**・p99 5.4 ms・pl_peak 2.1 MB | R-3（30 分）: 取りこぼし 0・loop_max 15.1 ms・pl_peak 3.1 MB |
+| tint 20.48 ms で 300 s | SPEC 14,648・7.33 GB・取りこぼし 0・照合 通過、**loop_max 16.87 ms・p99 16.4 ms**・pl_peak 4.2 MB | 取りこぼし 0・照合 通過、**loop_max 6.71 ms・p99 5.4 ms**・pl_peak 2.1 MB | 回していない |
+
+- AXI_MAX_PIPELINE は起こす前（2 回とも）と後で 0x0102
+- 床は R-1 より −0.36 dB、TP は −0.14 dB（H-0 の線: TP が ±0.5 dB の内なので床は ±0.7 dB の内で合格）。床と TP の差は入力の漂いと Overlay の載せ直しの幅で、2-for-1 の式は sim で移植元と bit 単位で同じ（M2）
+- **`tcal=board` になった**（判定の README は「M4 までは provisional」と見込んでいた）。`timebase.ADC_PATH` に (11, 1) が無いので共通の道（1）とみなされ、ボードの `time_cal.json`（adc_path 1）が当たる。2G-1-Fast の道が本当に共通コアと同じかは M5 で確かめる（ADR 0023）。それまでは `tcal=board` を時刻の確かさの証拠にしない
+- **`--fast` を使うと決めた**（判定の README の持ち越し）: 20.48 ms で `--fast` なしは 1 周の p99 が 16.4 ms（20.48 ms の 80 %）で、V2-b の線（1 周の計 ≦ 16 ms）にほとんど余裕が無い。`--fast` ありは 40.96 ms・20.48 ms とも 1 周の最長が 7 ms 以下。2G-4 と同じ形（`--prefault --fast --fast-ring`）で M5 以降と判定を回す。V2-b の「1 周の計」（`loopsum.py`）は M6 で `--loop-log-ms 0.1` を付けて測る
+- 起こし方で 1 つ踏んだ: root で `python3 specd.py` を直に起こすと `xrfclk` が環境変数 `BOARD` を読めずに止まる（`KeyError: 'BOARD'`）。`/etc/profile.d/boardname.sh` を読んでから起こす（xilinx のログインのシェルは読んでいるので、判定の README の `sudo -E` の形では要らないはず。確かめていない）
 
 ### PS（M5、2G-4 の M5 と違うところ）
 
