@@ -13,5 +13,5 @@ python3 specctl.py --host $B STATUS STOP
 - **合格**: 7,200 s で受けの CRC・欠け・説明のない欠け・kgap・tdev 0・照合 通過、STATUS の miss・pl_drop・pl_crc・pl_err 0 が毎分、AXI_MAX_PIPELINE が毎分 0x0102、
   **VCCINT ≦ 21 A で平ら**（proj034 R-3 の 30 分で 18.75〜19.37 A。2G-4・2G-1-Fast の線と同じく、測った値に ≒ 1.5 A の余裕）・PL の温度は平ら（上がり続けない）、ボードが落ちない
 - **陽性対照**: V2-b の陽性対照（同じ見張り）
-- **記録**: なし（proj025・proj034 とも 30 分まで。**M6 で初めて回す**、M0 の決めること 2 の案）。参考: proj034 R-3（tint 40.96 ms・30 分）の VCCINT 18.75〜19.37 A（中央値 19.08 A）・44〜51 ℃ で平ら
+- **記録**: なし（proj025・proj034 とも 30 分まで。**M6 で初めて回す**、M0 の決めること 2）。参考: proj034 R-3（tint 40.96 ms・30 分）の VCCINT 18.75〜19.37 A（中央値 19.08 A）・44〜51 ℃ で平ら
 - 注意: 受けが `--seconds` で先に切れると、STOP までの間に specd の溜まりが満ちて STATUS の drop が増える（2G-4 の proj036 R-4 で 903）。drop は受けの終わりの前の STATUS で読む

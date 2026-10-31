@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-2）
 
-- 状態: **M0**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は案（開発者の決めを待つ）
+- 状態: **M0**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31）
 - 移植元: **`study-rfsoc@proj034-m0`**（注釈つきタグ、commit c8b90cb、2026-10-30）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-1-Fast と同じ形）
   - proj034 は proj025-m0（2G-2 の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj025 と同じで、DSP 1,848 → 1,256・LUT 37.1 → 26.9 %・BRAM 759.5 → 635.5・VCCINT（実測）25.1 → 18.8 A
   - 移植元を proj025-m0 から proj034-m0 に替えた（2026-10-30、開発者。proj034 README の「結論・次にやること」）。2G-1-Fast を proj033-m0 に替えたのと同じ
@@ -21,7 +21,7 @@
 - [x] **タグ** `proj034-m0`（c8b90cb）を push した（2026-10-30）
 - [x] ボードの準備（AXI_MAX_PIPELINE 0x0102）は 2G-4 と同じボードに入っている（2G-4 の始める条件）
 - [x] **判定を `test/acceptance/2g-2/` の書き方で書き起こした**（2026-10-31、M0 で）: 8 判定（ID-1・H-0・EQ-2・H-2・V2-b・V2-L・RING・NET）。EQ-2 は 2G-4 の EQ-4 の 2 コア版。V2-b の 20.48 ms・V2-L・RING・NET は study-rfsoc で回していない（M6 で初めて）
-- [ ] **2 時間の連続運転**・**tint 20.48 ms での 30 分** → 案: **M6 の V2-L・V2-b で初めて回す**（決めること 2）。proj034 R-3・proj025 4c とも tint 40.96 ms・30 分まで
+- [x] **2 時間の連続運転**・**tint 20.48 ms での 30 分** → **M6 の V2-L・V2-b で初めて回す**（決めること 2）。proj034 R-3・proj025 4c とも tint 40.96 ms・30 分まで
 
 ### 移植元の bit（M3 の比べの相手）
 
@@ -57,7 +57,7 @@ study-rfsoc の proj034 README「B-1」の**既定の戦略**のビルド（`bui
 | `Makefile`・`build.tcl`・`build_post.tcl` | `hw/bits/2g-2/` | パスだけを直す（下の「M1 で直すパス」）。`build_post.tcl` は 2G-4 にはあり、2G-1-Fast には無い |
 | `sim/`（18 個） | `hw/bits/2g-2/sim/` | 試験台・照合・IP の模型（lane_fft_g22_model）。`rec_fr_ref.v`・`tb_recfr_eq.v` は 2G-4・2G-1-Fast の同名と同じ中身、`tb_s2_*`・`check_s2.py` は違う版 |
 | `model/g22_fixed.py`・`model/g22_model.py` | `model/` | 名前は今の `model/` と重ならない |
-| `model/s2_model.py` | **`model/s2_model_g22.py`**（名前を替える、案） | 2G-4 の `model/s2_model.py`・2G-1-Fast の `model/s2_model_g21.py` と中身が違う（下の「模型の名前」） |
+| `model/s2_model.py` | **`model/s2_model_g22.py`**（名前を替える） | 2G-4 の `model/s2_model.py`・2G-1-Fast の `model/s2_model_g21.py` と中身が違う（下の「模型の名前」） |
 | `model/g2_model.py` | **既にある** `model/g2_model.py` | バイト単位で同じ |
 | `tools/` のうちビルド・sim が使う 4 個 | `hw/bits/2g-2/tools/` | gen_g22_tables・ip_impl・ip_survey・ooc_rtl（後の 3 個は 2G-1-Fast と同じ中身） |
 | `pynq/g22cw.py` | `sw/pynq/` | 2G-2 の判定の道具（2G-4 の移植で「2G-2 の道具はそれぞれの移植で」とした） |
@@ -82,11 +82,11 @@ proj034 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 - 今の main で数え直した違い（diff の行）: `s2_sep.v` は 2G-1-Fast と 14・2G-4 と 26、`s2_q.v` は 15・35、`s2_chain.v` は 52・64。2G-1-Fast との数は 2G-1-Fast の M0 の表（「2G-1-Fast と 2G-2 の違い」）と同じ
 - proj034 の `s2_q` は行の幅を parameter `KB` に出した形（proj033 と同じ）。1 本にするときはこの形を `hw/common/` の版にし、2G-4 は AB 9・KB 12 を渡す（2G-1-Fast の M0 の表）
 
-### 模型の名前（決めること 1、案）
+### 模型の名前（決めること 1、2026-10-31 に案どおり決めた）
 
 proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072・M 8192）の版で、2G-4 の `model/s2_model.py`（312 行違う）とも、2G-1-Fast の `model/s2_model_g21.py`（51 行違う）とも中身が違う。
 
-**案**: 2G-1-Fast の決めること 2 と同じく、**`model/s2_model_g22.py`** に置き、読む側の `import s2_model` を `import s2_model_g22` に直す（`sim/check_s2.py`・`sim/check_g22.py` の 2 行と、Makefile の `model` の 1 行。docstring の名前は M1 で数える）。M1 の照合ではこれを「名前の直し」として別に数える
+**決め**: 2G-1-Fast の決めること 2 と同じく、**`model/s2_model_g22.py`** に置き、読む側の `import s2_model` を `import s2_model_g22` に直す（`sim/check_s2.py`・`sim/check_g22.py` の 2 行と、Makefile の `model` の 1 行。docstring の名前は M1 で数える）。M1 の照合ではこれを「名前の直し」として別に数える
 
 ### M1 で直すパス（予定）
 
@@ -135,7 +135,7 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 
 `sw/pynq/` には 2G-4 の M5 で G22 の Backend（`--g22`、proj025 の版）が入っている。proj034 の PS は proj025 の PS から 3 か所だけ変えたもの（`git diff proj025-m0:proj025/pynq proj034-m0:proj034/pynq`、3 ファイル 9 行）。2G-1-Fast の 3 か所と同じ形:
 
-1. **`s45core.PROJ_G22`** を 0x0025_0100 → 0x0034_0100。G22Backend は `discover(bit_kind=10, ncore=2)` で開くので、proj025 の bit（同じ (10, 1)）も通る。PROJ を照らすか（決めること 3）
+1. **`s45core.PROJ_G22`** を 0x0025_0100 → 0x0034_0100。G22Backend は `discover(bit_kind=10, ncore=2)` で開くので、proj025 の bit（同じ (10, 1)）も通る。PROJ は照らさない（決めること 3、案 A）。M5 で `PROJ_G22` を直し、「追跡のため。照合には使わない」と注釈する
 2. **timebase**: proj034 は `CAL[0x0034_0100]` に proj025 4d の値を写した。YATSUGATAKE は ADR 0023 でボードの較正ファイルを使うので、**CAL には足さない**。ADC → コアの道は共通の道と見込む: 道の RTL（gb_adc・gb_gate・raw_core・adc_ev・time_core・axis_sel4）は `hw/common/` の同じファイル、**proj034 の build/ の `rfdc_params.rpt` が SAM45-Fine・SAM45-Wide・2G-4・2G-1-Fast のビルドの同じ報告と 1 行も違わない**（2026-10-31 に数えた）。M5 で `ADC_PATH` の注釈に足す
 3. widef2 の `--bitfile` の既定（proj025.bit → proj034.bit）。`sw/pynq/` では bits.json の項目（`"kind": "g22"`）で指すので、既定は直さない
 
@@ -166,7 +166,7 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 
 ## 決めること
 
-1. **proj034 の `model/s2_model.py` の置き場所** → 案: `model/s2_model_g22.py` に名前を替える（上の「模型の名前」。2G-1-Fast の決めること 2 と同じ）
-2. **2 時間と tint 20.48 ms の 30 分を、始める条件にするか M6 で回すか** → 案: M6（V2-L・V2-b）。2G-2 の電流（19.1 A）は 2G-4（32.6 A）より低く、取得の量は 2G-4・2G-1-Fast と同じ 25.6 MB/s（2 × 65,536 ch × 4 B / 20.48 ms）で、両方とも 30 分・2 時間が通っている（2G-1-Fast の決めること 3 と同じ）
-3. **G22Backend で PROJ を照らすか**（上の「PS」の 1）→ 案 A: 照らさない（2G-1-Fast の決めること 4 と同じ。bit の約束は (BIT_KIND, BIT_REV) で、proj025 と proj034 はレジスタの並び・頭の欄・ch の並び・精度が同じ。取り違えは bits.json と記録の `ids.proj`・`usr` で分かる）
-4. **実装の戦略** → 案: 既定（proj034 B-1 の決め。WNS +0.074 は PE の +0.032 より大きい）
+1. **proj034 の `model/s2_model.py` の置き場所** → **決め**（2026-10-31）: `model/s2_model_g22.py` に名前を替える（上の「模型の名前」。2G-1-Fast の決めること 2 と同じ）
+2. **2 時間と tint 20.48 ms の 30 分を、始める条件にするか M6 で回すか** → **決め**（2026-10-31）: M6（V2-L・V2-b）。2G-2 の電流（19.1 A）は 2G-4（32.6 A）より低く、取得の量は 2G-4・2G-1-Fast と同じ 25.6 MB/s（2 × 65,536 ch × 4 B / 20.48 ms）で、両方とも 30 分・2 時間が通っている（2G-1-Fast の決めること 3 と同じ）
+3. **G22Backend で PROJ を照らすか**（上の「PS」の 1）→ **決め**（2026-10-31、案 A）: 照らさない（2G-1-Fast の決めること 4 と同じ。bit の約束は (BIT_KIND, BIT_REV) で、proj025 と proj034 はレジスタの並び・頭の欄・ch の並び・精度が同じ。取り違えは bits.json と記録の `ids.proj`・`usr` で分かる）
+4. **実装の戦略** → **決め**（2026-10-31）: 既定（proj034 B-1 の決め。WNS +0.074 は PE の +0.032 より大きい）
