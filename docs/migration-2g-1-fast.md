@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。次は M3（ビルド）
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。次は M4（実機の短い回帰）
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -145,7 +145,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 | M0 | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x]（**2026-10-30**） |
 | M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上）（**2026-10-31**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g21・model、sim-g21c・g21t・g21p・g21ch・lane・g21a・g21s・recfr・g21core・g21s45・g21ds・sep・all2 | proj033-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-31**: 上の「M2 の結果」） |
-| M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647） |
+| M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647）（**2026-10-31**: 下の「M3 の結果」） |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値 |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-1-Fast に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS で FDRI は変わる。2G-4 の M5 と同じ） |
 | M6 | 2G-1-Fast の判定（`test/acceptance/2g-1-fast/`）を全部通し、性能評価を書く | `docs/performance/2g-1-fast/<版>.md` |
@@ -155,6 +155,23 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 
 - 2G-4 の M3 は既定の戦略で「ディレクトリだけ違う作り直しで構成データまで同じ」だった。Performance_Explore でも、同じ Vivado・同じ入力なら同じ結果が出る見込み（Wide は PE で v1.0.0 と FDRI が同じに作り直せている、PR #74 の 5）
 - **WNS +0.025 ns は余裕が薄い**（proj033 B-1 の注: RTL を少し変えると負に戻る前提で扱う）。M1 は RTL を変えないので M3 は同じ値のはず。M5 の USR_ACCESS・後の一本化で配置が動くと負になりうる。そのときは B-2（記憶のカスケードに段）を study-rfsoc でやり直す（proj033 は書き換えない。新しい proj で）
+
+### M3 の結果（2026-10-31）
+
+この PC で、移植先（`hw/bits/2g-1-fast/`、main 23f05d4 の木 = M2 と同じ RTL・build.tcl）の `make build IMPL=Performance_Explore BUILD_JOBS=8`（`-1`）を回した（48 分）。予言（上の「M3 の心配」）どおり、**ディレクトリだけ違う作り直しで構成データまで同じ**:
+
+| | 移植元（proj033-m0 の `build-PE/`） | 移植先（`build-PE/`） |
+|---|---|---|
+| FDRI | 8,608,824 語 / `6bdecddf9a5b0aa2e886ee4944d66f5042324b489fa441eb866c320d1759d8e4` | **同じ** |
+| 構成の流れ（欄 e）の sha256 | `642bb6cbc7c610e391a2ebdd739f49fc3fc22e8c27feca54e21bda7c00c8ef99` | **同じ**（.bit のファイルはヘッダの日付だけ違う） |
+| TIMING（確定） | WNS 0.025345 ns / WHS 0.009647 ns | **同じ** |
+| 資源・CDC | LUT 70,248・FF 123,411・DSP 628・BRAM 586.5・URAM 48、CDC-3 60・CDC-6 2・CDC-15 3,137 | `drc.rpt` 以外の報告 14 個が見出しの行（日付・ホストなど）を除いて同じ |
+| ERROR・CRITICAL WARNING | ERROR 2 行（`lane_fft_g21` の `output_width` を読む既知の 2 行、ビルドは続く）・CRITICAL WARNING 3 行 | 同じ |
+
+- **`.hwh`** は sha256 が違う（`a53cea06…92ab`）。違うのは TIMESTAMP と、係数とひねり係数の hex 4 個の絶対パス（`…/rfsoc/proj033/src/g21/` ↔ `…/YATSUGATAKE-wide/hw/bits/2g-1-fast/src/g21/`）だけ
+- **`drc.rpt`** は、RTSTAT-10（ロードの無いネット **31 本**）の「最初の 15 本」の並びが 1 本入れ替わった（`m00_w_node` ↔ `s00_ar_node`）だけ。本数と残りの行は同じ。並びはツールの出し方で、構成データには効かない（FDRI が同じ）
+- a12715d の注釈 1 行（`g21_s45_core.v`）は FDRI を変えなかった（M0 の見込みどおり）
+- `bitinfo.py`（`sw/pynq/`）で読んだ。USR_ACCESS は焼いていない（M5 で入れる）。.bit は git に入れない（ADR 0018）
 
 ### PS（M5、2G-4 の M5 と違うところ）
 
