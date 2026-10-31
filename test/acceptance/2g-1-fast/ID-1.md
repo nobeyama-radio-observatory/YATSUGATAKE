@@ -15,3 +15,4 @@ python3 specctl.py --host $B ID STATUS | tee id1.txt
   - AXI_MAX_PIPELINE 0x0102。`--fast` なら libs45fast.so は「CRC: 命令」
 - **陽性対照**: proj024 の bit（PROJ 0x0024_0100、同じ (11, 1)。ボードの `~/proj024/proj024.bit`）で起こすと、ID の proj が **00240100**・usr none になる。G21Backend は PROJ を照らさない（移植の M5 の決めること 4 で案 A、2026-10-31）ので START は通る。M5 で確かめた（proj 00240100・usr none、20 本の取得は照合 通過）
 - **記録**: proj033 R-1（2026-10-28、4 回）: ID proj 00330100・adc 020b0101・time 020b0102、START が通った、health 0・flags 0x0。timebase は「未較正」（proj033 は CAL を R-5 の後に足した）
+- **YATSUGATAKE M6**（2026-10-31 02:51 UTC、ボード `~/2g-1-fast-m6`・M5 の bit（usr 24150230）・`--prefault --fast --fast-ring`・tcal board）: **通過**。ID adc 020b0101・time 020b0102・proj 00330100・kind g21・usr 24150230・tcal board・lmx_pwr 3、IDLE・time_ok 1・health 0x0000・flags 0x000。陽性対照は M5 で確かめた（上）
