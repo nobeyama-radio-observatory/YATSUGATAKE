@@ -14,7 +14,7 @@
 - SAM45-Wide の bit（`proj023.bit`・`.hwh`）と `sw/pynq/` の全部（[`install.md`](install.md)）
 - 1PPS の分配器（5 分配以上）と、分配器から ADC_A〜D までの**同じ長さ**のケーブル 4 本（ケーブルの差は較正にそのまま入る）
 
-SAM45-Fine と 2G-4 は ADC → コアの道が SAM45-Wide と同じ（道 1）なので、Wide の bit で測ったファイルがそのまま当たる（2G-4 の bit で測り直さない。測るまでは 2G-4 には `CAL[(3, 1)]` が暫定で当たる、bound 50 ns）。
+SAM45-Fine・2G-4・2G-1-Fast は ADC → コアの道が SAM45-Wide と同じ（道 1）なので、Wide の bit で測ったファイルがそのまま当たる（2G-4・2G-1-Fast の bit で測り直さない。測るまでは 2G-4 には `CAL[(3, 1)]` が暫定で当たる、bound 50 ns。2G-1-Fast は `CAL` に行が無いので `CAL[(1, 1)]` が暫定で当たる）。
 
 ## 配線 P
 
@@ -54,7 +54,7 @@ specd を起こし直し、制御 PC から `ID` に `tcal=board`、`GET CAL` �
 ## TP の dBm の較正
 
 STATUS の `tp_dbm` と START の EVENT の係数（ADC の口の dBm への換算）。**観測の強度の較正には使わない**（チョッパーホイールがする）ので、無くても運転できる（dBFS は出る）。
-係数はボードの個体の値で、ボードの `/etc/yatsugatake/tp_cal.json`（環境変数 `YATSUGATAKE_TP_CAL`）にだけ置く（[ADR 0025](../decisions/0025-tp-calibration-per-board.md)）。鍵は時刻と同じボードの印と ADC の道。2G-4 も道 1 で同じ係数が当たる（2026-10-30、同じ日・同じ配線で Wide との dBFS − PM の差 0.01〜0.03 dB）。
+係数はボードの個体の値で、ボードの `/etc/yatsugatake/tp_cal.json`（環境変数 `YATSUGATAKE_TP_CAL`）にだけ置く（[ADR 0025](../decisions/0025-tp-calibration-per-board.md)）。鍵は時刻と同じボードの印と ADC の道。2G-4 も道 1 で同じ係数が当たる（2026-10-30、同じ日・同じ配線で Wide との dBFS − PM の差 0.01〜0.03 dB）。2G-1-Fast も道 1 で同じ係数が当たる（`tp_dbm` が出る。パワーメーターとの照合は M6 では測っていない）。
 
 測り方（ノイズソース ＋ パワーメーター、specd を動かしたまま。制御 PC か ボードの Jupyter で。手順と線は [`../spec/units.md`](../spec/units.md)・判定 P-8）:
 

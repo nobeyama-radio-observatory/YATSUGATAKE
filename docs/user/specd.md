@@ -9,13 +9,13 @@ ssh xilinx@<board>
 cd ~/sam45-fine-<版>                # bit の版ごとのディレクトリ（install.md）
 ls /dev/shm                       # 前の specd の残り（psm_*）があれば消す: sudo rm /dev/shm/psm_*（kill -9 で落としたときなど）
 sudo -E $(which python3) specd.py --clkin 0 --ref 10 --bits bits.json
-sudo -E $(which python3) specd.py --bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring   # 2G-4（--bit 2g-4 か bits.json の default）
+sudo -E $(which python3) specd.py --bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring   # 2G-4・2G-1-Fast（--bit 2g-4 / 2g-1-fast か bits.json の default）
 ```
 
 - `sudo -E $(which python3)`: pynq の venv の python3 を root で動かす。`sudo python3` だとシステムの python3 になり、`ModuleNotFoundError: No module named 'pynq'` で止まる
 - `--clkin 0 --ref 10`: CLK_IN の 10 MHz を基準にする（既定の `stock` はボードの水晶）。45m と試験台はこれ
 - `--bits bits.json`: LOAD で許す bit の一覧（[`install.md`](install.md)）。起こすときの bit は `--bit <名前>`（既定は bits.json の `default`）
-- **2G-4 は `--prefault --fast --fast-ring`**: SPEC の記録と束ねを C（`libs45fast.so`）で、リングの上から写さずに作る（`--prefault` は溜まりの全ページを起動時に触る）。無いと tint 20.48 ms が追いつかない。先にボードの準備（AXI_MAX_PIPELINE 0x0102・`build_fast.sh` で「CRC: 命令」、[`install.md`](install.md)）。起きるときに係数 URAM を書いて VERIFY する（ログに「係数 URAM」の行、CRC 0x891be197）。リングは 2G の既定の 64 MiB、LMX2594 の出力の強さは PWR 3（`ID` の `lmx_pwr`）
+- **2G-4・2G-1-Fast は `--prefault --fast --fast-ring`**（2G-1-Fast の係数は bit の ROM なので URAM の書き込みは無い）: SPEC の記録と束ねを C（`libs45fast.so`）で、リングの上から写さずに作る（`--prefault` は溜まりの全ページを起動時に触る）。無いと tint 20.48 ms が追いつかない。先にボードの準備（AXI_MAX_PIPELINE 0x0102・`build_fast.sh` で「CRC: 命令」、[`install.md`](install.md)）。起きるときに係数 URAM を書いて VERIFY する（ログに「係数 URAM」の行、CRC 0x891be197）。リングは 2G の既定の 64 MiB、LMX2594 の出力の強さは PWR 3（`ID` の `lmx_pwr`）
 - 起きるまで数十秒（bit を載せ、RFDC と LMK/LMX を立て、1PPS を待つ）。ログに制御の口とデータの口を開いた行が出たら使える
 - TP の較正ファイル（既定 `/etc/yatsugatake/tp_cal.json`、環境変数 `YATSUGATAKE_TP_CAL` か `--tp-cal`）が無い・別のボードのものなら、TP の dBm は出ない（dBFS は出る）。[`calibration.md`](calibration.md)
 - 時刻の較正ファイル（既定 `/etc/yatsugatake/time_cal.json`、環境変数 `YATSUGATAKE_TIME_CAL`）が無い・別のボードのものなら、時刻は開発の値（暫定）で動く。`ID` の `tcal` が `board` / `provisional`（[`calibration.md`](calibration.md)）
@@ -31,7 +31,7 @@ sudo -E $(which python3) specd.py --bits bits.json --clkin 0 --ref 10 --prefault
 | `ID` | 自己記述（bit の種類と版、ADC・窓の数、記録の版、時刻の較正の印 `tcal`、ボードの印 `board`）。置いた bit が思ったものかをまず見る |
 | `STATUS` | 今の状態（下の表） |
 | `GET` / `GET CAL` | 今の設定 / 今の bit に当てている較正（時刻・TP） |
-| `SET key=val …` | 設定。`tint`・`cfg`・窓ごとの `A0.if` `A0.ns` `A0.bw` `A0.shift` `A0.bundle`・全部の `all.shift` など（SAM45-Fine）。SAM45-Wide・2G-4 のキーは下。**specd を起こし直すまで残る** |
+| `SET key=val …` | 設定。`tint`・`cfg`・窓ごとの `A0.if` `A0.ns` `A0.bw` `A0.shift` `A0.bundle`・全部の `all.shift` など（SAM45-Fine）。SAM45-Wide・2G-4・2G-1-Fast のキーは下。**specd を起こし直すまで残る** |
 | `ANCHOR` | 時刻の錨を取り直す（1PPS とビートの対応） |
 | `START [at=<UTC>] [n=<ダンプ数>] [force=1]` | 取得を始める。`at` は ISO 8601 か unix 秒、`n` を省くと STOP まで。時刻を答えられないときは断る（`force=1` で時刻なしで取る） |
 | `STOP` | 取得を止める |
@@ -67,6 +67,18 @@ SAM45-Wide は全帯域の FFT（32768 点）の ch を ADC ごとに B 個ず�
 
 既定は `A0.src=A B0.src=B C0.src=C D0.src=D shift=7 fmt=f32`・tint 40.96 ms。例（M6 の判定の設定）: `SET tint=0.02048 A0.src=A B0.src=B C0.src=C D0.src=D shift=7 fmt=f32`。PL のダンプは 10.24 ms で、tint はその倍数を specd が束ねる。
 
+### 2G-1-Fast の SET
+
+2G-1-Fast は 1 コアが全帯域の FFT（131072 ch・15.625 kHz）を出し、窓 A0 の 1 本の流れにする（A1〜D1 は `ERR`）。
+
+| キー | 意味 |
+|---|---|
+| `src`（`A0.src`） | コアの入力の ADC（A〜D か 0〜3）。次の WRST（START）で効く |
+| `shift`（`A0.shift`・`all.shift`） | SHIFT |
+| `tint`・`fmt`・`cfg` | Fine と同じ。ただし **tint は 20.48 ms 以上**（float32 の中身 131072 × 4 B / tint。2G-4 と同じ量）。`SET tint=0.01024` は `ERR ARG … 51.2 MB/s …` で断る |
+
+既定は `src=A shift=7 fmt=f32`・tint 40.96 ms。例（M6 の判定の設定）: `SET src=A shift=7 tint=0.02048 fmt=f32`。TP は FULL の TP（src の ADC）とコアの TP（ADC_A）の 2 本で、src が A なら 1 本。
+
 ## STATUS の見方
 
 | 鍵 | 意味 | 見るところ |
@@ -80,8 +92,8 @@ SAM45-Wide は全帯域の FFT（32768 点）の ch を ADC ごとに B 個ず�
 | `seq`・`drop`・`sent` | 記録の番号・捨てた数・送った数 | `drop` は 0 |
 | `buf_used_mb` / `buf_cap_mb` | 溜まり | 受け側が止まると増える。満ちると捨てる（DROP） |
 | `health`・`flags` | 健全性のビット | ビットの意味は [`../spec/interface.md`](../spec/interface.md) |
-| `bund_r`（SAM45-Wide・2G-4） | 流れごとの束ねの見張り r | 1,048,576（2·G）。違えば束ねの区切りがずれている |
-| `pl_drop`・`pl_crc`・`pl_err`・`pl_peak` | PL のリングの落ち・CRC の不一致・異常・リングの山 | 0・0・0。2G-4 の `pl_peak` は 20.48 ms の運転で ≒ 3 MB、リング 64 MiB を越えると落ちる |
+| `bund_r`（SAM45-Wide・2G-4・2G-1-Fast） | 流れごとの束ねの見張り r | 1,048,576（2·G）。違えば束ねの区切りがずれている |
+| `pl_drop`・`pl_crc`・`pl_err`・`pl_peak` | PL のリングの落ち・CRC の不一致・異常・リングの山 | 0・0・0。2G-4 の `pl_peak` は 20.48 ms の運転で ≒ 3 MB、2G-1-Fast は ≒ 2 MB、リング 64 MiB を越えると落ちる |
 | `send`・`data_client` | 送っているか・データの口の相手 | |
 
 ## 止める
@@ -102,6 +114,6 @@ python3 specctl.py --host <board> "SHUTDOWN confirm=1"    # 制御 PC から
 | `ERR BUSY` | 制御の口は 1 接続だけ。s45client を開いていないか。specctl に複数の命令をまとめて貼らず、1 行ずつ前が終わってから |
 | 受け側を閉じた後の次の記録の頭に、前の RUN のダンプが入る | 受け側を閉じる前に `STOP` する（溜まりに残った分を specd が次の受け側に送る） |
 | `buf_used_mb` が増え続ける | 受け側（specrecv）が止まっている・ACK が返っていない |
-| 2G-4 で `miss`・`pl_drop` が出る・`loop_max_ms` が tint を越え続ける | AXI_MAX_PIPELINE が 0x0102 か・`build_fast.sh` が「CRC: 命令」か・`--fast --fast-ring` で起こしたか（[`install.md`](install.md)）。1 周の内訳は specd を `--loop-log-ms 0.1` で起こし、ログを `python3 loopsum.py <ログ> --nwin 4`（20.48 ms で 1 周の計 ≒ 13 ms）。空のリングから PS が ≒ 0.65 s 止まると落ちる |
+| 2G-4・2G-1-Fast で `miss`・`pl_drop` が出る・`loop_max_ms` が tint を越え続ける | AXI_MAX_PIPELINE が 0x0102 か・`build_fast.sh` が「CRC: 命令」か・`--fast --fast-ring` で起こしたか（[`install.md`](install.md)）。1 周の内訳は specd を `--loop-log-ms 0.1` で起こし、ログを `python3 loopsum.py <ログ> --nwin 4`（2G-1-Fast は `--nwin 1`。20.48 ms で 1 周の計 2G-4 ≒ 13 ms・2G-1-Fast ≒ 7 ms）。空のリングから PS が ≒ 0.65 s 止まると落ちる |
 | 2G-4 の `START` が係数 URAM で断られる | 係数 URAM の OK が落ちている（書き直し・VERIFY の途中）。specd を起こし直す（起きるときに書いて VERIFY する）。bit の隣に `g24_coef_lo.hex`・`g24_coef_hi.hex` があるか |
 | 起こせない・`/dev/shm` が満ちる | 前の specd の残り `psm_*` を消す |
