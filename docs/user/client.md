@@ -65,3 +65,5 @@ s.plot("A0"); s.check(); s.close()
 SAM45-Wide の記録（SLICE）は、ch の並びが IF の昇順で、軸は記録の `if_mhz`（送る 2047 番目の ch の IF）と `df_hz`（125 kHz·B）から **IF(i) = if_mhz ＋ (i − 2047)·df** で作る（Fine の窓と同じ式。`ns` の欄は log2 B）。Fine と Wide を `LOAD` で切り替えた記録は 1 本に混ざってよく、受け側は記録ごとに kind を読む。解析の道具のうち `s45spur.py rec` は Wide の軸を読まない（Wide の櫛のスプリアスは `widecomb.py`）
 
 2G-4 の記録（FULL、kind 1）は窓 A0〜D0（コア 0〜3）・nch 32768・df 62.5 kHz で、ch の並びは IF の昇順（送る i = 32767 − c、ch c の IF = 4096 − c·df MHz）。軸は Wide と同じ式 **IF(i) = if_mhz ＋ (i − 2047)·df**（`s45client.if_axis`）。記録の `src` がそのダンプの入力の ADC。s45client が手元に残すダンプの数は ch の数で割る（窓ごとに 62）。受けは tint 20.48 ms で ≒ 25 MB/s（30 分で ≒ 44 GB）なので、`specrecv --out` の置き場所の空きを見る。記録の確かめは `g24cw.py`（頭の欄・床・CW の ch と IF。`--same` で同じ ADC を入れた 4 窓が bit 単位で同じか）、tint をまたいだ束ねのレベルは `level.py`
+
+2G-1-Fast の記録（FULL、kind 1）は窓 A0 の 1 本・nch 131072・df 15.625 kHz で、ch の並びは IF の昇順（送る i = 131071 − c、ch c の IF = 4096 − c·df MHz）。軸は 2G-4 と同じ式 **IF(i) = if_mhz ＋ (i − 2047)·df**（`s45client.if_axis`）。記録の `src` がそのダンプの入力の ADC。s45client が手元に残すダンプの数は ch の数で割る（15）。受けの量は 2G-4 と同じ（tint 20.48 ms で ≒ 25 MB/s）。記録の確かめは `g21cw.py`（頭の欄・床・CW の ch と IF。`--sg-mhz` で CW、`--posctl` で軸の向きの陽性対照）
