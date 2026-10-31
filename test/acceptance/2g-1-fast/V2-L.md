@@ -15,3 +15,4 @@ python3 specctl.py --host $B STATUS STOP
 - **陽性対照**: V2-b の陽性対照（同じ見張り）
 - **記録**: なし（proj024・proj033 とも 30 分まで。**M6 で初めて回す**、M0 の決めること 3）。参考: proj033 R-3（tint 40.96 ms・30 分）の VCCINT 13.27〜13.82 A・40〜46 ℃ で平ら
 - 注意: 受けが `--seconds` で先に切れると、STOP までの間に specd の溜まりが満ちて STATUS の drop が増える（2G-4 の proj036 R-4 で 903）。drop は受けの終わりの前の STATUS で読む
+- **YATSUGATAKE M6**（2026-10-31 03:32〜05:32 UTC、配線 N/S・ノイズ ON・src A、M5 の bit・`--prefault --fast --fast-ring`・tcal board、amslog 10 s ごと）: **通過**。7,200 s・SPEC 351,541・176.0 GB（24.4 MB/s）・CRC・欠け・説明のない欠け・dup・kgap・tdev・tp_gap 0・照合 通過・health・flags・sat 0。毎分の STATUS 118 回とも miss・drop・pl_drop・pl_crc・pl_err 0・loop_slow 0、AXI 毎分 0x0102（前・後とも）。loop_max 7.05 ms・p99 5.4 ms・pl_peak 2.1 MB。受けの終わりの直後の STATUS で drop 0・inflight 0。**VCCINT 13.27〜13.81 A**（INA220 0x40、前 1/4 の平均 13.53・後 1/4 13.51 A）、PL の温度（temp20）41.9〜45.6 ℃（前 1/4 43.84・後 1/4 43.69 ℃）。ボードは落ちなかった

@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-1-fast/m4`。ID・H-0・tint 40.96 ms で 300 s が proj033 R-1・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。**M5 済み**（2026-10-31、ブランチ `2g-1-fast/m5`。決めること 4 は案 A（PROJ を照らさない）、ADC の道は共通、USR_ACCESS を焼いた bit で M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。次は M6（判定を全部通す）
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-1-fast/m4`。ID・H-0・tint 40.96 ms で 300 s が proj033 R-1・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。**M5 済み**（2026-10-31、ブランチ `2g-1-fast/m5`。決めること 4 は案 A（PROJ を照らさない）、ADC の道は共通、USR_ACCESS を焼いた bit で M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。**M6 済み**（2026-10-31、ブランチ `2g-1-fast/m6`。判定 7 つが通過、性能評価 [`performance/2g-1-fast/v1.0.0.md`](performance/2g-1-fast/v1.0.0.md)。下の「M6 の結果」）。次は M7（リリース）
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -148,7 +148,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 | M3 | ビルド（`-1`、**`IMPL=Performance_Explore`**） | **FDRI が移植元と同じ**（`6bdecddf…d8e4`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.025345 / +0.009647）（**2026-10-31**: 下の「M3 の結果」） |
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値（**2026-10-31**: 下の「M4 の結果」） |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-1-Fast に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS は FDRI の外なので FDRI は変わらず、構成の流れが変わる。2G-4 の M5 と同じ）（**2026-10-31**: 下の「M5 の結果」） |
-| M6 | 2G-1-Fast の判定（`test/acceptance/2g-1-fast/`）を全部通し、性能評価を書く | `docs/performance/2g-1-fast/<版>.md` |
+| M6 | 2G-1-Fast の判定（`test/acceptance/2g-1-fast/`）を全部通し、性能評価を書く | `docs/performance/2g-1-fast/<版>.md`（**2026-10-31**: 下の「M6 の結果」） |
 | M7 | spec・design・user の 2G-1-Fast の分を書き、リリース | `release.md` |
 
 ### M3 の心配（M3 の前に書く）
@@ -245,6 +245,26 @@ M3 で作った bit（FDRI `6bdecddf…d8e4`）と `sw/pynq/`（63 個、ボー�
 
 - AXI_MAX_PIPELINE は起こす前（3 回とも）と後で 0x0102
 - 記録: 制御 PC の作業用のディレクトリ（`id1.txt`・`h0*`・`net.txt`・`netp.txt`・`v2b*`・`id1p*`）、ボードの `~/2g-1-fast-m5/runs/`（specd のログ 3 本・`axi_*.txt`）。`.s45` は照合が済んだので消してよい
+
+### M6 の結果（2026-10-31、ブランチ `2g-1-fast/m6`）: 判定 7 つが通過
+
+ボードの `~/2g-1-fast-m6`（M5 の bit・hwh・`sw/pynq/`、`.py` は手元と sha256 で同じ）。specd は root で `--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring`（V2-b・RING は `--loop-log-ms 0.1` を足す）。配線は切り替えず N/S・ATT 13 dB、H-2 だけ `instr.py ns off / on`（ADR 0024）。数字は各判定の記録（`test/acceptance/2g-1-fast/`）と [`performance/2g-1-fast/v1.0.0.md`](performance/2g-1-fast/v1.0.0.md)
+
+| ID | 時刻（UTC） | 結果 |
+|---|---|---|
+| ID-1 | 02:51 | usr 24150230・tcal board・health・flags 0。**通過** |
+| H-0 | 02:51 | 照合 通過・`g21cw` 全部通過・床 1.51e3・TP −31.45 dBFS、陽性対照 NG。**通過** |
+| NET | 02:51 | 10.24 ms は ERR、20.48 ms は OK。**通過** |
+| H-2 | 02:52〜02:53 | 4 点とも番号一致・0.0 Hz、ピーク / 中央値 − TP 111.14〜111.23 dB、`--posctl` で 4 点とも落ちる。**通過** |
+| V2-b | 02:54〜03:24 | SPEC 87,869・欠け 0・毎分の STATUS・AXI に異常なし・1 周の計 7.31 ms。**通過** |
+| RING | 03:25〜03:29 | 0.3 s で落ち 0・山 40.9 MB、0.8 s で pl_drop 66・kgap 1 が BDROP で説明。**通過** |
+| V2-L | 03:32〜05:32 | SPEC 351,541・176.0 GB・欠け 0、毎分 118 回とも異常なし、VCCINT 13.27〜13.81 A・temp20 41.9〜45.6 ℃ で平ら。**通過** |
+| V2-b の陽性対照 | 05:33 | `--posctl-ring-stall 8`・40 s: kgap 1・tdev 0・説明のない欠け 0・pl_drop 1,425。**ボードは固まらなかった**（2G-4 の M6 の固まりは起きず） |
+
+- AXI_MAX_PIPELINE は起こす前・後・V2-b と V2-L の毎分で 0x0102
+- 受けの「照合: 失敗」は RING と V2-b の陽性対照だけ（kgap > 0 のときの決まり。説明のない欠けは 0）
+- 終わりの機器: ノイズソース ON（15.00 V・512 mA）・ATT 13 dB・SG 出力 OFF、specd・amslog は止めた
+- 記録: 制御 PC の作業用のディレクトリ（`id1.txt`・`net.txt`・`h0*`・`h2_*`・`v2b*`・`ring*`・`v2l*`・`posctl*`）、ボードの `~/2g-1-fast-m6/runs/`（specd のログ・`axi_*.txt`・`v2l.ams.log`）。`.s45` は照合が済んだので消した。STATUS の `data_client`・`data_drop` は伏せた
 
 ## 判定（`test/acceptance/2g-1-fast/`、2026-10-30 に書き起こした）
 

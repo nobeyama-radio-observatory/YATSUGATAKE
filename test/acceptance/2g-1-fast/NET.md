@@ -11,3 +11,4 @@ python3 specctl.py --host $B "SET tint=0.01024" GET "SET tint=0.02048" GET
 - **陽性対照**: specd を **`--net-budget-mbs 0`**（照合を外す）で起こし直し、同じ手順で `SET tint=0.01024` が OK・GET が 0.01024
 - **PL なしの照合**: `bash test_fake.sh net`（2G-1 の 10.24 ms が ERR・20.48 ms が OK を含む）と `netp`（照合なしで通る）
 - **記録**: なし（2G-1-Fast の bit では M6 で初めて回す）。参考: 2G-4 の M5・M6 で同じ文の ERR、`test_fake.sh net` は 2G-1 の分も通過
+- **YATSUGATAKE M6**（2026-10-31 02:51 UTC、ボード `~/2g-1-fast-m6`・M5 の bit（usr 24150230）・`--prefault --fast --fast-ring`・tcal board）: **通過**。`SET tint=0.01024` → `ERR ARG tint 0.01024 s では float32 で 51.2 MB/s（予算 30 MB/s を越える。INTERFACE 4.5）。この構成の tint の最小は 0.02048 s`、直後の GET は 0.04096 のまま、`SET tint=0.02048` は OK・GET 0.02048。陽性対照（`--net-budget-mbs 0`）は M5 で通した（10.24 ms が OK）
