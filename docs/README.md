@@ -11,7 +11,7 @@
 | [`performance/`](performance/) | **どれだけ出ているか**（性能評価） | リリースごとに 1 本。過去のものは書き換えない |
 | [`user/`](user/) | **どう使うか** | 使い方が変わったら更新 |
 | [`migration.md`](migration.md) | study-rfsoc からの移植の手順と合否 | 移植が終わったら完了と書いて残す |
-| [`migration-sam45-wide.md`](migration-sam45-wide.md)・[`migration-2g-4.md`](migration-2g-4.md)・[`migration-2g-1-fast.md`](migration-2g-1-fast.md) | SAM45-Wide・2G-4・2G-1-Fast の移植（Fine・2G-4 と違うところだけ） | 同上 |
+| [`migration-sam45-wide.md`](migration-sam45-wide.md)・[`migration-2g-4.md`](migration-2g-4.md)・[`migration-2g-1-fast.md`](migration-2g-1-fast.md)・[`migration-2g-2.md`](migration-2g-2.md) | SAM45-Wide・2G-4・2G-1-Fast・2G-2 の移植（Fine・2G-4 と違うところだけ） | 同上 |
 | [`release.md`](release.md) | リリースと版の付け方 | |
 | [`publishing.md`](publishing.md) | 公開前の確かめ | |
 
