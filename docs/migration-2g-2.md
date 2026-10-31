@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-2）
 
-- 状態: **M0 済み**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31、PR #88）。**M1 済み**（2026-10-31、ブランチ `2g-2/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-2/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-2/m3-build`。既定の戦略の作り直しで FDRI・WNS / WHS まで移植元と同じ。下の「M3 の結果」）
+- 状態: **M0 済み**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31、PR #88）。**M1 済み**（2026-10-31、ブランチ `2g-2/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-2/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-2/m3-build`。既定の戦略の作り直しで FDRI・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-2/m4`。ID・H-0・EQ-2・tint 40.96 ms で 300 s が proj034 R-1・R-1c・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）
 - 移植元: **`study-rfsoc@proj034-m0`**（注釈つきタグ、commit c8b90cb、2026-10-30）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-1-Fast と同じ形）
   - proj034 は proj025-m0（2G-2 の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj025 と同じで、DSP 1,848 → 1,256・LUT 37.1 → 26.9 %・BRAM 759.5 → 635.5・VCCINT（実測）25.1 → 18.8 A
   - 移植元を proj025-m0 から proj034-m0 に替えた（2026-10-30、開発者。proj034 README の「結論・次にやること」）。2G-1-Fast を proj033-m0 に替えたのと同じ
@@ -134,7 +134,7 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 | M1 | 表の行き先に置き、パスと模型の名前だけを直す | `git diff --stat` で中身の変更がパスの行と名前の行だけ。在ってはいけない側の照合（上）（**2026-10-31**: 上の「M1 の結果」） |
 | M2 | sim を全部回す: model-g22・model、sim-g22c・g22t・g22p・g22ch・lane・g22a・g22s・recfr・g22core・g22s45・g22x2・g22ds・sep・all2 | proj034-m0 と同じ変種がすべて通過し、**出力が bit 単位で同じ**。陽性対照が立つ（**2026-10-31**: 下の「M2 の結果」） |
 | M3 | ビルド（`-1`、**既定の戦略**） | **FDRI が移植元と同じ**（`b9dec08c…313f`）。WNS / WHS が移植元と小数 6 桁まで同じ（+0.073585 / +0.009528）（**2026-10-31**: 下の「M3 の結果」） |
-| M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g22`） | ID・H-0・EQ-2・tint 40.96 ms で 300 s 取りこぼし 0 が proj034 R-1・R-1c・R-3 と同じ値。`--fast` の有無を両方回して決める（下の「M4 の予定」） |
+| M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g22`） | ID・H-0・EQ-2・tint 40.96 ms で 300 s 取りこぼし 0 が proj034 R-1・R-1c・R-3 と同じ値。`--fast` の有無を両方回して決める（下の「M4 の予定」）（**2026-10-31**: 下の「M4 の結果」） |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-2 に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS は FDRI の外なので FDRI は変わらず、構成の流れが変わる） |
 | M6 | 2G-2 の判定（`test/acceptance/2g-2/`）を全部通し、性能評価を書く | `docs/performance/2g-2/<版>.md` |
 | M7 | spec・design・user の 2G-2 の分を書き、リリース | `release.md` |
@@ -170,6 +170,27 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 - **`--fast` が要る見込み**: proj034 R-3（tint 40.96 ms・src C・D・TP 4 本）は loop_max 29.7 ms・p99 28.7 ms（1 周で 2 ダンプを抱える形）で、20.48 ms では `--fast` なしは間に合わないおそれがある。2G-4（流れ 4 本）・2G-1-Fast（1 本）は `--fast` ありで 1 周の最長 7 ms 以下だった
 - 比べる値: proj034 R-1・R-2'（床の中央値 A0 3,196〜3,220・B0 3,175〜3,194 @ TP A −31.39〜−31.42・B −31.34〜−31.37 dBFS）、R-1c（50 / 50 組）、R-3（取りこぼし 0・pl_peak 4.6 MB）
 
+### M4 の結果（2026-10-31）
+
+M3 で作った bit（FDRI `b9dec08c…313f`、`.bit` sha256 `34f48b30…20e8a`）と `sw/pynq/`（ボードの写しが手元と sha256 で全部同じ）を、ボードの新しいディレクトリ（`~/2g-2-m4`）に置いた。`build_fast.sh` は「CRC: 命令」。
+載せる前に、別の作業の specd が動いていないこと（/dev/shm 0 %）と機器を読んだ: ATT 13 dB・ノイズソース ON（15.00 V・512 mA）・SG 出力 OFF（配線 N）。機器には触っていない。
+specd を root の ssh で `--g22 --bitfile proj034.bit --clkin 0 --ref 10` で起こし（`/etc/profile.d/` を読んでから）、受けは制御 PC。**specd を 2 回起こし**、1 回目は `--fast` なし（移植元の R と同じ形）、2 回目は `--prefault --fast --fast-ring --loop-log-ms 0.1`（2G-4・2G-1-Fast の形）。それぞれの 1 回の Overlay の中で ID-1 → H-0 → EQ-2 → tint 40.96 ms で 300 s → tint 20.48 ms で 300 s の順に回した（300 s は proj034 R-3 と同じ重い形: src C・D・TP 4 本）:
+
+| | 移植先（M4、`--fast` なし） | 移植先（M4、`--fast` あり） | 移植元の記録（proj034、`--fast` なし） |
+|---|---|---|---|
+| ID-1 | adc 020a0101・time 020a0102・proj 00340100・kind g22・usr none・lmx_pwr 3・**tcal board**、IDLE・time_ok 1・health 0・flags 0 | 同じ | R-1: 同じ ID（tcal は「未較正」） |
+| H-0（A0 A・B0 B × 200） | SPEC 400・CRC 0・説明のない欠け 0・照合 通過・`g22cw` 全部通過（nch 65536・nacc 1280・DUMP_T の進み 10,485,760・2 窓の DUMP_T が揃う）・flags 0・sat 0、陽性対照（`--src CD`）で NG。TP A −31.47・B −31.44 dBFS、床 A0 3.18e3・B0 3.15e3、loop_max 21.0 ms | 同じ（TP −31.49・−31.48、床 3.16e3・3.12e3）、loop_max 12.3 ms・p99 7.6 ms | R-1・R-2': 同じ。TP A −31.39〜−31.42・B −31.34〜−31.37、床 A0 3,196〜3,220・B0 3,175〜3,194、loop_max 20.8〜22.3 ms |
+| EQ-2（C・C fmt=both × 50） | **50 / 50 組**・照合 通過、陽性対照 0 / 49 組（違う ch 65,528〜65,536）。miss・drop 0、**loop_max 106.4 ms・loop_slow 26** | 50 / 50 組、陽性対照 0 / 49 組。**loop_max 16.7 ms・loop_slow 0** | R-1c: 50 / 50 組・陽性対照 0 / 49 組。fmt both の loop_max 72.4 ms・loop_slow 28 |
+| tint 40.96 ms で 300 s | SPEC 14,625・3.69 GB・CRC・欠け・kgap・tdev 0・照合 通過、miss・drop・pl_drop・pl_crc・pl_err・loop_slow・tp_rec_lost 0、**loop_max 30.0 ms**・p99 26.1 ms・pl_peak 13.6 MB | SPEC 14,626・同じ取りこぼし 0、**loop_max 22.2 ms・p99 7.5 ms**・pl_peak 3.2 MB | R-3（30 分）: 取りこぼし 0・loop_max 29.7 ms・p99 28.7 → 22.0 ms・pl_peak 4.6 MB |
+| tint 20.48 ms で 300 s | SPEC 29,255・7.35 GB・取りこぼし 0・照合 通過、**loop_max 68.7 ms・p99 57.4 ms・loop_slow 5,453**・pl_peak 13.6 MB | SPEC 29,261・7.36 GB・取りこぼし 0・照合 通過、**loop_max 22.1 ms・p99 7.5 ms・loop_slow 1**・pl_peak 3.2 MB。**1 周の計 11.71 ms**（`loopsum.py --nwin 2`、1 BASE あたり。周のログの上限 300 周の分） | 回していない |
+
+- AXI_MAX_PIPELINE は起こす前（2 回とも）と後で 0x0102。終わりの機器は前と同じ（ATT 13 dB を読み返した）
+- 床は R-2' より −0.1〜−0.2 dB、TP は −0.05〜−0.1 dB（H-0 の線: TP が ±0.5 dB の内なので床は ±0.7 dB の内で合格）
+- **`--fast` を使うと決めた**（判定の README の持ち越し）: 20.48 ms で `--fast` なしは 1 周の p99 が 57.4 ms（20.48 ms の 2.8 倍）・loop_slow 5,453 で、V2-b の線（1 周の計 ≦ 16 ms・loop_slow ≦ 5）に入らない（リングが吸って取りこぼしは 0）。`--fast` ありは 1 周の計 11.71 ms・p99 7.5 ms。2G-4・2G-1-Fast と同じ形（`--prefault --fast --fast-ring`）で M5 以降と判定を回す
+- **fmt both の重さ（proj034 からの持ち越し）は `--fast` で消えた**（loop_max 106 → 16.7 ms・loop_slow 26 → 0）。`--fast` なしの 106 ms は proj034 の 72〜76 ms より重いが、運転は `--fast` ありなので追わない
+- `--fast` なしの pl_peak 13.6 MB は R-3 の 4.6 MB より大きい（同じ形の 40.96 ms で）。1 周が遅い間にリングに溜まった分で、64 MiB に対して余裕がある。`--fast` ありは 3.2 MB
+- 記録: 制御 PC の作業用のディレクトリ（`id1a/b.txt`・`h0a/b*`・`eq2a/b*`・`l40a/b*`・`l20a/b*` の .json・.status.txt）、ボードの `~/2g-2-m4/runs/`（specd のログ 2 本・`axi_*.txt`）。`.s45` は照合が済んだ 300 s の分を消した
+
 ### PS（M5、2G-1-Fast の M5 と違うところ）
 
 `sw/pynq/` には 2G-4 の M5 で G22 の Backend（`--g22`、proj025 の版）が入っている。proj034 の PS は proj025 の PS から 3 か所だけ変えたもの（`git diff proj025-m0:proj025/pynq proj034-m0:proj034/pynq`、3 ファイル 9 行）。2G-1-Fast の 3 か所と同じ形:
@@ -182,7 +203,7 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 
 ### 持ち越し（proj034 から）
 
-- **fmt both の運転の loop_max 72〜76 ms・loop_slow 26〜28**（tint 40.96 ms、proj025 も同じ。miss・drop 0）。PS の側の話。判定では fmt=both を EQ-2（50 本）にだけ使い、V2-b・V2-L は f32。M4 で `--fast` ありの fmt both の loop_max も記録し、残るなら issue にする
+- **fmt both の運転の loop_max 72〜76 ms・loop_slow 26〜28**（tint 40.96 ms、proj025 も同じ。miss・drop 0）。PS の側の話。→ **M4 で `--fast` ありなら loop_max 16.7 ms・loop_slow 0 と分かったので閉じる**（上の「M4 の結果」）
 - R-1 の loop_max（20.8〜22.3 ms）が proj025 4b（13.4 ms）より重い理由（PS の側。proj025 も同じ）
 
 ## 判定（`test/acceptance/2g-2/`、2026-10-31 に書き起こした）

@@ -13,7 +13,7 @@ ID は 2G-4・2G-1-Fast の判定と同じ意味のものは同じ ID にした�
 - **ファン**: proj027 4f の配置のまま（2G-2 は VCCINT ≒ 19 A）
 - **クロック**: 外部 10 MHz と 1PPS（入口に LPF を常設）。`--clkin 0 --ref 10`
 - **specd**: `sudo -E $(which python3) specd.py --g22 --bitfile proj034.bit --clkin 0 --ref 10`（bits.json の項目なら `"kind": "g22"`）。リング 64 MiB・LMX の PWR 3・予算 30 MB/s の照合は既定。
-  proj034 の R は `--fast` を付けずに回した。**`--fast` を付けるかは M4 で両方回して決める**（proj034 R-3 は tint 40.96 ms で 1 周の p99 28.7 ms。20.48 ms では `--fast` が要る見込み）。記録には付けたかどうかを書く。止めるときは `SHUTDOWN confirm=1` か pid のファイルで
+  proj034 の R は `--fast` を付けずに回した。**M4 で両方回し、`--prefault --fast --fast-ring`（2G-4・2G-1-Fast の形）を付けると決めた**（2026-10-31。tint 20.48 ms で 1 周の p99 が `--fast` なし 57.4 ms・loop_slow 5,453、あり 7.5 ms・1 周の計 11.71 ms。migration の「M4 の結果」）。判定は `sudo -E $(which python3) specd.py --g22 --bitfile proj034.bit --clkin 0 --ref 10 --prefault --fast --fast-ring` で起こす。記録には付けたかどうかを書く。止めるときは `SHUTDOWN confirm=1` か pid のファイルで
 - **ボードと器は別の作業と分け合っている**: specd を起こす前に、別の作業の specd が動いていないか（`pgrep -af "[s]pecd"`）と `ATT?` を読む。ATT が 13 dB でなければ、戻す前に開発者に聞く（100 dB のままだと入力が来ず、TP は ADC の床 −60 dBFS 前後になる。proj034 R-1 で踏んだ）
 - **送り出し**: specd を起こした後、受けを取る前に一度 **`SEND ON`** を打つ。溜まりに残った分は `CLEAR` で捨ててから取り直す。specrecv は同じファイルに足して書くので、取り直すときはファイルを消してから
 - **宛先**: 環境変数 `B`（ボード）・`SG`・`PM`・`ATT`・`RFSOC_NS`。宛先はファイルに書かない。STATUS の `data_client`・`data_drop` には受け手の IP が出るので、記録に残すときは伏せる
