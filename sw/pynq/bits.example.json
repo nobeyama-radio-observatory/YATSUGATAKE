@@ -8,6 +8,8 @@
     "sam45-wide": {"bit": "proj023.bit", "pydir": ".", "kind": "wide",
                 "note": "SAM45-Wide（BIT_KIND 1）。kind は wide（SLICE の流れの取得）。TP の dBm の較正はボードの /etc/yatsugatake/tp_cal.json（ADR 0025）"},
     "2g-4": {"bit": "proj031.bit", "pydir": ".", "kind": "g24",
-                "note": "2G-4（BIT_KIND 3）。kind は g24（FULL の流れ 4 本の取得）。bit の隣に係数の hex（g24_coef_lo.hex・g24_coef_hi.hex）。specd は --fast --fast-ring（build_fast.sh で libs45fast.so）"}
+                "note": "2G-4（BIT_KIND 3）。kind は g24（FULL の流れ 4 本の取得）。bit の隣に係数の hex（g24_coef_lo.hex・g24_coef_hi.hex）。specd は --fast --fast-ring（build_fast.sh で libs45fast.so）"},
+    "2g-1-fast": {"bit": "proj033.bit", "pydir": ".", "kind": "g21",
+                "note": "2G-1-Fast（BIT_KIND 11）。kind は g21（FULL の流れ 1 本・131072 ch）。係数は bit の中の ROM（hex は要らない）。specd は --prefault --fast --fast-ring（build_fast.sh で libs45fast.so）"}
   }
 }

@@ -201,6 +201,21 @@ M3 で作った bit（FDRI `6bdecddf…d8e4`）と `sw/pynq/`（63 個、ボー�
 
 ほかに 2G-4 の M5 で入れたもの（予算の照合 `check_net`・リング 64 MiB・LMX の PWR 3・ボードの印）は G21 にも効いている。2G-1-Fast で確かめるのは M4〜M6 の回帰で
 
+### M5 でしたこと（2026-10-31、ブランチ `2g-1-fast/m5`）
+
+- **決めること 4 → 決め（2026-10-31、開発者が案 A）: PROJ は照合しない**。`s45core.PROJ_G21` を 0x0033_0100 に直し、「追跡のため。照合には使わない」と注釈した。G21Backend は今までどおり (BIT_KIND 11, BIT_REV 1) で開く
+  - 理由: bit の約束は (BIT_KIND, BIT_REV) で、振る舞いが変わるなら BIT_REV を上げる（interface 2.4）。proj024 と proj033 はレジスタの並び・頭の欄・ch の並び・精度が同じ（違うのは電力とタイミングの余裕）。Fine・Wide・2G-2 も PROJ を照らさない。2G-4 の `g24cu` が PROJ を照らすのは PS が書く係数の表と bit の対のためで、2G-1-Fast の係数は bit の中の ROM
+  - 取り違えは bits.json（bit を名前で指す）と、記録の `ids.proj`・`usr` で分かる。ID-1 の陽性対照は「proj024 の bit を載せると ID の proj が 00240100 になる」
+- **ADC → コアの道は共通の道**（`timebase.ADC_PATH` に (11, 1) を足さない。注釈だけ足した）: 道の RTL（gb_adc・gb_gate・raw_core・adc_ev・time_core・axis_sel4）は `hw/common/` の同じファイル。RFDC のセルの組み立て（build.tcl の 120 行、注釈を除く）が 2G-4・Wide と同じ、fs 4.096 GSPS・spw_adc 12 → spw 16 が同じ。**ビルドの `rfdc_params.rpt`（RFDC IP の CONFIG 869 行）が Wide の build-PE と 1 行も違わない**。proj033 の F-2 の M 68.5〜70.2 ns も Wide と ±1.4 ns。M4 の `tcal=board` はこれで正しい
+- **USR_ACCESS のフック**（M5b、Fine・Wide・2G-4 と同じ）: Makefile に 12 行・build.tcl に 22 行（2G-4 の行をそのまま）。RTL・制約は変えない
+- `bits.example.json` に `"2g-1-fast"`（`"kind": "g21"`）。PC で `test_fake.sh`・`test_timecal`・`test_tpcal`・`test_nch` が全部通過
+
+### M5 の予言（作り直しと回し直しの前に書いた、2026-10-31）
+
+1. **M2 の回し直し**: `make sim-all` が 15 個とも通過。`build-sim/` は M2 の出力と、iverilog の `tb` の番地（`0x…`）を除いてバイト単位で同じ（RTL も sim も変えていない）
+2. **M3 の焼き直し**（`make build IMPL=Performance_Explore`、この commit の木）: USR_ACCESS が commit（汚れ 0）。**FDRI は M3 と同じ**（`6bdecddf…d8e4`。USR_ACCESS は FDRI の外）、構成の流れの sha256 は変わる。WNS / WHS は M3 と小数 6 桁まで同じ（0.025345 / 0.009647）。報告は drc.rpt の並びの入れ替わりのほかは同じ。外れて WNS が負になったら、作り直しはやめて決め直す（「M3 の心配」）
+3. **M4 の回し直し**（ボードの新しいディレクトリ `~/2g-1-fast-m5`、specd は `--bits bits.json --clkin 0 --ref 10 --prefault --fast --fast-ring --loop-log-ms 0.1`、`--g21` なし）: ID の `usr` が commit・`tcal=board`、H-0 通過（床は M4 と ±0.1 dB）、NET（10.24 ms は ERR・20.48 ms は OK、陽性対照 `--net-budget-mbs 0` で 10.24 ms が OK）、tint 20.48 ms で 300 s 取りこぼし 0・1 周の計 ≦ 16 ms（`loopsum.py`）。ID-1 の陽性対照: ボードの proj024 の bit で起こすと ID の proj が 00240100
+
 ## 判定（`test/acceptance/2g-1-fast/`、2026-10-30 に書き起こした）
 
 2G-4 の判定から 2G-1-Fast に当たるものを選んだ。ID は 2G-4 と同じ意味のものは同じ ID にする。
@@ -223,4 +238,4 @@ M3 で作った bit（FDRI `6bdecddf…d8e4`）と `sw/pynq/`（63 個、ボー�
 1. **`s2_*` を `hw/common/` に上げるか** → **決め**（2026-10-30）: M1 では bit ごとに置き、2G-2 の移植の後に `s2_sep`・`s2_q` だけを 1 本にする（上の「s2_* の扱い」）
 2. **proj033 の `model/s2_model.py` の置き場所** → **決め**（2026-10-30）: `model/s2_model_g21.py` に名前を替える（上の「模型の名前」）
 3. **2 時間と tint 20.48 ms の 30 分を、始める条件にするか M6 で回すか** → **決め**（2026-10-30）: M6（V2-L・V2-b）。2G-4 は study-rfsoc で先に回したが、2G-1-Fast は電流が 2G-4 の半分以下で、取得の量は 2G-4 と同じ 25.6 MB/s（2G-4 で 30 分・2 時間とも通っている）。study-rfsoc で先に回すなら、proj033 は書き換えないので新しい proj の R にする
-4. **G21Backend で PROJ を照らすか**（上の「PS」の 1）→ M5 で
+4. **G21Backend で PROJ を照らすか**（上の「PS」の 1）→ **決め**（2026-10-31、案 A）: 照らさない（上の「M5 でしたこと」）

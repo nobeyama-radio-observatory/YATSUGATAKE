@@ -30,7 +30,13 @@ ifneq ($(IMPL),)
 endif
 # launch_runs -jobs（効くのは OOC 合成だけ）。ビルドサーバの nproc = 32 に合わせてある
 BUILD_JOBS ?= 30
-export BOARD_REPO PART OUTDIR GB_K IMPL
+# YATSUGATAKE M5b（2G-1-Fast の M5、Fine・Wide・2G-4 と同じフック）: .bit の USR_ACCESS に焼く値（docs/migration.md の M5b）。[31:4] commit の短いハッシュ 7 桁・[3:1] 0・
+#   [0] 追跡しているファイルに未コミットの変更がある。make を始めた時点で 1 回だけ決める。USR_ACCESS=none で焼かない（比べのため）
+ifeq ($(origin USR_ACCESS),undefined)
+  USR_ACCESS := $(shell h=$$(git rev-parse --short=7 HEAD 2>/dev/null | cut -c1-7); \
+                  [ $${#h} = 7 ] && printf '0x%s%s' $$h $$(git status --porcelain --untracked-files=no | grep -q . && echo 1 || echo 0))
+endif
+export BOARD_REPO PART OUTDIR GB_K IMPL USR_ACCESS
 PYTHON        ?= python3
 IVERILOG      ?= iverilog
 VVP           ?= vvp
@@ -45,8 +51,12 @@ model-g21:
 # Vivado サーバ: 2G-1-Fast の .bit（B-1。合成〜ビットストリーム、1 時間前後）。成果物は $(OUTDIR)/proj033.bit・.hwh。
 # **ビルドの後、今のディレクトリで今の RTL が焼けたかを確かめる**（grep BUILD_TAG $(OUTDIR)/vivado.log）。成否は make の終了状態でなくログの ERROR・TIMING (確定) で読む
 build:
+	@test -n "$(USR_ACCESS)" || { echo "USR_ACCESS を git から作れない（git の作業ツリーの中で make する。焼かないなら USR_ACCESS=none）"; exit 1; }
+	@echo "USR_ACCESS: $(USR_ACCESS)"
 	mkdir -p $(OUTDIR)
 	$(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado.log -source build.tcl -tclargs $(BUILD_JOBS)
+	@# M5b: 書き出した .bit を読み返し、焼くはずの値と照らす（在るかと、値が合うかの両側。none なら「無いこと」）
+	@$(PYTHON) ../../../sw/pynq/bitinfo.py $(OUTDIR)/proj033.bit --expect $(USR_ACCESS) > $(OUTDIR)/bitinfo.txt; s=$$?; cat $(OUTDIR)/bitinfo.txt; exit $$s
 
 # 2G-1 の ROM の中身（../../../model/g21_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす（M-8 の続き）
 gen:
