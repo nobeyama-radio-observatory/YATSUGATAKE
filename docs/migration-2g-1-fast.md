@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-1-Fast）
 
-- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-1-fast/m4`。ID・H-0・tint 40.96 ms で 300 s が proj033 R-1・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。**M5 済み**（2026-10-31、ブランチ `2g-1-fast/m5`。決めること 4 は案 A（PROJ を照らさない）、ADC の道は共通、USR_ACCESS を焼いた bit で M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。**M6 済み**（2026-10-31、ブランチ `2g-1-fast/m6`。判定 7 つが通過、性能評価 [`performance/2g-1-fast/v1.0.0.md`](performance/2g-1-fast/v1.0.0.md)。下の「M6 の結果」）。**M7**（2026-10-31、ブランチ `2g-1-fast/m7-docs`）: 仕様・設計・使い方の 2G-1-Fast の分、CHANGELOG の v1.3.0。リリース `2g-1-fast/v1.0.0`・`v1.3.0` はこの後
+- 状態: **M0 済み**（2026-10-30、ブランチ `2g-1-fast/m0-map`。PR #78）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-1-fast/` に書き起こした。決めること 1〜3 は開発者が案どおりに決めた（2026-10-30）。**M1 済み**（2026-10-31、ブランチ `2g-1-fast/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-1-fast/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-1-fast/m3-build`。Performance_Explore の作り直しで FDRI まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-1-fast/m4`。ID・H-0・tint 40.96 ms で 300 s が proj033 R-1・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。**M5 済み**（2026-10-31、ブランチ `2g-1-fast/m5`。決めること 4 は案 A（PROJ を照らさない）、ADC の道は共通、USR_ACCESS を焼いた bit で M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。**M6 済み**（2026-10-31、ブランチ `2g-1-fast/m6`。判定 7 つが通過、性能評価 [`performance/2g-1-fast/v1.0.0.md`](performance/2g-1-fast/v1.0.0.md)。下の「M6 の結果」）。**M7**（2026-10-31、ブランチ `2g-1-fast/m7-docs`）: 仕様・設計・使い方の 2G-1-Fast の分、CHANGELOG の v1.3.0。リリース `2g-1-fast/v1.0.0`・`v1.3.0` を出した（下の「M7 の結果」）
 - 移植元: **`study-rfsoc@proj033-m0`**（注釈つきタグ、commit a12715d、2026-10-29）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-4 は RTL が proj031、PS が proj036 だった）
   - proj033 は proj024-m0（2G-1-Fast の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj024 と同じで、DSP 924 → 628・LUT 22.2 → 16.5 %・BRAM 673 → 586.5・VCCINT 16.8 → 13.3 A
   - 移植元を proj024 から proj033 に替えた（proj033 README の「次にやること」2、7eab913）。proj033 の B-2（記憶のカスケードに段を足し、既定の戦略で閉じる形にする）はやらず、**Performance_Explore で閉じた bit を引き継ぐ**
@@ -149,7 +149,7 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g21`） | ID・照合・g21cw・tint 40.96 ms で 300 s 取りこぼし 0 が proj033 R-1・R-3 と同じ値（**2026-10-31**: 下の「M4 の結果」） |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-1-Fast に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS は FDRI の外なので FDRI は変わらず、構成の流れが変わる。2G-4 の M5 と同じ）（**2026-10-31**: 下の「M5 の結果」） |
 | M6 | 2G-1-Fast の判定（`test/acceptance/2g-1-fast/`）を全部通し、性能評価を書く | `docs/performance/2g-1-fast/<版>.md`（**2026-10-31**: 下の「M6 の結果」） |
-| M7 | spec・design・user の 2G-1-Fast の分を書き、リリース | `release.md` |
+| M7 | spec・design・user の 2G-1-Fast の分を書き、リリース | `release.md`（**2026-10-31**: 上の「M7 の結果」） |
 
 ### M3 の心配（M3 の前に書く）
 
@@ -265,6 +265,14 @@ M3 で作った bit（FDRI `6bdecddf…d8e4`）と `sw/pynq/`（63 個、ボー�
 - 受けの「照合: 失敗」は RING と V2-b の陽性対照だけ（kgap > 0 のときの決まり。説明のない欠けは 0）
 - 終わりの機器: ノイズソース ON（15.00 V・512 mA）・ATT 13 dB・SG 出力 OFF、specd・amslog は止めた
 - 記録: 制御 PC の作業用のディレクトリ（`id1.txt`・`net.txt`・`h0*`・`h2_*`・`v2b*`・`ring*`・`v2l*`・`posctl*`）、ボードの `~/2g-1-fast-m6/runs/`（specd のログ・`axi_*.txt`・`v2l.ams.log`）。`.s45` は照合が済んだので消した。STATUS の `data_client`・`data_drop` は伏せた
+
+### M7 の結果（2026-10-31）: リリースした
+
+- 文書（PR #86）: 仕様・設計（`docs/design/2g-1-fast/`）・使い方・CHANGELOG v1.3.0・性能評価を確定
+- リリースのビルド（main 2c1e7be、`make build IMPL=Performance_Explore BUILD_JOBS=8`、ほかのビルドと重ねず）: **FDRI `6bdecddf…d8e4`・WNS / WHS +0.025345 / +0.009647 ns（判定した .bit と同じ）**、USR_ACCESS 2c1e7be0（汚れなし）。ERROR 2 行・CW 3 行は M3 と同じ、報告は drc.rpt の並びだけが M5 と違う。Vivado は落ちていない。M5 のビルドは `build-PE-m5/` に残した
+- `tools/release_files.py`（`--bitfile proj033 --fdri 6bdecddf…`）で組を作り、照合 通過。`.bit` sha256 `c0822435…f03e5`・`.hwh` `11044f6d…9a1d`
+- 実機（配る .bit・.hwh と 2c1e7be の `sw/pynq/`、ボードの `~/2g-1-fast-v1.0.0`）: 「CRC: 命令」・AXI 0x0102、ID usr 2c1e7be0・proj 00330100・kind g21・tcal board・lmx_pwr 3、STATUS time_ok 1・health 0・flags 0、200 本の短い取得で欠け 0・照合 通過・`g21cw` 全部通過（床 1.58e3・TP −31.49 dBFS）
+- タグ `2g-1-fast/v1.0.0`・`v1.3.0`（注釈付き、2c1e7be）、GitHub Release「2G-1-Fast v1.0.0」に 7 個と SHA256SUMS
 
 ## 判定（`test/acceptance/2g-1-fast/`、2026-10-30 に書き起こした）
 
