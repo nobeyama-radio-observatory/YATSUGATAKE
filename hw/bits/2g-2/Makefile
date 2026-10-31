@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# proj025 — 2G-2 の RTL。段階 A: 模型（`make model`）・ROM の中身（`make gen`）・部品の単体の sim（手順 1a〜1d、`make sim-all`）
+# proj025 — 2G-2 の RTL。段階 A: 模型（`make model`）・ROM の中身（`make gen`）・部品の単体の sim（手順 1a〜1d）。YATSUGATAKE: 模型と sim の全部は `make sim-all`
 # 段階 B: 2a〜2e の sim（sim-lane 〜 sim-g22ds）・2G-2 の .bit（2f、`make build`、Vivado サーバ）
-# proj024 の Makefile の model・gen・sim-g21* を写し（段階 A）、sim-lane 以降・build・s2・survey を proj024-m0 から写した（段階 B）。名前は g22 に
+# proj024 の Makefile の model・gen・sim-g21* を写し（段階 A）、sim-lane 以降・build を proj024-m0 から写した（段階 B）。名前は g22 に
 #
-# Vivado のインストール先（survey・s2・build が使う）。settings64.sh を .bashrc で source しないこと（VERSIONS.md）
+# Vivado のインストール先（build・post・ooc-* が使う）。settings64.sh を .bashrc で source しないこと（VERSIONS.md）
 XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.1
 VIVADO        := $(XILINX_VIVADO)/bin/vivado
 
@@ -35,16 +35,8 @@ export BOARD_REPO PART OUTDIR GB_K IMPL
 PYTHON        ?= python3
 IVERILOG      ?= iverilog
 VVP           ?= vvp
-# survey の OOC 合成を同時に走らせる数（9 個）
-JOBS ?= 9
 
-PYTHON        ?= python3
-IVERILOG      ?= iverilog
-VVP           ?= vvp
-# survey の OOC 合成を同時に走らせる数
-JOBS ?= 9
-
-.PHONY: model model-g22 gen s2 survey build post sim-all sim-g22c sim-g22t sim-g22p sim-g22ch sim-lane sim-g22a sim-g22s sim-recfr sim-g22core sim-g22s45 clean
+.PHONY: model model-g22 gen build post sim-all sim-g22c sim-g22t sim-g22p sim-g22ch sim-lane sim-g22a sim-g22s sim-recfr sim-g22core sim-g22s45 clean
 
 # proj025 の模型（numpy だけ）。M-a〜d。成否は最後の「まとめ」の行で読む（make の成功を信用しない）。proj034 で model から名前を替えた
 model-g22:
@@ -54,12 +46,6 @@ model-g22:
 # 2G-2 の ROM の中身（../../../model/g22_fixed.py の定義）を build-gen/ に書き、読み返して模型と照らす。src/g22/ に写したものをコミットする
 gen:
 	$(PYTHON) tools/gen_g22_tables.py build-gen
-
-# Vivado サーバ: レーン FFT 1 個の OOC の配置配線（S-2）。-1・256 MHz で閉じるか。結果は build-s2/s2.txt（数十分〜1 時間）
-# proj023 のビルドと重ならないときに回す
-s2:
-	mkdir -p build-s2
-	$(VIVADO) -mode batch -nojournal -log build-s2/vivado.log -source tools/ip_impl.tcl -tclargs 4
 
 # Vivado サーバ: 2G-2 の .bit（2f。合成〜ビットストリーム、1 時間前後）。成果物は $(OUTDIR)/proj025.bit・.hwh。
 # **ビルドの後、今のディレクトリで今の RTL が焼けたかを確かめる**（grep BUILD_TAG $(OUTDIR)/vivado.log）。成否は make の終了状態でなくログの ERROR・TIMING (確定) で読む
@@ -71,12 +57,6 @@ build:
 # 合成・実装はやり直さない（build.tcl の RESUME=1 → build_post.tcl）。.bit より新しいソースがあれば止まる。ログは別名（元の vivado.log を残す）
 post:
 	RESUME=1 $(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado_post.log -source build.tcl -tclargs $(BUILD_JOBS)
-
-# Vivado サーバ: レーン FFT の OOC 合成（S-1）。ライセンスが要る。結果は build-survey/survey.txt
-# proj023 のビルドと重ならないときに回す（同じサーバ。壊れはしないが互いに遅くなる）
-survey:
-	mkdir -p build-survey
-	$(VIVADO) -mode batch -nojournal -log build-survey/vivado.log -source tools/ip_survey.tcl -tclargs $(JOBS)
 
 # ---- RTL の単体の sim（手順 1。成否は各ログの「結果:」の行で読む）----
 SIMDIR := build-sim
@@ -159,11 +139,12 @@ sim-g22a:
 	@grep -q '結果: 全部通過' $(SIMDIR)/g22a_normal/check.log && grep -q '結果: 不合格' $(SIMDIR)/g22a_err/check.log \
 	  && echo "sim-g22a: 全部通過（陽性対照は落ちた）" || (echo "sim-g22a: NG"; exit 1)
 
-# 2c. g22_spec（分光の本体）。ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
+# 2c. g22_spec（分光の本体）。x.hex は無ければ作る（毎回作り直すと、並べた 2d・2e・g22x2 が書きかけの x.hex を読む。2G-4・2G-1-Fast と同じ）。
+#     ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
 G22S_RTL := ../../common/cmul.v ../../common/dft16f.v src/g22/g22_coef.v src/g22/g22_pfb_core.v src/g22/g22_pfb.v \
             src/g22/g22_tw.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/g22/g22_acc.v src/g22/g22_spec.v sim/lane_fft_g22_model.v sim/tb_g22_spec.v
 sim-g22s:
-	@o0=$(SIMDIR)/g22s_in; mkdir -p $$o0; $(PYTHON) sim/check_g22.py spec-gen $$o0; \
+	@o0=$(SIMDIR)/g22s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g22.py spec-gen $$o0; \
 	for v in normal ipq; do \
 	  o=$(SIMDIR)/g22s_$$v; mkdir -p $$o; ln -sf ../g22s_in/x.hex $$o/x.hex; d="-DFFT_STALL_AT=3"; \
 	  [ $$v = ipq ] && d="$$d -DIPQ_POSCTL"; \
@@ -261,12 +242,8 @@ sim-g22ds:
 	@grep -q '結果: 全部通過' $(SIMDIR)/g22ds_normal/check.log && grep -q '結果: 全部通過（陽性対照' $(SIMDIR)/g22ds_posctl/check.log \
 	  && echo "sim-g22ds: 全部通過（陽性対照は落ちた）" || (echo "sim-g22ds: NG"; exit 1)
 
-# 1a〜1d をまとめて（iverilog は 1 本 1 コアなので並べて回す）。成否は各ターゲットの最後の行で読む
-sim-all:
-	@$(MAKE) --no-print-directory -j4 -O sim-g22c sim-g22t sim-g22p sim-g22ch
-
 # ==== proj034 の段（M-1・M-2 模型、P-1〜P-3 部品、S の OOC。proj033 の段を 2G-2 に）====
-.PHONY: sim-sep sim-all2 ooc-sep ooc-chain ooc-q ooc-ref ooc-all
+.PHONY: sim-sep sim-all2 ooc-sep ooc-chain ooc-q
 
 # M-1・M-2（proj034）: 2-for-1 の式・鎖の全体・溜めの深さ・(B) の鎖と均しの待ち行列。成否は最後の「まとめ」の行で読む
 model:
@@ -310,18 +287,37 @@ sim-all2:
 	  && echo "sim-all2: 全部通過（陽性対照 3 本は落ちた）" || (echo "sim-all2: NG"; exit 1)
 
 # ---- S 部品の OOC（`-1`・256 MHz、合成まで）。結果は build-ooc/ooc-<名前>.txt。Synth 8-3848（ドライバの無いネット）があれば NG ----
-# ooc-ref は比べる相手の今の鎖 g22_chain（proj025-m0 の src/g22/g22_chain.v。電力まで含む）。4 本は出力先が別なので並べてよい（ooc-all）
+# 3 本は出力先が別なので並べてよい
 OOC_sep   := s2_sep    src/s2_sep.v
 OOC_chain := s2_chain  ../../common/cmul.v ../../common/dft16f.v src/s2_chain.v
 OOC_q     := s2_q      src/s2_q.v
-OOC_ref   := g22_chain ../../common/cmul.v ../../common/dft16.v src/g22/g22_chain.v
-ooc-sep ooc-chain ooc-q ooc-ref:
+ooc-sep ooc-chain ooc-q:
 	@n=$(@:ooc-%=%); set -- $(OOC_$(@:ooc-%=%)); top=$$1; shift; o=build-ooc/$$n; mkdir -p $$o; \
 	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs $$top 3.906 clk $$(for x in "$$@"; do echo ../../$$x; done) > /dev/null 2>&1; \
 	  grep '^OOC ' vivado.log | tee ../ooc-$$n.txt; m=$$(grep -c 'Synth 8-3848' vivado.log); echo "Synth 8-3848: $$m" | tee -a ../ooc-$$n.txt; \
 	  grep -c 'CRITICAL WARNING' vivado.log | sed 's/^/CRITICAL WARNING: /' | tee -a ../ooc-$$n.txt; [ $$m -eq 0 ]
-ooc-all:
-	$(MAKE) -j4 ooc-sep ooc-chain ooc-q ooc-ref
+
+# 2G-2 の模型と sim を全部（YATSUGATAKE の M2 の表）。模型 2 本は「まとめ」の行に「不合格」が無いこと、
+# sim 14 本は最後の行「sim-…: 全部通過」で読む（make の成功を信用しない）。ログは build-sim-logs/ に目標ごとに 1 個、16 個。
+# 共有の入力（g22s_in/x.hex）は先に作る。目標は SIM_J 本ずつ並べる（各目標の中でも変種を並べる。g22core・g22s45・g22x2・g22ds が重いので先に）
+G22_MODELS := model-g22 model
+G22_SIMS   := sim-g22core sim-g22s45 sim-g22x2 sim-g22ds sim-g22s sim-g22p sim-g22c sim-g22t sim-g22ch sim-lane sim-g22a \
+              sim-recfr sim-sep sim-all2
+SIM_J      ?= 4
+sim-all:
+	@mkdir -p build-sim-logs; rm -f build-sim-logs/*.log
+	@o0=$(SIMDIR)/g22s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g22.py spec-gen $$o0 > /dev/null
+	@for t in $(G22_MODELS); do $(MAKE) --no-print-directory $$t > build-sim-logs/$$t.log 2>&1; done
+	@echo $(G22_SIMS) | tr ' ' '\n' | xargs -P $(SIM_J) -I{} sh -c '$(MAKE) --no-print-directory {} > build-sim-logs/{}.log 2>&1'
+	@echo "---- sim-all ----"
+	@for t in $(G22_MODELS); do printf '%-14s %s\n' "$$t" "$$(grep 'まとめ:' build-sim-logs/$$t.log | tail -1 || true)"; done
+	@for t in $(G22_SIMS); do printf '%-14s %s\n' "$$t" "$$(grep "^$$t: " build-sim-logs/$$t.log | tail -1 || true)"; done
+	@fail=""; \
+	  for t in $(G22_MODELS); do grep 'まとめ:' build-sim-logs/$$t.log | tail -1 | grep -q '通過' && ! grep 'まとめ:' build-sim-logs/$$t.log | tail -1 | grep -q '不合格' || fail="$$fail $$t"; done; \
+	  for t in $(G22_SIMS); do grep -q "^$$t: 全部通過" build-sim-logs/$$t.log || fail="$$fail $$t"; done; \
+	  n=$$(ls build-sim-logs/*.log | wc -l); \
+	  if [ -n "$$fail" ]; then echo "FAIL:$$fail"; exit 1; \
+	  elif [ $$n -ne 16 ]; then echo "FAIL: ログが $$n 個（16 個のはず）"; exit 1; else echo "sim-all: 全部通過（模型 2・sim 14）"; fi
 
 clean:
 	rm -rf build build-* .Xil *.jou *.log runs

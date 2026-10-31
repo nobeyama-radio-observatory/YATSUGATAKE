@@ -8,7 +8,7 @@
 - **`s2_sep.v`・`s2_q.v`・`s2_chain.v` は 2G-4・2G-1-Fast の同じ名前のファイルと中身が違う**（寸法の既定と、`s2_chain` は丸めの式）。`s2_sep`・`s2_q` の一本化は 2G-2 の M3 の後
 - 模型は `model/g22_model.py`（`make model-g22`）と **`model/s2_model_g22.py`**（`make model`）。2G-4 の `model/s2_model.py`・2G-1-Fast の `model/s2_model_g21.py` とは別のもの
 - 実装の戦略は **既定**（`make build` → `build/`）。移植元の bit はこれで作った（WNS +0.074 ns）
-- Makefile の試行の目標（`s2`・`survey`・`ooc-ref`・`ooc-all`）と、1a〜1d だけを回す `sim-all` は M1 の後の別の PR で直す
+- Makefile の目標: ビルド（`make build`・後段の再開 `make post`）・sim（`make sim-all` = 模型 2 本 ＋ sim 14 本、`build-sim-logs/` の 16 個で判定。`SIM_J` で並べる数）・表の作り直し（`gen`）・部品の OOC（`ooc-sep`・`ooc-chain`・`ooc-q`）。proj034 までの試行の目標（`s2`・`survey`・`ooc-ref`・`ooc-all`）は外した（2g-2/makefile-trim）
 - `runs/` は git に入れない
 
 系譜: proj025（2G-2 の RTL）→ proj030（レーン FFT の 2-for-1）→ proj034（2G-2 に 2-for-1）。PS は `sw/pynq/` の G22 の Backend（2G-4 の M5 で一本化）と `sw/pynq/g22cw.py`。
