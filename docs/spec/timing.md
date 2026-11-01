@@ -48,6 +48,7 @@
 | SLICE（PFB T = 4、SAM45-Wide） | D_S ＋ 1.5·L = 0 ＋ 3072 ビート = 12 µs | 決定（proj023 の sim-wds） |
 | FULL（PFB T = 4、2G-4） | D_S ＋ 1.5·L = 1 ＋ 6144 ビート = 6145 ビート ≒ 24.0 µs（L = 4096 ビート） | 決定（proj031 の sim-g24ds。YATSUGATAKE の M2 で移植元と同じ出力） |
 | FULL（PFB T = 4、2G-1-Fast） | D_S ＋ 1.5·L = 1 ＋ 24576 ビート = 24577 ビート ≒ 96.0 µs（L = 16384 ビート） | 決定（proj024・proj033 の sim-g21ds。YATSUGATAKE の M2 で移植元と同じ出力） |
+| FULL（PFB T = 4、2G-2） | D_S ＋ 1.5·L = 1 ＋ 12288 ビート = 12289 ビート ≒ 48.0 µs（L = 8192 ビート） | 決定（proj025・proj034 の sim-g22ds。YATSUGATAKE の M2 で移植元と同じ出力） |
 | STAGE2（2G-1-Fine） | 1.5·N_f·56 ＋ 836 サンプル ＋ D_S = 688,180.25 ビート（2.688204 ms）＋ D_S | 式は決定（study-rfsoc proj037 T-4、[ADR 0027](../decisions/0027-2g-1-fine-records-time-rounding.md)）。D_S は移植の RTL の sim で |
 
 TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初のフレームの頭）。
@@ -62,7 +63,7 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 | `CAL[(BIT_KIND, BIT_REV)]`。無い bit は `CAL[(1, 1)]` | 上に当たらないとき | `provisional` |
 
 - 較正ファイルは `timecal.py` が作る（[`../user/calibration.md`](../user/calibration.md)）。形 (a): `pps_det_ns` 0・`adc_to_core_ns` = M。Overlay 5 回の平均、`bound_ns` = max(5, ⌈ばらつきの半分 ＋ 2 ns⌉)
-- ADC → コアの道（`ADC_PATH`、(BIT_KIND, BIT_REV) → 番号）: 表に無い bit は共通コアの道 1。**RFDC の設定・ギアボックスを変えた bit は新しい番号を足す**。2G-4 (3, 1) も道 1（2G-4 の M5 で確かめた。ギアボックス・RAW・スタンプの RTL は `hw/common` の同じファイル、RFDC の組み立てが Wide と同じ）。2G-1-Fast (11, 1) も道 1（2G-1-Fast の M5 で確かめた。`rfdc_params.rpt` が Wide の作り直しと同じ）。2G-1-Fast は `CAL` に行を持たない（較正ファイルが無いときは `CAL[(1, 1)]` を暫定で当てる）
+- ADC → コアの道（`ADC_PATH`、(BIT_KIND, BIT_REV) → 番号）: 表に無い bit は共通コアの道 1。**RFDC の設定・ギアボックスを変えた bit は新しい番号を足す**。2G-4 (3, 1) も道 1（2G-4 の M5 で確かめた。ギアボックス・RAW・スタンプの RTL は `hw/common` の同じファイル、RFDC の組み立てが Wide と同じ）。2G-1-Fast (11, 1) も道 1（2G-1-Fast の M5 で確かめた。`rfdc_params.rpt` が Wide の作り直しと同じ）。2G-1-Fast は `CAL` に行を持たない（較正ファイルが無いときは `CAL[(1, 1)]` を暫定で当てる）。2G-2 (10, 1) も道 1（2G-2 の M5 で確かめた。`rfdc_params.rpt` がほかの 4 本のビルドと同じ）で、`CAL` に行を持たない
 - 較正ファイルはリポジトリに入れない（ボードの個体の値）
 
 `CAL`（開発の値）の鍵は bit の **(BIT_KIND, BIT_REV)**。

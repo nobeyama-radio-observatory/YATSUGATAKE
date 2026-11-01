@@ -3,6 +3,19 @@
 リリースごとに、何が変わったか・互換性（インターフェースの版）・対応する性能評価を書く。
 書き方は [`docs/release.md`](docs/release.md)。
 
+## v1.4.0（`v1.4.0`・`2g-2/v1.0.0`、2026-11-01）— 2G-2 を足す
+
+study-rfsoc の proj034（`proj034-m0`）を移した 2G-2 を、5 本目の bit として出す。SAM45-Fine・SAM45-Wide・2G-4・2G-1-Fast の bit は変えない（`sam45-fine/v1.0.0`・`sam45-wide/v1.0.0`・`2g-4/v1.0.0`・`2g-1-fast/v1.0.0` のまま）。
+
+- **bit**: 2G-2（2 ADC × 2 コア、コアごとに全帯域の FFT 65,536 ch・31.25 kHz、2-for-1 のレーン FFT（8192 点、IP 8 個 / コア）、PFB とひねり係数は bit の ROM。ダンプ 10.24 ms を束ねて tint、コアごとに SRC で 4 ADC から選ぶ（2 コアに同じ ADC も可））。BIT_KIND 10・BIT_REV 1・PROJ 0x0034_0100。**既定の戦略で作る**（WNS +0.074 ns）。FDRI は移植元と同じ（`b9dec08c…`）。USR_ACCESS にタグの commit
+- **インターフェース**: v2 のまま。2G-2 の FULL（kind 1）は窓 A0・B0 の 2 本・nch 65536。ネットワークの予算の照合は 2G-4 と同じ（tint の最小 20.48 ms）
+- **PS**: `s45core.PROJ_G22` を 0x0034_0100 に（追跡のため。G22Backend は PROJ を照らさない）。bits.json の例に `"2g-2"`（`"kind": "g22"`）。2G-2 の ADC → コアの道は共通の道 1（時刻・TP の較正ファイルがそのまま当たる）
+- **ボードの準備**: 2G-4 と同じ（AXI_MAX_PIPELINE 0x0102・`build_fast.sh` で「CRC: 命令」）。specd は `--prefault --fast --fast-ring`（**`--fast` なしでは tint 20.48 ms が回らない**: 1 周の p99 57 ms）
+- **判定**: `test/acceptance/2g-2/` の 8 本（ID-1・H-0・EQ-2・H-2・NET・RING・V2-b・V2-L）がすべて通過。2 時間で取りこぼし 0、VCCINT 19.5〜20.0 A
+- **性能評価**: [`docs/performance/2g-2/v1.0.0.md`](docs/performance/2g-2/v1.0.0.md)（既知の制限 5 件）
+- **文書**: 仕様（`bits.md`・`timing.md`・`units.md`・`interface.md` の 2G-2 の分）・設計（`docs/design/2g-2/`）・使い方（`install.md` の bits.json の `"kind": "g22"`・`specd.md` の 2G-2 の SET・`client.md` の記録・`calibration.md`）
+- **既知の制限のうち運転に効くもの**: ネットワークの tint の最小 20.48 ms。`-1` の WNS +0.074 ns（RTL を変えるときは閉じるかを必ず確かめる）
+
 ## v1.3.0（`v1.3.0`・`2g-1-fast/v1.0.0`、2026-10-31）— 2G-1-Fast を足す
 
 study-rfsoc の proj033（`proj033-m0`）を移した 2G-1-Fast を、4 本目の bit として出す。SAM45-Fine・SAM45-Wide・2G-4 の bit は変えない（`sam45-fine/v1.0.0`・`sam45-wide/v1.0.0`・`2g-4/v1.0.0` のまま）。
