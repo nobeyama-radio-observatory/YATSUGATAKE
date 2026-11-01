@@ -43,6 +43,15 @@ bit を組み立てるのは `hw/bits/<bit>/build.tcl`（module reference でブ
 | `raw_core` | 生サンプルの流れ（KIND 4 RAW）。ダンプごとに頭の 1 フレーム（8192 サンプル）を SNAP のレコードで出す。F-2（1PPS の縁）と specd の SNAP 命令に使う |
 | `axis_sel4` | 4 本から 1 本（流れの SRC で選ぶ。変えたら起動し直す） |
 
+## 2G のレーン FFT の 2-for-1
+
+2G-4・2G-1-Fast・2G-2 が使う（proj030）。寸法（ZW・KB・AB）は各 bit の `g2x_spec.v` が渡す（既定は 2G-4 の寸法）。間の鎖 `s2_chain` は bit ごとに丸めの式が違うので `hw/bits/<bit>/src/` に置く。
+
+| モジュール | 中身 |
+|---|---|
+| `s2_sep` | IP 8 個（z_q = y_q + j·y_(q+8)）の出口 Z から実のレーン 16 本の 2Y を作る（加減算だけ）。k と −k の組を待つ溜め（BRAM）、組がそろった拍に行 r を 1 本。pos_mis は k1 の順の見張り |
+| `s2_q` | `s2_chain` の出口（そろった行 r の q 16 個）を待ち行列に積み、1 拍に 1 行ずつ電力にして積分器へ（先読み 6 段、出口の余裕 0）。ovf・dmax・cmax |
+
 ## 時刻と健全性
 
 | モジュール | 中身 |

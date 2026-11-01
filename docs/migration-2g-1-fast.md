@@ -90,6 +90,18 @@ proj033 の `src/common/` 35 個と `src/board/` 3 個を、YATSUGATAKE の main
 2G-2 の移植（M3 まで）の後に、`s2_sep`・`s2_q` を 1 本にして `hw/common/` に上げる PR を別に作る。合格は 3 本の bit を作り直して FDRI がそれぞれのリリースと同じこと（2G-4 の一本化と同じ型）。`s2_chain` は bit ごとに置いたままにする。
 3 本がそろってから一度に寄せるので、2G-4・2G-1-Fast の FDRI の確かめは 1 回で済む
 
+**結果**（2026-11-01、ブランチ `common/s2-unify`、commit dc82198）: `hw/common/s2_sep.v`・`s2_q.v` に 1 本にした（2G-1-Fast・2G-2 の形 = 寸法をパラメータに。既定は 2G-4 の寸法で、各 bit の `g2x_spec.v`・試験台・OOC の目標が寸法を明示して渡す）。3 本の作り直し（`BUILD_JOBS=8`、ほかの会話のビルドと重ねて）で **FDRI・WNS / WHS がそれぞれの v1.0.0 と同じ**:
+
+| bit | 戦略 | FDRI | WNS / WHS |
+|---|---|---|---|
+| 2G-4 | 既定 | `f05e1f62…3b1c`（同じ） | +0.047165 / 0.000000 ns（同じ） |
+| 2G-1-Fast | Performance_Explore | `6bdecddf…d8e4`（同じ） | +0.025345 / +0.009647 ns（同じ） |
+| 2G-2 | 既定 | `b9dec08c…313f`（同じ） | +0.073585 / +0.009528 ns（同じ） |
+
+- ERROR・CRITICAL WARNING は文面までリリースのビルドと同じ。報告は drc.rpt の RTSTAT-10 の「最初の 15 本」の並びだけが違う（2G-4・2G-2 で比べた。2G-1-Fast のリリースのビルドはこの PC に無い）
+- sim: 3 本とも `sim-sep`・`sim-all2`・分光の本体（`sim-g24s`・`sim-g21s`・`sim-g22s`）が通過、陽性対照は落ちた
+- `rec_fr.v` は寄せなかった: `hw/common/rec_fr.v`（`np − 1'b1`）では 2G-4 がどの戦略でも閉じなかった（[`performance/2g-4/v1.0.0.md`](performance/2g-4/v1.0.0.md) の既知の制限 4）ので、3 本とも `src/` の写し（移植元の版）のまま
+
 ### 模型の名前（決めること 2、2026-10-30 に案どおり決めた）
 
 2G-4 の移植で、proj031 の `model/s2_model.py`（2G-4 の寸法: N 131072・M 4096）を `model/s2_model.py` に置いた。proj033 の `model/s2_model.py` は同じ名前で 2G-1-Fast の寸法（N 262144・M 16384）と鎖の入口 (i) の版（305 行違う）。
