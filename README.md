@@ -3,9 +3,9 @@
 野辺山 45m 鏡の分光計 SAM45 の後継として、AMD RFSoC 4x2（XCZU48DR）の上に作る電波分光計です。
 このリポジトリは**製品版**の置き場で、配布する .bit とその設計・仕様・性能評価を持ちます。
 
-> **状態:** SAM45-Fine v1.0.0 を出した（2026-10-22）。SAM45-Wide v1.0.0 を出した（2026-10-26、リポジトリ全体 v1.1.0）。2G-4 v1.0.0 を出した（リポジトリ全体 v1.2.0）。2G-1-Fast v1.0.0 を出した（リポジトリ全体 v1.3.0。[`CHANGELOG.md`](CHANGELOG.md)）。
-> どれも開発用リポジトリ [study-rfsoc](https://github.com/ars096/study-rfsoc) の proj021・proj023・proj031（PS は proj036）・proj033 から移した
-> （[`docs/migration.md`](docs/migration.md)・[`docs/migration-sam45-wide.md`](docs/migration-sam45-wide.md)・[`docs/migration-2g-4.md`](docs/migration-2g-4.md)・[`docs/migration-2g-1-fast.md`](docs/migration-2g-1-fast.md)）。ほかの 5 本はこれから。
+> **状態:** SAM45-Fine v1.0.0 を出した（2026-10-22）。SAM45-Wide v1.0.0 を出した（2026-10-26、リポジトリ全体 v1.1.0）。2G-4 v1.0.0 を出した（リポジトリ全体 v1.2.0）。2G-1-Fast v1.0.0 を出した（リポジトリ全体 v1.3.0）。2G-2 v1.0.0 を出した（リポジトリ全体 v1.4.0。[`CHANGELOG.md`](CHANGELOG.md)）。
+> どれも開発用リポジトリ [study-rfsoc](https://github.com/ars096/study-rfsoc) の proj021・proj023・proj031（PS は proj036）・proj033・proj034 から移した
+> （[`docs/migration.md`](docs/migration.md)・[`docs/migration-sam45-wide.md`](docs/migration-sam45-wide.md)・[`docs/migration-2g-4.md`](docs/migration-2g-4.md)・[`docs/migration-2g-1-fast.md`](docs/migration-2g-1-fast.md)・[`docs/migration-2g-2.md`](docs/migration-2g-2.md)）。ほかの 4 本はこれから。
 >
 > English: YATSUGATAKE is a radio spectrometer for the Nobeyama 45 m telescope built on the
 > AMD RFSoC 4x2 board. This repository will hold the released bitstreams, their design and
