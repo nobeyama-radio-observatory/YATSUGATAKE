@@ -14,3 +14,4 @@ python3 specctl.py --host $B STATUS
 - **陽性対照**: 0.8 s の止まり（≒ 82 MB > 64 MiB）で **pl_drop > 0 が数えられ**、受けの kgap が DROP か BDROP の EVENT で説明される（説明のない欠け 0）
 - **記録**: なし（M6 で初めて回す）。参考: 2G-4 の M6（2026-10-30）: 0.3 s で pl_drop 0・pl_peak 48.3 MB、0.8 s で pl_drop 385・kgap 4 がすべて BDROP で説明された。2G-1-Fast の M6（2026-10-31）: 0.3 s で落ち 0・山 40.9 MB、0.8 s で pl_drop 66・kgap 1 が BDROP で説明された
 - 注意: 止める区間が `sleep` の精度と ssh の遅れで延びるので、ボードの上の 1 行のコマンドで行う
+- **YATSUGATAKE M6**（2026-11-01 02:28〜02:33 UTC、V2-b と同じ specd、取得の子 pid は `ps` で確かめた）: **通過**。0.3 s の止まりで **pl_drop 0**・kgap 0・miss 0・**pl_peak 43.5 MB**・loop_max 113.7 ms・loop_slow 3。陽性対照 0.8 s で **pl_drop 153**・miss 77・kgap 2・bdrop 3・pl_peak 64 MiB、受けの kgap 2 は BDROP の EVENT（B0・A0・B0）で説明された（説明のない欠け 0・tp_gap 2、照合は kgap > 0 の決まりで「失敗」）

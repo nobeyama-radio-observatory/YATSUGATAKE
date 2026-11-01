@@ -11,3 +11,4 @@ python3 specctl.py --host $B "SET tint=0.01024" GET "SET tint=0.02048" GET
 - **陽性対照**: specd を **`--net-budget-mbs 0`**（照合を外す）で起こし直し、同じ手順で `SET tint=0.01024` が OK・GET が 0.01024
 - **PL なしの照合**: `bash test_fake.sh net`（2G-2 の `--g22` で 10.24 ms が ERR・20.48 ms が OK を含む）と `netp`（照合なしで通る）
 - **記録**: YATSUGATAKE M5（2026-11-01、usr b0dc6ea0）: 10.24 ms は同じ文の ERR・GET 0.04096 のまま、20.48 ms は OK。陽性対照（`--net-budget-mbs 0`）で 10.24 ms が OK・GET 0.01024。参考: 2G-4 の M5・M6、2G-1-Fast の M5・M6 で同じ文の ERR
+  **YATSUGATAKE M6**（2026-11-01 01:55 UTC、M5 の bit・`--fast`）: **通過**。10.24 ms は同じ文の ERR・GET は 0.04096 のまま、20.48 ms は OK・GET 0.02048。陽性対照は M5
