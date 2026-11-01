@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（2G-2）
 
-- 状態: **M0 済み**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31、PR #88）。**M1 済み**（2026-10-31、ブランチ `2g-2/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-2/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-2/m3-build`。既定の戦略の作り直しで FDRI・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-2/m4`。ID・H-0・EQ-2・tint 40.96 ms で 300 s が proj034 R-1・R-1c・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。**M5 済み**（2026-11-01、ブランチ `2g-2/m5`。PROJ を照らさない（案 A）、ADC の道は共通、USR_ACCESS を焼いた bit で M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。**M6 済み**（2026-11-01、ブランチ `2g-2/m6`。判定 8 つが通過、性能評価 [`performance/2g-2/v1.0.0.md`](performance/2g-2/v1.0.0.md)。下の「M6 の結果」）。**M7**（2026-11-01、ブランチ `2g-2/m7-docs`）: 仕様・設計・使い方の 2G-2 の分、CHANGELOG の v1.4.0
+- 状態: **M0 済み**（2026-10-31、ブランチ `2g-2/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/2g-2/` に書き起こした。決めること 1〜4 は開発者が案どおりに決めた（2026-10-31、PR #88）。**M1 済み**（2026-10-31、ブランチ `2g-2/m1-place`。表の行き先に置き、パスと模型の名前だけを直した。下の「M1 の結果」）。Makefile から試行の目標を外した（ブランチ `2g-2/makefile-trim`）。**M2 済み**（2026-10-31、同じブランチ。sim の出力が移植元とバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-10-31、ブランチ `2g-2/m3-build`。既定の戦略の作り直しで FDRI・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-10-31、ブランチ `2g-2/m4`。ID・H-0・EQ-2・tint 40.96 ms で 300 s が proj034 R-1・R-1c・R-3 と同じ。specd は `--prefault --fast --fast-ring` で回すことにした。下の「M4 の結果」）。**M5 済み**（2026-11-01、ブランチ `2g-2/m5`。PROJ を照らさない（案 A）、ADC の道は共通、USR_ACCESS を焼いた bit で M2〜M4 の回し直しが予言どおり。下の「M5 の結果」）。**M6 済み**（2026-11-01、ブランチ `2g-2/m6`。判定 8 つが通過、性能評価 [`performance/2g-2/v1.0.0.md`](performance/2g-2/v1.0.0.md)。下の「M6 の結果」）。**M7**（2026-11-01、ブランチ `2g-2/m7-docs`）: 仕様・設計・使い方の 2G-2 の分、CHANGELOG の v1.4.0。リリース `2g-2/v1.0.0`・`v1.4.0` を出した（下の「M7 の結果」）
 - 移植元: **`study-rfsoc@proj034-m0`**（注釈つきタグ、commit c8b90cb、2026-10-30）。RTL・ビルド・sim・模型・PS が 1 つの proj にある（2G-1-Fast と同じ形）
   - proj034 は proj025-m0（2G-2 の最初の形）に proj030 の 2-for-1 を入れたもの。精度・機能は proj025 と同じで、DSP 1,848 → 1,256・LUT 37.1 → 26.9 %・BRAM 759.5 → 635.5・VCCINT（実測）25.1 → 18.8 A
   - 移植元を proj025-m0 から proj034-m0 に替えた（2026-10-30、開発者。proj034 README の「結論・次にやること」）。2G-1-Fast を proj033-m0 に替えたのと同じ
@@ -137,7 +137,7 @@ proj034 の `model/s2_model.py` は 2G-2 の寸法（ADC 1 本あたり N 131072
 | M4 | 実機の短い回帰（ボードの新しいディレクトリ、`sw/pynq/` で `specd --g22`） | ID・H-0・EQ-2・tint 40.96 ms で 300 s 取りこぼし 0 が proj034 R-1・R-1c・R-3 と同じ値。`--fast` の有無を両方回して決める（下の「M4 の予定」）（**2026-10-31**: 下の「M4 の結果」） |
 | M5 | 下の「PS」の 3 つと、Fine の M5b（USR_ACCESS）を 2G-2 に当てる | M2〜M4 の回し直しが予言どおり（USR_ACCESS は FDRI の外なので FDRI は変わらず、構成の流れが変わる）（**2026-11-01**: 下の「M5 の結果」） |
 | M6 | 2G-2 の判定（`test/acceptance/2g-2/`）を全部通し、性能評価を書く | `docs/performance/2g-2/<版>.md`（**2026-11-01**: 下の「M6 の結果」） |
-| M7 | spec・design・user の 2G-2 の分を書き、リリース | `release.md` |
+| M7 | spec・design・user の 2G-2 の分を書き、リリース | `release.md`（**2026-11-01**: 下の「M7 の結果」） |
 
 ### M3 の心配（M3 の前に書く）
 
@@ -267,6 +267,15 @@ specd を root の ssh で `--g22 --bitfile proj034.bit --clkin 0 --ref 10` で�
 - H-2 の A0 と B0 のピーク / 中央値 − TP の差は 0.39 dB（R-6 では 0.04〜0.11 dB）。判定は窓ごとの幅なので外れではない。原因は確かめていない
 - 終わりの機器: ノイズソース ON（15.00 V・512 mA）・ATT 13 dB・SG 出力 OFF、specd・amslog は止めた。PL には M5 の bit（判定した bit）が載ったまま
 - 記録: 制御 PC の作業用のディレクトリ（`id1.txt`・`net.txt`・`h0*`・`eq2*`・`h2_*`・`v2b*`・`ring*`・`v2l*`・`posctl*`）、ボードの `~/2g-2-m6/runs/`（specd のログ・`axi_*.txt`・`v2l.ams.log`）。`.s45` は照合が済んだので消した。STATUS の `data_client`・`data_drop` は伏せた
+
+### M7 の結果（2026-11-01）: リリースした
+
+- 文書（PR #95）: 仕様・設計（`docs/design/2g-2/`）・使い方・CHANGELOG v1.4.0・性能評価を確定
+- リリースのビルド（main 4273ecb、`make build BUILD_JOBS=8`、60 分）: **FDRI `b9dec08c…313f`・WNS / WHS +0.073585 / +0.009528 ns（判定した .bit と同じ）**、USR_ACCESS 4273ecb0（汚れなし）。ERROR 2 行・CW 1 行は文面まで M5 のビルドと同じ、報告 16 個は drc.rpt の RTSTAT-10 の「最初の 15 本」の並びだけが M5 と違う。.hwh は TIMESTAMP の 1 行だけが違う。Vivado は落ちていない。M5 のビルドは `build-m5/` に残した
+- **ほかの会話の Vivado のビルド（4 本）と重ねて作った**（開発者の指示、`BUILD_JOBS=8`）。`release.md` の「ほかのビルドと重ねない」と違うが、FDRI が同じなので配る .bit には効いていない
+- `tools/release_files.py`（`--bitfile proj034 --fdri b9dec08c…`）で組を作り、照合 通過。`.bit` sha256 `96bb73d6…2ac6`・`.hwh` `100b9ce8…84c5`
+- 実機（配る .bit・.hwh と 4273ecb の `sw/pynq/`、ボードの `~/2g-2-v1.0.0`。載せる前に specd が無いこと・ATT 13 dB を確かめた）: 「CRC: 命令」・AXI 0x0102、ID usr 4273ecb0・proj 00340100・kind g22・tcal board・lmx_pwr 3、STATUS time_ok 1・health 0・flags 0、2 窓 × 200 本の短い取得で欠け 0・照合 通過・`g22cw --src AB` 全部通過（床 A0 3.15e3・B0 3.13e3、TP A −31.51・B −31.46 dBFS）、STOP の後 miss・kgap・pl_drop 0。specd は止めた（PL には配る .bit が載ったまま）
+- タグ `2g-2/v1.0.0`・`v1.4.0`（注釈付き、4273ecb）、GitHub Release「2G-2 v1.0.0」に 7 個と SHA256SUMS
 
 ### 持ち越し（proj034 から）
 
