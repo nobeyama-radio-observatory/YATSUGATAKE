@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// s2_q — (B) の均し（proj030 P-3 を proj033 で 2G-1-Fast、proj034 で 2G-2 の寸法に: 行 13 bit・記憶 1,024 項目）: s2_chain の出口（そろった拍に行 r の q 16 個）を
-// 待ち行列に積み、1 拍に 1 行ずつ電力にして積分器（g22_acc）へ渡す
+// s2_q — (B) の均し（proj030 P-3。2G-4・2G-1-Fast・2G-2 で共通。寸法 AB・KB は bit ごとに渡す: 2G-4 AB 9・KB 12、2G-1-Fast 11・14、2G-2 10・13）:
+// s2_chain の出口（そろった拍に行 r の q 16 個）を待ち行列に積み、1 拍に 1 行ずつ電力にして積分器（g24_acc・g21_acc・g22_acc）へ渡す
 //
 // 1 項目 = そろった行 r の q 16 個（k2 = 0..15）。出口は 1 項目から:
 //   1 行目: 行 r の銀行 b = k2 b（b = 0..7）
@@ -10,8 +10,8 @@
 // 記憶に残る項目の最大は、proj030（2G-4）の模型で 513・sim で記憶の山 509（先読み 6 段、余裕 3）。
 // 2G-1 は模型で 2,049（proj033 の M-2b）→ 記憶の山 2,045（2,048 項目で余裕 3）。
 // 2G-2 は模型で 1,025（proj034 の M-2b）→ 記憶の山は 1,021 の見込み（1,024 項目で余裕 3）。
-//   記憶: q（576 bit）は BRAM（2G-2 は 1,024 × 576 = RAMB36 16）、行 r・2 行目の有無・飽和の印（31 bit）は LUTRAM
-// 電力: p = q_re² + q_im²（37 bit、段は a → m → p）。出口は g22_acc の口（p・p_v・p_k1）と同じ
+//   記憶: q（576 bit）は BRAM（2^AB × 576。2G-4 RAMB36 8・2G-1-Fast 32・2G-2 16）、行 r・2 行目の有無・飽和の印（16 + KB + 1 bit）は LUTRAM
+// 電力: p = q_re² + q_im²（37 bit、段は a → m → p）。出口は積分器の口（p・p_v・p_k1）と同じ
 //
 // ovf（粘着、clr で消す）: 記憶が満ちているのに積もうとした（その項目は捨てる）
 // dmax: 記憶 ＋ 先読み ＋ 読みの途中の項目の数の最大（sim の見張り。フレームを重ねても増えないこと）。cmax: 記憶の項目の数の最大
@@ -23,8 +23,8 @@
 module s2_q #(
     parameter integer QW = 18,
     parameter integer PW = 37,
-    parameter integer AB = 10,             // 記憶の番地の bit（1,024 項目）
-    parameter integer KB = 13              // 行の bit（M = 2^KB）
+    parameter integer AB = 9,              // 記憶の番地の bit（2^AB 項目）。既定は 2G-4 の寸法。各 bit は明示して渡す
+    parameter integer KB = 12              // 行の bit（M = 2^KB）
 )(
     input  wire              clk,
     input  wire              rst,

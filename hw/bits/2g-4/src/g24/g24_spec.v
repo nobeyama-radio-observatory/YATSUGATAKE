@@ -223,7 +223,7 @@ module g24_spec #(
     wire [16*29-1:0] y2r, y2i;
     wire [11:0]      y2k;
     wire             y2v, pos_mis;
-    s2_sep u_sep (.clk(clk), .rst(rst), .z_re(zr), .z_im(zi), .z_k1(ln_m_tuser[11:0]), .z_v(ln_m_tvalid[0]), .clr(flags_clr),
+    s2_sep #(.ZW(28), .KB(12)) u_sep (.clk(clk), .rst(rst), .z_re(zr), .z_im(zi), .z_k1(ln_m_tuser[11:0]), .z_v(ln_m_tvalid[0]), .clr(flags_clr),
                   .y_re(y2r), .y_im(y2i), .y_k(y2k), .y_v(y2v), .pos_mis(pos_mis));
 
     // ---- 鎖（＋ ひねり係数の積。そろった行 r だけ、16 出口）----
@@ -245,7 +245,7 @@ module g24_spec #(
     wire [3:0]      psat;
     wire [10:0]     q_dmax;
     wire [9:0]      q_cmax;
-    s2_q u_q (.clk(clk), .rst(rst), .clr(flags_clr), .q_re(c_qr), .q_im(c_qi), .q_sat(qsat), .q_k(qk), .q_v(qv),
+    s2_q #(.AB(9), .KB(12)) u_q (.clk(clk), .rst(rst), .clr(flags_clr), .q_re(c_qr), .q_im(c_qi), .q_sat(qsat), .q_k(qk), .q_v(qv),
               .p(pw), .p_v(pv), .p_k1(pk1), .p_sat(psat), .ovf(q_ovf2), .dmax(q_dmax), .cmax(q_cmax));
 
     // ---- RUN: SHIFT を取り込む（2d。FULL の約束）----

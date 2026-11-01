@@ -152,7 +152,7 @@ sim-g22a:
 # 2c. g22_spec（分光の本体）。x.hex は無ければ作る（毎回作り直すと、並べた 2d・2e・g22x2 が書きかけの x.hex を読む。2G-4・2G-1-Fast と同じ）。
 #     ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
 G22S_RTL := ../../common/cmul.v ../../common/dft16f.v src/g22/g22_coef.v src/g22/g22_pfb_core.v src/g22/g22_pfb.v \
-            src/g22/g22_tw.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/g22/g22_acc.v src/g22/g22_spec.v sim/lane_fft_g22_model.v sim/tb_g22_spec.v
+            src/g22/g22_tw.v ../../common/s2_sep.v src/s2_chain.v ../../common/s2_q.v src/g22/g22_acc.v src/g22/g22_spec.v sim/lane_fft_g22_model.v sim/tb_g22_spec.v
 sim-g22s:
 	@o0=$(SIMDIR)/g22s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g22.py spec-gen $$o0; \
 	for v in normal ipq; do \
@@ -180,7 +180,7 @@ sim-recfr:
 # 2d. g22_core（FULL の流れのブロック・SPEC のレコード 512 KiB・FULL の TP・SRC）。入力は 2c と同じ x.hex（sim-g22s の g22s_in を作る）。
 #     ふつう・陽性対照 2 本（-DG22C_POSCTL: 積分器の読みの口に 1 段多い / -DG22C_TP_POSCTL: TP の F0 の × 32 を忘れる）。
 #     G22CORE_V で回す変種を選べる（コア 2 個の環境で 3 本を同時に回して 20 分前後。512 KiB のレコードを出す 13 万クロックが長い）
-G22CORE_RTL := ../../common/cmul.v ../../common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v ../../common/adc_ev.v ../../common/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
+G22CORE_RTL := ../../common/cmul.v ../../common/dft16f.v ../../common/s2_sep.v src/s2_chain.v ../../common/s2_q.v ../../common/adc_ev.v ../../common/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
                src/g22/g22_coef.v src/g22/g22_pfb_core.v src/g22/g22_pfb.v src/g22/g22_tw.v src/g22/g22_acc.v \
                src/g22/g22_spec.v src/g22/g22_core.v sim/lane_fft_g22_model.v sim/tb_g22_core.v
 G22CORE_V ?= normal posctl tp
@@ -267,7 +267,7 @@ sim-sep:
 	  o=$(SIMDIR)/sep_$$v; mkdir -p $$o; d=""; \
 	  [ $$v = gap ] && d="-DTB_GAP"; [ $$v = addr ] && d="-DSEP_ADDR_ERR"; [ $$v = swap ] && d="-DSEP_SWAP_ERR"; [ $$v = pos ] && d="-DTB_SKIP"; \
 	  ( $(PYTHON) sim/check_s2.py gen $$o > /dev/null && \
-	    $(IVERILOG) -g2005 -Wall $$d -DOUT=\"$$o\" -o $$o/tb src/s2_sep.v sim/tb_s2_sep.v > $$o/iverilog.log 2>&1 && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
+	    $(IVERILOG) -g2005 -Wall $$d -DOUT=\"$$o\" -o $$o/tb ../../common/s2_sep.v sim/tb_s2_sep.v > $$o/iverilog.log 2>&1 && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
 	    $(PYTHON) sim/check_s2.py check $$o $$o/tb.log > $$o/check.log 2>&1 ) & \
 	done; wait; \
 	for v in normal gap addr swap pos; do printf '%-12s %s\n' "sep_$$v" "$$(grep '結果:' $(SIMDIR)/sep_$$v/check.log || echo '結果の行が無い')"; done
@@ -278,7 +278,7 @@ sim-sep:
 
 # ---- P-2・P-3 s2_sep → s2_chain（＋ g22_tw）→ s2_q をつないだ sim（6 フレーム、積分器の口を模型と bit 単位で）----
 # normal（SHIFT 7）・sat（SHIFT 4、q の飽和あり）・gap は通るべき、d1（-DCHAIN_D1）・nornd（-DCHAIN_NORND）・bubble（-DQ_BUBBLE）は落ちるべき
-ALL2_RTL := src/s2_sep.v ../../common/cmul.v ../../common/dft16f.v src/g22/g22_tw.v src/s2_chain.v src/s2_q.v sim/tb_s2_all.v
+ALL2_RTL := ../../common/s2_sep.v ../../common/cmul.v ../../common/dft16f.v src/g22/g22_tw.v src/s2_chain.v ../../common/s2_q.v sim/tb_s2_all.v
 ALL2_V   := normal sat gap d1 nornd bubble
 sim-all2:
 	@for v in $(ALL2_V); do \
@@ -298,12 +298,15 @@ sim-all2:
 
 # ---- S 部品の OOC（`-1`・256 MHz、合成まで）。結果は build-ooc/ooc-<名前>.txt。Synth 8-3848（ドライバの無いネット）があれば NG ----
 # 3 本は出力先が別なので並べてよい
-OOC_sep   := s2_sep    src/s2_sep.v
+OOC_sep   := s2_sep    ../../common/s2_sep.v
 OOC_chain := s2_chain  ../../common/cmul.v ../../common/dft16f.v src/s2_chain.v
-OOC_q     := s2_q      src/s2_q.v
+OOC_q     := s2_q      ../../common/s2_q.v
+# s2_sep・s2_q は hw/common の共通の部品で、既定の寸法は 2G-4 のもの。この bit の寸法を generic で渡す
+OOC_GEN_sep := ZW=29;KB=13
+OOC_GEN_q   := AB=10;KB=13
 ooc-sep ooc-chain ooc-q:
 	@n=$(@:ooc-%=%); set -- $(OOC_$(@:ooc-%=%)); top=$$1; shift; o=build-ooc/$$n; mkdir -p $$o; \
-	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs $$top 3.906 clk $$(for x in "$$@"; do echo ../../$$x; done) > /dev/null 2>&1; \
+	cd $$o && OOC_GENERIC='$(OOC_GEN_$(@:ooc-%=%))' $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs $$top 3.906 clk $$(for x in "$$@"; do echo ../../$$x; done) > /dev/null 2>&1; \
 	  grep '^OOC ' vivado.log | tee ../ooc-$$n.txt; m=$$(grep -c 'Synth 8-3848' vivado.log); echo "Synth 8-3848: $$m" | tee -a ../ooc-$$n.txt; \
 	  grep -c 'CRITICAL WARNING' vivado.log | sed 's/^/CRITICAL WARNING: /' | tee -a ../ooc-$$n.txt; [ $$m -eq 0 ]
 

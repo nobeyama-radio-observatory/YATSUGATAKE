@@ -13,7 +13,8 @@ set gens {}
 if {[info exists ::env(OOC_GENERIC)] && $::env(OOC_GENERIC) ne ""} {
     foreach kv [split $::env(OOC_GENERIC) ";"] {
         lassign [split $kv "="] k v
-        lappend gens -generic "$k=\"$v\""
+        # 数は引用符なしで（整数のパラメータ）、ほかは文字列で
+        if {[string is integer -strict $v]} { lappend gens -generic "$k=$v" } else { lappend gens -generic "$k=\"$v\"" }
     }
 }
 synth_design -top $top -part $part -mode out_of_context {*}$gens
