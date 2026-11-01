@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// s2_sep — レーン FFT の 2-for-1 の分け（proj030 P-1。proj033 で 2G-1-Fast の既定に: ZW 30・KB 14）。IP 8 個（z_q = y_q + j·y_(q+8)）の出口 Z から、実のレーン 16 本の 2Y を作る。
+// s2_sep — レーン FFT の 2-for-1 の分け（proj030 P-1。2G-4・2G-1-Fast・2G-2 で共通。寸法 ZW・KB は bit ごとに渡す: 2G-4 ZW 28・KB 12、2G-1-Fast 30・14、2G-2 29・13）。IP 8 個（z_q = y_q + j·y_(q+8)）の出口 Z から、実のレーン 16 本の 2Y を作る。
 //   2·Y_q[k]     = (Zr[k] + Zr[−k]) + j(Zi[k] − Zi[−k])
-//   2·Y_(q+8)[k] = (Zi[k] + Zi[−k]) + j(Zr[−k] − Zr[k])        （加減算だけ。½ は捨てない。proj033 の鎖は 3 bit 丸めて SH 18 で受ける）
-// 定義は model/s2_model.py の sep_Z。
+//   2·Y_(q+8)[k] = (Zi[k] + Zi[−k]) + j(Zr[−k] − Zr[k])        （加減算だけ。½ は捨てない。丸めは bit ごとの s2_chain で）
+// 定義は各 bit の s2 の模型（model/s2_model.py・s2_model_g21.py・s2_model_g22.py）。
 //
 // 入口は IP の出口の bit 反転順（ビートの位置 n = bitrev(k1)）。k と −k は区間 [h, 2h)（h = 2^⌊log2 n⌋）の鏡の位置 3h − 1 − n にある:
-//   - 前半（n < 1.5h）: 待つ値の溜め（M/4 × 2·NQ·ZW bit。2G-1 で 4,096 × 480 bit）の番地 n − h に書く
+//   - 前半（n < 1.5h）: 待つ値の溜め（M/4 × 2·NQ·ZW bit。2G-4 で 1,024 × 448・2G-1-Fast で 4,096 × 480・2G-2 で 2,048 × 464 bit）の番地 n − h に書く
 //   - 後半: 番地 2h − 1 − n を読み、組がそろう → 出口に行 r = min(k, M − k) を 1 本
 //   - n = 0・1（k 0・M/2）は自己共役で、相手は自分
 // 番地は IP の k1（tuser）から決める（T では引かない。IP の出口の位相はコアで揃う保証が無い、LESSONS）。
@@ -21,8 +21,8 @@
 
 module s2_sep #(
     parameter integer NQ = 8,
-    parameter integer ZW = 30,
-    parameter integer KB = 14
+    parameter integer ZW = 28,                 // 既定は 2G-4 の寸法。各 bit は明示して渡す
+    parameter integer KB = 12
 )(
     input  wire                    clk,
     input  wire                    rst,
@@ -37,8 +37,8 @@ module s2_sep #(
     output reg                     y_v,
     output reg                     pos_mis
 );
-    localparam integer W  = 2 * NQ * ZW;     // 溜めの 1 語（2G-1 で 480 bit）
-    localparam integer AB = KB - 2;          // 溜めの番地の bit（2G-1 で 4,096 語）
+    localparam integer W  = 2 * NQ * ZW;     // 溜めの 1 語（2·NQ·ZW bit）
+    localparam integer AB = KB - 2;          // 溜めの番地の bit（M/4 語）
     localparam integer YW = ZW + 1;
 
     function [KB-1:0] brev(input [KB-1:0] x);

@@ -21,12 +21,12 @@ module tb_s2_all;
     wire [3:0] psat;
     wire [10:0] dmax;
     wire [9:0] cmax;
-    s2_sep   u_sep (.clk(clk), .rst(rst), .z_re(zr), .z_im(zi), .z_k1(k1), .z_v(v), .clr(1'b0),
+    s2_sep   #(.ZW(28), .KB(12)) u_sep (.clk(clk), .rst(rst), .z_re(zr), .z_im(zi), .z_k1(k1), .z_v(v), .clr(1'b0),
                     .y_re(yr), .y_im(yi), .y_k(yk), .y_v(yv), .pos_mis(pos_mis));
     g24_tw #(.A_FILE(`TA), .B_FILE(`TB)) u_tw (.clk(clk), .addr(tw_addr), .tw(tw), .k1_out(tw_k1));
     s2_chain u_ch  (.clk(clk), .rst(rst), .y_re(yr), .y_im(yi), .y_k(yk), .y_v(yv), .tw_addr(tw_addr), .tw(tw), .tw_k1(tw_k1),
                     .shift(4'd`SHIFT), .q_re(qre), .q_im(qim), .q_sat(qsat), .q_k(qk), .q_v(qv), .y_sat(ysat), .tw_mis(tw_mis));
-    s2_q     u_q   (.clk(clk), .rst(rst), .clr(1'b0), .q_re(qre), .q_im(qim), .q_sat(qsat), .q_k(qk), .q_v(qv),
+    s2_q     #(.AB(9), .KB(12)) u_q   (.clk(clk), .rst(rst), .clr(1'b0), .q_re(qre), .q_im(qim), .q_sat(qsat), .q_k(qk), .q_v(qv),
                     .p(p), .p_v(pv), .p_k1(pk), .p_sat(psat), .ovf(ovf), .dmax(dmax), .cmax(cmax));
 
     function [11:0] brev(input [11:0] n);

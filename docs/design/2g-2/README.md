@@ -9,7 +9,7 @@
 | ID | BIT_KIND 10・BIT_REV 1・PROJ 0x0034_0100。IF_ID 0x020A_0101（コア）・0x020A_0102（time_core）。PS は PROJ を照らさない（移植の M0 の決めること 3、案 A） |
 | コア | `s45_core_0`・`s45_core_1`（module reference の `g22_s45_core` = core_cmn ＋ g22_core（FULL、s 0）。コア 0 だけ raw_core（RAW、s 1）を持つ = NSTREAM 2、コア 1 は NSTREAM 1）。FULL・RAW の入力はそれぞれの `axis_sel4` で ADC A〜D から選ぶ |
 | 分光 | PFB T = 4 → 16 レーンのレーン FFT 8192 点（実のレーン 2 本を複素の IP 1 個に = 2-for-1、IP 8 個 / コア。FFT 131072 点、FRAME_BEATS 8192 = 32 µs）→ 電力 → 積分。65536 ch、第 2 ナイキスト（ch c の IF = 4096 − c·df MHz） |
-| 2-for-1 | `s2_sep`（IP 8 個の出口を実のレーン 16 本に分ける）→ `s2_chain`（2Y の丸め・ひねり係数・16 点 DFT の鎖、そろった行だけ）→ `s2_q`（均しの待ち行列。1 拍に 1 行ずつ電力にして）→ 積分器 `g22_acc`（全 ch、URAM）。組み立ては `g22_spec.v`（2-for-1 の前の鎖 `g22_chain.v` は sim-g22ch が読むだけで、bit には入らない）。`s2_sep.v`・`s2_q.v`・`s2_chain.v` は 2G-4・2G-1-Fast の同じ名前のファイルと中身が違うので `hw/bits/2g-2/src/` に置く。`s2_sep`・`s2_q` の一本化は 2G-2 の移植の後（別の PR） |
+| 2-for-1 | `s2_sep`（IP 8 個の出口を実のレーン 16 本に分ける）→ `s2_chain`（2Y の丸め・ひねり係数・16 点 DFT の鎖、そろった行だけ）→ `s2_q`（均しの待ち行列。1 拍に 1 行ずつ電力にして）→ 積分器 `g22_acc`（全 ch、URAM）。組み立ては `g22_spec.v`（2-for-1 の前の鎖 `g22_chain.v` は sim-g22ch が読むだけで、bit には入らない）。`s2_sep`・`s2_q` は `hw/common/` の共通の部品（寸法は `g22_spec.v` が渡す）。`s2_chain` は 2G-4・2G-1-Fast と丸めの式が違うので `hw/bits/2g-2/src/` に置く |
 | 係数 | PFB の係数は `g22_coef`（`g22_coef_lo.hex`・`g22_coef_hi.hex` の ROM）、ひねり係数は `g22_tw`（`g22_tw_a.hex`・`g22_tw_b.hex`）。コアごとに 1 組で、**どちらも bit に焼く**（2G-4 の係数 URAM と違い、PS は書かない） |
 | SHIFT・SRC | コアに 1 つ。SHIFT は RUN で、SRC は次の WRST で取り込む |
 | 起動 | 束ねの見張り r = 2·G = 1,048,576（窓 A0・B0。M6 の STATUS の `bund_r`）。2 窓の DUMP_T は同じ RUN_F0 から揃う |

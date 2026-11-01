@@ -106,7 +106,7 @@ sim-g24a:
 
 # 2c. g24_spec（分光の本体）。x.hex は無ければ作る（proj027: 毎回作り直すと、make -j で並べた 2d・2e が書きかけの x.hex を読んで X が混ざった）。ふつう（流し始めの tready の下げあり）と陽性対照（-DIPQ_POSCTL: 待ち行列なし。落ちるべき）
 G24S_RTL := ../../common/cmul.v ../../common/dft16f.v src/g24/g24_cu.v sim/cu_src.v src/g24/g24_pfb_core.v src/g24/g24_pfb.v \
-            src/g24/g24_tw.v src/s2_sep.v src/s2_chain.v src/s2_q.v src/g24/g24_acc.v src/g24/g24_spec.v sim/lane_fft_g24_model.v sim/tb_g24_spec.v
+            src/g24/g24_tw.v ../../common/s2_sep.v src/s2_chain.v ../../common/s2_q.v src/g24/g24_acc.v src/g24/g24_spec.v sim/lane_fft_g24_model.v sim/tb_g24_spec.v
 sim-g24s: $(CU_WORDS)
 	@o0=$(SIMDIR)/g24s_in; mkdir -p $$o0; [ -f $$o0/x.hex ] || $(PYTHON) sim/check_g24.py spec-gen $$o0; \
 	for v in normal ipq nook; do \
@@ -135,7 +135,7 @@ sim-recfr:
 # 2d. g24_core（FULL の流れのブロック・SPEC のレコード 256 KiB・FULL の TP・SRC）。入力は 2c と同じ x.hex（sim-g24s の g24s_in を作る）。
 #     ふつう・陽性対照 2 本（-DG24C_POSCTL: 積分器の読みの口に 1 段多い / -DG24C_TP_POSCTL: TP の F0 の × 8 を忘れる）。
 #     G24CORE_V で回す変種を選べる（proj025 では 3 本を同時に 20 分前後。2G-4 のレコードは 256 KiB で半分）
-G24CORE_RTL := ../../common/cmul.v ../../common/dft16f.v src/s2_sep.v src/s2_chain.v src/s2_q.v ../../common/adc_ev.v ../../common/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
+G24CORE_RTL := ../../common/cmul.v ../../common/dft16f.v ../../common/s2_sep.v src/s2_chain.v ../../common/s2_q.v ../../common/adc_ev.v ../../common/tp_core.v src/rec_fr.v ../../common/rec_arb.v \
                src/g24/g24_cu.v sim/cu_src.v src/g24/g24_pfb_core.v src/g24/g24_pfb.v src/g24/g24_tw.v src/g24/g24_acc.v \
                src/g24/g24_spec.v src/g24/g24_core.v sim/lane_fft_g24_model.v sim/tb_g24_core.v
 G24CORE_V ?= normal posctl tp
@@ -307,7 +307,7 @@ sim-sep:
 	  o=$(SIMDIR)/sep_$$v; mkdir -p $$o; d=""; \
 	  [ $$v = gap ] && d="-DTB_GAP"; [ $$v = addr ] && d="-DSEP_ADDR_ERR"; [ $$v = swap ] && d="-DSEP_SWAP_ERR"; [ $$v = pos ] && d="-DTB_SKIP"; \
 	  ( $(PYTHON) sim/check_s2.py gen $$o > /dev/null && \
-	    $(IVERILOG) -g2005 -Wall $$d -DOUT=\"$$o\" -o $$o/tb src/s2_sep.v sim/tb_s2_sep.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
+	    $(IVERILOG) -g2005 -Wall $$d -DOUT=\"$$o\" -o $$o/tb ../../common/s2_sep.v sim/tb_s2_sep.v && $(VVP) -n $$o/tb > $$o/tb.log 2>&1; \
 	    $(PYTHON) sim/check_s2.py check $$o $$o/tb.log > $$o/check.log 2>&1 ) & \
 	done; wait; \
 	for v in normal gap addr swap pos; do printf '%-12s %s\n' "sep_$$v" "$$(grep '結果:' $(SIMDIR)/sep_$$v/check.log || echo '結果の行が無い')"; done
@@ -319,13 +319,13 @@ sim-sep:
 # ---- S-1 s2_sep を 1 個 OOC で合成（`-1`・256 MHz）。結果は build-ooc/ooc-sep.txt。Synth 8-3848（ドライバの無いネット）があれば NG ----
 ooc-sep:
 	@mkdir -p build-ooc
-	$(VIVADO) -mode batch -nojournal -log build-ooc/vivado.log -source tools/ooc_rtl.tcl -tclargs s2_sep 3.906 clk src/s2_sep.v > /dev/null 2>&1; \
+	$(VIVADO) -mode batch -nojournal -log build-ooc/vivado.log -source tools/ooc_rtl.tcl -tclargs s2_sep 3.906 clk ../../common/s2_sep.v > /dev/null 2>&1; \
 	  cd build-ooc && grep '^OOC ' vivado.log | tee ooc-sep.txt; n=$$(grep -c 'Synth 8-3848' vivado.log); echo "Synth 8-3848: $$n" | tee -a ooc-sep.txt; \
 	  grep -c 'CRITICAL WARNING' vivado.log | sed 's/^/CRITICAL WARNING: /' | tee -a ooc-sep.txt; [ $$n -eq 0 ]
 
 # ---- P-2・P-3 s2_sep → s2_chain（＋ g24_tw）→ s2_q をつないだ sim（6 フレーム、積分器の口を模型と bit 単位で）----
 # normal（SHIFT 7）・sat（SHIFT 4、q の飽和あり）・gap は通るべき、sh18（-DCHAIN_SH18）・bubble（-DQ_BUBBLE）は落ちるべき
-ALL2_RTL := src/s2_sep.v ../../common/cmul.v ../../common/dft16f.v src/g24/g24_tw.v src/s2_chain.v src/s2_q.v sim/tb_s2_all.v
+ALL2_RTL := ../../common/s2_sep.v ../../common/cmul.v ../../common/dft16f.v src/g24/g24_tw.v src/s2_chain.v ../../common/s2_q.v sim/tb_s2_all.v
 sim-all2:
 	@for v in normal sat gap sh18 bubble; do \
 	  o=$(SIMDIR)/all2_$$v; mkdir -p $$o; d=""; sh=7; \
@@ -343,7 +343,7 @@ sim-all2:
 
 # ---- P-2・P-3 の OOC（`-1`・256 MHz）。結果は build-ooc/ooc-<名前>.txt ----
 OOC_CHAIN := ../../common/cmul.v ../../common/dft16f.v src/s2_chain.v
-OOC_Q     := src/s2_q.v
+OOC_Q     := ../../common/s2_q.v
 ooc-chain ooc-q:
 	@n=$(@:ooc-%=%); top=s2_$$n; f="$(if $(filter ooc-chain,$@),$(OOC_CHAIN),$(OOC_Q))"; o=build-ooc/$$n; mkdir -p $$o; \
 	cd $$o && $(VIVADO) -mode batch -nojournal -log vivado.log -source ../../tools/ooc_rtl.tcl -tclargs $$top 3.906 clk $$(for x in $$f; do echo ../../$$x; done) > /dev/null 2>&1; \

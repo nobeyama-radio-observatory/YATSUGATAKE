@@ -14,7 +14,7 @@ module tb_s2_sep;
     wire [463:0] yr, yi;
     wire [11:0] yk;
     wire yv, pos_mis;
-    s2_sep u (.clk(clk), .rst(rst), .z_re(zr), .z_im(zi), .z_k1(k1), .z_v(v), .clr(1'b0),
+    s2_sep #(.ZW(28), .KB(12)) u (.clk(clk), .rst(rst), .z_re(zr), .z_im(zi), .z_k1(k1), .z_v(v), .clr(1'b0),
               .y_re(yr), .y_im(yi), .y_k(yk), .y_v(yv), .pos_mis(pos_mis));
 
     function [11:0] brev(input [11:0] n);

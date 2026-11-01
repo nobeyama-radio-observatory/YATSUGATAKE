@@ -9,7 +9,7 @@
 | ID | BIT_KIND 11・BIT_REV 1・PROJ 0x0033_0100。IF_ID 0x020B_0101（コア）・0x020B_0102（time_core）。PS は PROJ を照らさない（移植の M5 の決めること 4、案 A） |
 | コア | `s45_core_0` の 1 個（module reference の `g21_s45_core` = core_cmn ＋ g21_core（FULL、s 0）＋ raw_core（RAW、s 1））。FULL・RAW の入力はそれぞれの `axis_sel4`（full_sel・raw_sel）で ADC A〜D から選ぶ |
 | 分光 | PFB T = 4 → 16 レーンのレーン FFT 16384 点（実のレーン 2 本を複素の IP 1 個に = 2-for-1、IP 8 個。FFT 262144 点、FRAME_BEATS 16384 = 64 µs）→ 電力 → 積分。131072 ch、第 2 ナイキスト（ch c の IF = 4096 − c·df MHz） |
-| 2-for-1 | `s2_sep`（IP 8 個の出口を実のレーン 16 本に分ける。加減算だけ）→ `s2_chain`（丸め・ひねり係数・16 点 DFT の鎖）→ `s2_q`（均しの待ち行列。1 拍に 1 行ずつ電力にして積分器 `g21_acc` へ）。2G-4 の同じ名前のファイルと中身が違う（寸法の既定と、`s2_chain` は丸めの式）ので `hw/bits/2g-1-fast/src/` に置く。一本化は 2G-2 の移植の後 |
+| 2-for-1 | `s2_sep`（IP 8 個の出口を実のレーン 16 本に分ける。加減算だけ）→ `s2_chain`（丸め・ひねり係数・16 点 DFT の鎖）→ `s2_q`（均しの待ち行列。1 拍に 1 行ずつ電力にして積分器 `g21_acc` へ）。`s2_sep`・`s2_q` は `hw/common/` の共通の部品（寸法は `g21_spec.v` が渡す）。`s2_chain` は 2G-4・2G-2 と丸めの式が違うので `hw/bits/2g-1-fast/src/` に置く |
 | 係数 | PFB の係数は `g21_coef`（前半・後半の表 `g21_coef_lo.hex`・`g21_coef_hi.hex` を 2 ポートの ROM にし、線形補間で作る）、ひねり係数は `g21_tw`（`g21_tw_a.hex`・`g21_tw_b.hex`）。**どちらも bit に焼く**（2G-4 の係数 URAM と違い、PS は書かない） |
 | SHIFT・SRC | コアに 1 つ。SHIFT は RUN で、SRC は次の WRST で取り込む |
 | 起動 | 束ねの見張り r = 2·G = 1,048,576（窓 A0。M4〜M6 の STATUS の `bund_r`） |

@@ -472,7 +472,7 @@ if {$use_board} {
 # proj024: コア（g22_s45_core）とその中身。Wide の wide_* と共有の ROM は足さない
 add_files -norecurse [list ./src/g22/g22_s45_core.v ./src/g22/g22_core.v ./src/g22/g22_spec.v ./src/g22/g22_pfb.v ./src/g22/g22_pfb_core.v \
                            ./src/g22/g22_coef.v ./src/g22/g22_tw.v ./src/g22/g22_acc.v \
-                           ./src/s2_sep.v ./src/s2_chain.v ./src/s2_q.v \
+                           ../../common/s2_sep.v ./src/s2_chain.v ../../common/s2_q.v \
                            ../../common/core_cmn.v ../../common/raw_core.v ../../common/cmul.v ../../common/dft16f.v ../../common/tp_core.v \
                            ./src/rec_fr.v ../../common/rec_arb.v ../../common/adc_ev.v]
 # proj016〜: 時刻・リング・ギアボックスの見張り・入力の選び
