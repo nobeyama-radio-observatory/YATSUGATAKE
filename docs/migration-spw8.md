@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SpW8）
 
-- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）
+- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）
 - 移植元: **`study-rfsoc@proj032-m0`**（注釈つきタグ、commit a80cee7。push は下の「始める条件」）。proj032 の **b5 rev 10**（4 ADC × 窓 8 本、チップ内の枠だけ・PL の DDR なし）
   - proj032 は b1〜b5 が `src/` を共有する形で、b5 rev 10 は `b5/` の Makefile・build.tcl・build_post.tcl が `../src/` を読む。**移すのは b5 と、b5 と sim が読むものだけ**（b1〜b4・d1・d3 は移さない）
   - **実装の戦略は Performance_ExplorePostRoutePhysOpt**（`b5/build-PEPRPO/`、WNS +0.016 ns）。P-9 の実機の判定はこの bit で通った。既定（PND）の rev 10 は WNS −0.024 ns で閉じていない
@@ -126,6 +126,19 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 - コマンドの形（`-D`・plusargs・`+FFT_*`）は README に全部は書かれていない。sim-targets の PR で 1 本ずつ書き起こし、**同じ Makefile の目標を `git archive` で取り出した proj032-m0 にも当てて**（パスだけ読み替えて）M2 で比べる
 - `tb_spwdelay` は 3 本で各 ≒ 20 分、`tb_core`・`tb_wsb` も長い。`sim-all` は 2G と同じく `SIM_J` 本ずつ並べる
 
+### M2 の結果（2026-11-03、ブランチ `spw8/sim-targets`）
+
+- **sim の目標**: `hw/bits/spw8/Makefile` の後ろに sim の節を足した。模型 3（`model-plan`・`model-pfb64`・`model-win`）と sim 11（`sim-pfb64`・`sim-head`・`sim-hbmc`・`sim-ddcb`・`sim-front`・`sim-wsb`・`sim-core`・`sim-regs`・`sim-f32cv`・`sim-rmux4`・`sim-dly`）。`make sim-all` が 14 本を `SIM_J` 本ずつ並べ、各目標の最後の行「sim-…: 全部通過」で判定する。`sim-dly` の 3 本は `tools/dly_cmp.py` で比べる（そのままの D(NS) が表の値と小数 2 桁まで同じ・入口に 1 段で ＋1 ±0.06・64 段で ＋64 ±0.005）
+- 上の「sim の組」の候補から変えたところ（試験台の頭の注で確かめた）:
+  - `tb_hbmc` の陽性対照は `-DHBMC_POSCTL`、`tb_ddcb` は `-DCFG=3 -DDDCB_POSCTL`、`tb_wsb` は `-DCFG=0 -DENG_POSCTL`、`tb_spw_regs`・`tb_rmux4` の陽性対照は「結果: 陽性対照は落ちた」の行で読む
+  - **`tb_core` の `-DRDMUX`・`-DDDRR_MUX_POSCTL` は `sim-core` から外し、`sim-rdmux` に分けた**（sim-all には入れない）。ddrr_mux3 は b3 rev 6 の試みで、b5 の bit には入っていない。proj032 README の rev 6 に「sim は不合格」（山の帯域が足りず DDR の窓を通る記録が崩れる・前段の記録は既定と bit で同じ・陽性対照も同じ理由で落ちる）と記録がある。`sim-rdmux` はこの記録をそのまま照らす（前段の 4 個 `front_y`・`wsb_in`・`wsb_t`・`tp_x` が `core_n` と同じ、`check_wsb` が 2 本とも不合格）
+  - 最初の版は vvp の出力を `tb.log` に書いていて、`check_ring.py` が読む `sim.log` が無く sim-wsb・sim-core が落ちた（見張りが働いた）。`sim.log` に直した
+- **両側で全部通過**: 同じ目標（パスだけ読み替えた `Makefile.sim`）を `git archive` で取り出した proj032-m0 に当て、移植先と移植元の両方で 14 本が全部通過・陽性対照はすべて落ちた。`sim-rdmux` も両側で「記録どおり」。D(NS) は両側とも 86.03・135.07・231.05・411.01・757.03
+- **出力のバイト比べ**（39 変種の全ファイル）: **出力 298 個がバイト単位で同じ**、片側だけのファイル 0。違ったのはコンパイルした `tb` だけ:
+  - `tb` は vvp の番地（`0x…`）がコンパイルのたびに変わるので、番地を出てきた順の番号に置き換え、`src/common` と `../../common` を揃えてから比べた（同じ版を 2 回コンパイルして同じ・CFG を変えると違う、で照らしを確かめた）。20 個が同じ
+  - 残る 18 個（粗い PFB を含む pfb64・front・dly・core・rdmux）は、`hw/common/` と違う 7 個（決めること 2: cmul の SH と、コメント 1 行の 6 個）で行番号がずれた分。**移植元をこの 7 個だけ `hw/common/` の版に差し替えてコンパイルし直すと 18 個とも移植先と同じ、元のままでは 18 個とも違う**。決めること 2 の違いはコンパイルの形だけで、sim の出力を変えない
+- かかった時間（32 コアの機械、両側を同時に）: 重いのは sim-core ≒ 92 分・sim-front ≒ 88 分・sim-wsb ≒ 38 分・sim-dly ≒ 39〜46 分、sim-rdmux ≒ 80 分。ほかは数分。移植先の `make sim-all`（`SIM_J` 4）は通しで 88 分、「sim-all: 全部通過（14 個）」
+
 ### M3 の心配（M3 の前に書く）
 
 - **WNS +0.016 ns は、これまで移した bit で最も小さい**（2G-1-Fast +0.025・2G-4 +0.047・2G-2 +0.074）。ただし SAM45-Fine から 2G-2 まで、ディレクトリだけ違う作り直しで構成データまで同じだった。同じになれば WNS も小数 6 桁まで同じ
@@ -140,8 +153,8 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 | M0 | `spw8/m0-map` | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x] |
 | S | `spw8/spec` | ADR 0028（決め 1・2）。`interface.md` の WRST_T に「bit ごとに下限があり、短い値は下限に切り上げる（SpW8 は 8 クロック）」、specd の SpW の窓のキーは論理の窓（SET は 1 コアの組をまとめて受け、計画できなければ組ごと断る・STATUS に対応・受け側へのレコードも論理の番号）、`bits.md` の SpW8 の行（b5、ネットワークの tint は 20.48 ms から） | 文書だけ。M1〜M3 と並べて進めてよい |
 | M1 | `spw8/m1-place` | 表の行き先に置き、パスと名前（`spw8_coef.json`）だけを直す | 違う行はすべてパスの行か名前の行。在ってはいけない側の照合（**2026-11-03**: 上の「M1 の結果」） |
-| — | `spw8/sim-targets` | 上の「sim の組」を Makefile の目標に書き起こす | — |
-| M2 | 同上 | sim を全部回し、proj032-m0 と並べる | 全部通過し、**出力がバイト単位で同じ**。陽性対照が落ちる |
+| — | `spw8/sim-targets` | 上の「sim の組」を Makefile の目標に書き起こす（**2026-11-03**: 上の「M2 の結果」） | — |
+| M2 | 同上 | sim を全部回し、proj032-m0 と並べる | 全部通過し、**出力がバイト単位で同じ**。陽性対照が落ちる（**2026-11-03**: 出力 298 個が同じ・tb の違いは決めること 2 の 7 個だけ） |
 | M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527） |
 | M4 | `spw8/m4-board` | 実機の短い回帰（`hw/bits/spw8/pynq/spw_b5.py`） | ID・`--cfg b5 --ng 10`（20.48 ms）の全部通過・`--fast --ng 5`（10.24 ms × 32 窓）の DROP 0・`--tone` の CW の ch が P-9・P-13・P-13b と同じ |
 | M5a | `spw8/m5a-delay-table` | **決め 3**: `timebase.WIN_DELAY_BEATS` を (BIT_KIND, BIT_REV) の表にし、SpW8 rev 10 の D(NS) を小数 2 桁で入れる。`timing.md` の残り（91 行目）を同じ PR で閉じる | SAM45-Fine の値が変わらない（test_cal_b・s45v2c）。(7, 10) が引ける。表に無い組は「未較正」 |
