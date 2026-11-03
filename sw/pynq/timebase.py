@@ -22,7 +22,7 @@ PPS のスタンプは「同期器を抜けて縁を見たクロックの T」�
 
 ダンプの DUMP_T は「最初のフレームの最初のサンプルがコアに入ったビート」。ADC のサンプルの時刻に直すには、
 ADC からコアの入口までの遅れ（RFDC ＋ ギアボックス、`CAL` の adc_to_core_ns）と、窓ではさらに PFB・DDC の遅れ
-（`WIN_DELAY_BEATS[NS]`、sim で出した値）を**引く**。どちらも要求 100 µs に対して小さいが、黙って 0 にしない:
+（`WIN_DELAY[(BIT_KIND, BIT_REV)][NS]`、sim で出した値）を**引く**。どちらも要求 100 µs に対して小さいが、黙って 0 にしない:
 未較正のものは `accuracy()` に「未較正」と出す。
 
 ## 較正（ADR 0023）
@@ -151,11 +151,26 @@ def select_cal(key, board_cal=None, this_board=None, cal=None):
     return dict(base, source="暫定: 開発の値" + src + "。" + base.get("source", "")), "provisional", why
 
 
-# 窓の PFB・DDC の遅れ（win_core の入口のビート → そのインパルスの |z|² の重心が wspec に入るまで、ビート）。NS → 値。
-#   make sim-wdelay（2026-10-02、iverilog・k = 5・Δφ = 0）。線形位相なので重心 = 群遅延 ＋ 経路の遅れ。**RTL を変えたら出し直す**
-#   窓の PFB（T = 4）は wspec の中（z の後）なので入らない（ずれ 1.5·L は D_eff で足す）。PFB 入りの RTL でも NS 1〜8 とも同じ値
-#   （proj021 2026-10-14、hw/bits/sam45-fine の RTL で 2026-10-23）
-WIN_DELAY_BEATS = {1: 57.56, 2: 87.21, 3: 136.06, 4: 229.02, 5: 408.09, 6: 748.27, 7: 1427.80, 8: 2781.10}
+# 窓の遅れ D(NS)（窓の入口のビート → そのインパルスの |z|² の重心が窓の分光に入るまで、ビート）。鍵は bit の (BIT_KIND, BIT_REV)、
+#   中身は NS → 値（interface.md 5.2・timing.md）。線形位相なので重心 = 群遅延 ＋ 経路の遅れ。**RTL を変えたら BIT_REV を上げ、sim で出し直して新しい鍵で足す**
+#   （古い値は新しい REV に当たらない = 表に無い bit・NS は accuracy() に「未較正」と出し、sample_utc_ns は D を引かない）。
+#   窓の PFB（T = 4）の重心のずれ 1.5·L は D に入らない（D_eff で足す）
+WIN_DELAY = {
+    # SAM45-Fine: make sim-wdelay（2026-10-02、iverilog・k = 5・Δφ = 0）。窓の PFB は wspec の中（z の後）。PFB 入りの RTL でも NS 1〜8 とも同じ値
+    #   （proj021 2026-10-14、hw/bits/sam45-fine の RTL で 2026-10-23）
+    (2, 3): {1: 57.56, 2: 87.21, 3: 136.06, 4: 229.02, 5: 408.09, 6: 748.27, 7: 1427.80, 8: 2781.10},
+    # SpW8 rev 10: study-rfsoc proj032 P-12（2026-11-02、tb_spwdelay、位相 64 通りの平均）。lane・粗い ch・WDPHI に依らない。
+    #   hw/bits/spw8 の make sim-dly で同じ値（YATSUGATAKE の SpW8 の M2）
+    (7, 10): {1: 86.03, 2: 135.07, 3: 231.05, 4: 411.01, 5: 757.03},
+}
+WIN_DELAY_BEATS = WIN_DELAY[(2, 3)]   # SAM45-Fine の行（SAM45-Fine だけを扱う道具 s45v2c・timetest が使う）。ほかは win_delay_of で引く
+
+
+def win_delay_of(key):
+    """bit の鍵 (BIT_KIND, BIT_REV) の D(NS) の表（NS → ビート）。表に無い bit は空（どの NS も「未較正」）"""
+    return dict(WIN_DELAY.get(tuple(key), {}))
+
+
 # proj017: 窓の最初の z の遅れ F(NS)（WSTART = 窓の始まりのビートから、窓のフレーム 0 の最初の z が wspec に入るまで、ビート）と、
 #   **幅の違う窓の区切りに残る一定の差 X(NS) = F(NS) − D(NS)**。窓の区切りの実効のサンプルの時刻は DUMP_T − D(NS) = WSTART ＋ F0·L ＋ X(NS)。
 #   WSTART と F0·L を時刻の格子で揃えても、X(NS) の差（NS 1 と 6 で 625 ビート = 2.4 µs、NS 1 と 8 で 2548 ビート = 10 µs）は残る
@@ -264,7 +279,7 @@ class Timebase:
     def __init__(self, tc, path="trig", cal=None, time_cal="auto", log=None):
         """time_cal: "auto" = time_cal_path() にあれば読む・None = 読まない（暫定）・dict = 読んだもの（試験）"""
         self.tc = tc
-        key = (tc.bit_kind, tc.bit_rev)                                 # M5a: (BIT_KIND, BIT_REV)
+        self.key = key = (tc.bit_kind, tc.bit_rev)                      # M5a: (BIT_KIND, BIT_REV)
         if time_cal == "auto":
             time_cal, p = None, time_cal_path()
             if os.path.exists(p):
@@ -274,6 +289,7 @@ class Timebase:
                     (log or print)(f"時刻の較正ファイルを読めない（暫定の値を使う）: {e}")
         self.board = board_id()                                         # ADR 0023・0025: 時刻と TP の較正ファイルの鍵
         self.cal, self.cal_state, self.cal_why = select_cal(key, time_cal, self.board, cal)   # ADR 0023
+        self.win_delay = win_delay_of(key)                              # 窓の D(NS)（SpW8 の M5a）
         if self.cal_state != "board":
             (log or print)(f"時刻の較正は暫定（開発の値）: {self.cal_why}")
         self.path = path
@@ -331,8 +347,8 @@ class Timebase:
         """コアに `beat` で入ったデータの、ADC のサンプルとしての UTC（整数 ns）。ns = 窓の NS（全帯域・TP は None）。
         adc = chans の添字（proj017 から adc_to_core_ns は ADC ごと）。"""
         t = self.beat_utc_ns(beat) - int(round(self._a2c(adc) or 0))
-        if ns is not None and ns in WIN_DELAY_BEATS:
-            t -= int(round(WIN_DELAY_BEATS[ns] * NS_NUM / NS_DEN))
+        if ns is not None and ns in self.win_delay:
+            t -= int(round(self.win_delay[ns] * NS_NUM / NS_DEN))
         return t
 
     def accuracy(self, ns=None, adc=0):
@@ -343,6 +359,6 @@ class Timebase:
             unc.append("pps_det_ns")
         if self._a2c(adc) is None:
             unc.append(f"adc_to_core_ns[{adc}]")
-        if ns is not None and ns not in WIN_DELAY_BEATS:
-            unc.append(f"WIN_DELAY_BEATS[{ns}]")
+        if ns is not None and ns not in self.win_delay:
+            unc.append(f"WIN_DELAY[{self.key}][{ns}]")
         return dict(uncalibrated=unc, bound_ns=c["bound_ns"], source=c["source"], state=self.cal_state)

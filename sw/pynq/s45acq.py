@@ -690,7 +690,7 @@ class HwBackend:
     def anchor(self):
         try:
             a = self.tb.anchor()
-            self.clock = Clock(self.tb, self.TB.WIN_DELAY_BEATS)
+            self.clock = Clock(self.tb, self.tb.win_delay)
             self.log(f"錨: UTC {a['utc_sec']} 秒 = スタンプ {a['stamp']}（EPOCH {a['epoch']}）")
             return True, None
         except Exception as e:

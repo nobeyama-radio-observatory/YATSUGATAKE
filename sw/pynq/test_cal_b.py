@@ -29,6 +29,8 @@ ANCHOR = dict(utc_sec=1_792_557_829, stamp=1_488_900_165, epoch=1, count=0)
 def make_tb(cal):
     tb = TB.Timebase.__new__(TB.Timebase)
     tb.cal = cal
+    tb.key = (2, 3)
+    tb.win_delay = TB.win_delay_of(tb.key)
     tb._anchor = dict(ANCHOR)
     tb.path = "trig"
     tb.check = lambda: None
@@ -55,7 +57,7 @@ def main():
     d = [tb_.beat_utc_ns(b) - ta.beat_utc_ns(b) for b in beats]
     chk(f"timebase.beat_utc_ns: (b) − (a) = +P（{P} ns）", all(abs(x - P) <= 1 for x in d), f"差 {d}")
     # 3. 取得の Clock（s45acq）も同じ式
-    wd = dict(TB.WIN_DELAY_BEATS)
+    wd = TB.win_delay_of((2, 3))
     ca, cb = A.Clock(ta, wd), A.Clock(tb_, wd)
     for adc in range(4):
         d = [cb.utc_ns(b, adc=adc) - ca.utc_ns(b, adc=adc) for b in beats]

@@ -81,6 +81,7 @@ cd ~/sam45-fine-<版>
 sha256sum proj021.bit                         # リリースの SHA256SUMS・bits.json と同じ
 python3 bitinfo.py proj021.bit                # USR_ACCESS = ビルドした commit（汚れの印が無いこと）
 python3 test_cal_b.py                         # 時刻の式の試験（PL なし）。「結果: 全部通過」
+python3 test_win_delay.py                     # 窓の遅れ D(NS) の表の試験（PL なし）。「結果: 全部通過」
 python3 test_timecal.py                       # 時刻の較正ファイルの試験（PL なし）。「結果: 全部通過」
 python3 test_tpcal.py                         # TP の較正ファイルの試験（PL なし）。「結果: 全部通過」
 ```

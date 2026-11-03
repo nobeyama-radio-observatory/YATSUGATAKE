@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SpW8）
 
-- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-11-04、ブランチ `spw8/m4-board`。ID・NG 10・`--fast` の NG 5・計画の窓と WRST の約束・SG の CW の ch の位置が P-9・P-13・P-10b・P-13b と同じ。下の「M4 の結果」）
+- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-11-04、ブランチ `spw8/m4-board`。ID・NG 10・`--fast` の NG 5・計画の窓と WRST の約束・SG の CW の ch の位置が P-9・P-13・P-10b・P-13b と同じ。下の「M4 の結果」）。**M5a 済み**（2026-11-04、ブランチ `spw8/m5a-delay-table`。D(NS) を (BIT_KIND, BIT_REV) の表 `timebase.WIN_DELAY` にし、(7, 10) を足した。下の「M5a の結果」）
 - 移植元: **`study-rfsoc@proj032-m0`**（注釈つきタグ、commit a80cee7。push は下の「始める条件」）。proj032 の **b5 rev 10**（4 ADC × 窓 8 本、チップ内の枠だけ・PL の DDR なし）
   - proj032 は b1〜b5 が `src/` を共有する形で、b5 rev 10 は `b5/` の Makefile・build.tcl・build_post.tcl が `../src/` を読む。**移すのは b5 と、b5 と sim が読むものだけ**（b1〜b4・d1・d3 は移さない）
   - **実装の戦略は Performance_ExplorePostRoutePhysOpt**（`b5/build-PEPRPO/`、WNS +0.016 ns）。P-9 の実機の判定はこの bit で通った。既定（PND）の rev 10 は WNS −0.024 ns で閉じていない
@@ -187,6 +187,14 @@ ID（`m4_b5_ng10`）: 4 コアとも IF_ID 0x0207_0A01・PROJ 0x0032_0300・NSTR
 - 終わった後、ボードには M3 の bit が載ったまま（`~/spw8-m4/proj032b5.bit`）、`/dev/shm` は空。ATT は 13 dB のまま、ノイズソースは ON のまま（触っていない）
 - 記録は `hw/bits/spw8/runs/m4/`（git に入れない）
 
+### M5a の結果（2026-11-04、ブランチ `spw8/m5a-delay-table`）
+
+- `sw/pynq/timebase.py`: 全 bit 共通だった `WIN_DELAY_BEATS` を、鍵が (BIT_KIND, BIT_REV) の表 `WIN_DELAY` にした。行は (2, 3) SAM45-Fine（値はそのまま）と (7, 10) SpW8 rev 10（NS 1〜5 = 86.03・135.07・231.05・411.01・757.03、P-12 と `make sim-dly` の値）。`Timebase` は載っている bit の鍵で行を選ぶ（`win_delay`）。表に無い bit・NS は `accuracy()` に `WIN_DELAY[鍵][NS]` を「未較正」と出し、D を引かない。`WIN_DELAY_BEATS` は (2, 3) の行の別名として残す（SAM45-Fine だけを扱う `s45v2c`・`timetest` が使う）
+- `s45acq.Clock` は `Timebase` が選んだ行を受け取る（SAM45-Fine では前と同じ値）
+- 新しい試験 `sw/pynq/test_win_delay.py`（PL なし）: **全部通過**。(2, 3) が M5a の前の値と同じ・(7, 10) が引ける・`Timebase.__init__` が鍵で選ぶ・SAM45-Fine と SpW8 で NS ごとに引く ns が表どおり・2G-4 (3, 1) と SpW8 の表に無い REV (7, 11) はどの NS も「未較正」で D を引かない。**陽性対照**（`-p`、M5a の前の形 = どの bit にも SAM45-Fine の行を当てる）は 24 項目が落ちた
+- SAM45-Fine の値が変わらないこと: `test_cal_b.py` 全部通過（窓 NS 3 を含む）・`test_fake.sh all` 31 試験とも通過・`hw/bits/sam45-fine` の `make sim-regmap`（193 項目と test_regmap）が通過、陽性対照 `sim-regmap-p` は落ちた。`test_tpjump`・`test_timecal`・`test_nch`・`test_s45fast` も通過
+- [`spec/timing.md`](spec/timing.md) の持ち越し（窓の D の表）を閉じ、D_eff の表に SpW8 の行を足した
+
 ## 手順
 
 | 手順 | ブランチ | SpW8 ですること | 合格 |
@@ -198,7 +206,7 @@ ID（`m4_b5_ng10`）: 4 コアとも IF_ID 0x0207_0A01・PROJ 0x0032_0300・NSTR
 | M2 | 同上 | sim を全部回し、proj032-m0 と並べる | 全部通過し、**出力がバイト単位で同じ**。陽性対照が落ちる（**2026-11-03**: 出力 298 個が同じ・tb の違いは決めること 2 の 7 個だけ） |
 | M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527）（**2026-11-04**: 上の「M3 の結果」） |
 | M4 | `spw8/m4-board` | 実機の短い回帰（`hw/bits/spw8/pynq/spw_b5.py`） | ID・`--cfg b5 --ng 10`（20.48 ms）の全部通過・`--fast --ng 5`（10.24 ms × 32 窓）の DROP 0・`--tone` の CW の ch が P-9・P-13・P-13b と同じ（**2026-11-04**: 上の「M4 の結果」） |
-| M5a | `spw8/m5a-delay-table` | **決め 3**: `timebase.WIN_DELAY_BEATS` を (BIT_KIND, BIT_REV) の表にし、SpW8 rev 10 の D(NS) を小数 2 桁で入れる。`timing.md` の残り（91 行目）を同じ PR で閉じる | SAM45-Fine の値が変わらない（test_cal_b・s45v2c）。(7, 10) が引ける。表に無い組は「未較正」 |
+| M5a | `spw8/m5a-delay-table` | **決め 3**: `timebase.WIN_DELAY_BEATS` を (BIT_KIND, BIT_REV) の表にし、SpW8 rev 10 の D(NS) を小数 2 桁で入れる。`timing.md` の残り（91 行目）を同じ PR で閉じる | SAM45-Fine の値が変わらない（test_cal_b・s45v2c）。(7, 10) が引ける。表に無い組は「未較正」（**2026-11-04**: 上の「M5a の結果」） |
 | M5b | `spw8/m5b-specd` | **決め 2**: specd に SpW Backend（spwplan で論理の窓 → 流れ s・SET は組ごと・STATUS に対応・レコードを論理の番号に・C の読み手 `--fast-ring` の f32 版・ネットワークの 10.24 ms を断る） | PL なしの試験（`test_fake.sh`。PSPLIT の無い bit では割り当てが恒等で振る舞いが今と同じ）と、実機で W-1・TW・WRST・NET |
 | M5c | `spw8/m5c-usr-access` | USR_ACCESS を焼く（SAM45-Fine の M5b・2G-2 の M5） | M2〜M4 の回し直しが予言どおり（FDRI は変わらず、構成の流れが変わる） |
 | M6 | `spw8/m6` | 判定（`test/acceptance/spw8/`）を全部通し、性能評価を書く | `docs/performance/spw8/v1.0.0.md` |
