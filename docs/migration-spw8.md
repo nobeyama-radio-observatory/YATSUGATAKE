@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SpW8）
 
-- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）
+- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-11-04、ブランチ `spw8/m4-board`。ID・NG 10・`--fast` の NG 5・計画の窓と WRST の約束・SG の CW の ch の位置が P-9・P-13・P-10b・P-13b と同じ。下の「M4 の結果」）
 - 移植元: **`study-rfsoc@proj032-m0`**（注釈つきタグ、commit a80cee7。push は下の「始める条件」）。proj032 の **b5 rev 10**（4 ADC × 窓 8 本、チップ内の枠だけ・PL の DDR なし）
   - proj032 は b1〜b5 が `src/` を共有する形で、b5 rev 10 は `b5/` の Makefile・build.tcl・build_post.tcl が `../src/` を読む。**移すのは b5 と、b5 と sim が読むものだけ**（b1〜b4・d1・d3 は移さない）
   - **実装の戦略は Performance_ExplorePostRoutePhysOpt**（`b5/build-PEPRPO/`、WNS +0.016 ns）。P-9 の実機の判定はこの bit で通った。既定（PND）の rev 10 は WNS −0.024 ns で閉じていない
@@ -164,6 +164,29 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 - **`hw/common/` の 7 個（決めること 2）は構成データを変えない**: cmul の SH（既定 16）とコメント 1 行の 6 個は、合成の結果に効かない（M2 の sim の出力と同じ結論）
 - USR_ACCESS は焼いていない（M5c で入れる）。.bit は git に入れない（ADR 0018）
 
+### M4 の結果（2026-11-04、ブランチ `spw8/m4-board`）
+
+M3 で作った bit（FDRI `de7e9d88…3225`）と `hw/bits/spw8/pynq/` の 6 個（ボードの proj032 b5 の写しと sha256 で全部同じ。`libspwfast.so` はボードで `gcc -O3 -march=armv8-a+crc` で作り、前の写しとバイト単位で同じ）を、ボードの新しいディレクトリ（`~/spw8-m4`）に置いた。
+配線は N（ノイズソース ON・15.00 V・512 mA、ATT 13 dB を各 run の前後に読んだ）。SG は `--tone` の 3 回だけ（下）。始める前にボードの specd・道具が動いていないこと（載っていたのは proj037.bit）と `/dev/shm` が空なことを見た。
+`spw_b5.py --clkin 0 --ref 10` に `--bitfile ~/spw8-m4/proj032b5.bit`:
+
+| run | 引数 | 比べる相手 | 結果 |
+|---|---|---|---|
+| `m4_b5_ng10` | `--cfg b5 --ng 10 --sec 10` | P-9 `p9b5_b5_ng10`（窓のレコード 16,376・DROP 0） | **全部通過**。窓のレコード **16,376**・DROP 0・照らしの誤り 0・CORE_FLAGS 0・EXT_CNT 0・リングの PEAK 15.4 MB。TP −31.50〜−31.65 dBFS（P-9 −31.35〜−31.50） |
+| `m4_fast` | `--cfg b5 --ng 5 --fast --sec 30` | P-13 `p13_fast2`（52.4 MB/s・55.8 %・176 µs・DROP 0） | **全部通過**。52.4 MB/s・輪の中の時間 56.4 %・1 本 178 µs・DROP 0・窓のレコード 95,288・PEAK 40.2 MB |
+| `m4_fastpos` | 同上 ＋ `--fast-posctl`、10 s | P-13 の陽性対照 | **落ちた**（窓のレコード 32,782 本が全部 CRC の誤り） |
+| `m4_plan` | `--win 3900:128,3890:64,3890:64,3892:16,3891:8,3300:128,3290:32,2650:128 --alt 2,1 --wrst-test --ng 10 --sec 10` | P-10b `p10_plan2` | **全部通過**。WRST の約束 [1]〜[6] で PL の WRST_BAD が check() と 6 つとも同じ・破らない設定は WRST_CNT ＋1。窓のレコード 16,360・DROP 0。双子 0 ↔ 5 の比の中央値 1.00003〜1.00004（4 コア） |
+
+ID（`m4_b5_ng10`）: 4 コアとも IF_ID 0x0207_0A01・PROJ 0x0032_0300・NSTREAM 8・CAPS 3、time_core 0x0207_0A02・リング 0x0207_0A03。
+
+- **双子の比の揺れは P-10b と違う**（今回 0.0016・形の相関 0.99998・最大の ch 1821、P-10b 0.011・0.89〜0.98・486）。合否の線（独立な雑音の 1/4 = 0.016）はどちらも下回る。bit は FDRI で同じなので PL の振る舞いは同じで、違いは入力: P-10b は TP −33.4〜−33.6 dBFS（今回より 2 dB 低い）。proj032 README には、そのころ SG が別作業で掃引中だったとある。今回はノイズだけで 3890 MHz の周りに入力の傾き（平らさ 0.69〜1.59）があり、双子が同じ形を見るので相関が上がる。原因の切り分け（揺れの大きさが何で決まるか）はしていない
+- **`--tone`（P-13b の CW の ch の位置）: 32 か所とも予言の ch とずれ 0**（2026-11-04、開発者の了承のうえで SG を使った）。SG E8257D（基準 EXT）＋9 dBm・ノイズ ON・ATT 13 dB（前後で読んだ）。
+  窓は `m4_plan` と同じ 8 本に `--fast --ng 10 --sec 10`、CW は P-13b と同じ 3 点（3891.125 MHz: 窓 0〜4 の ch 284・4024・4024・224・4032、3294.8125 MHz: 窓 5・6 の ch 166・3480、2654.8125 MHz: 窓 7 の ch 3942）。
+  `m4_cw0`〜`m4_cw2` の 3 回とも「全部通過」（DROP 0）。8 窓 × 4 コア = 32 か所の最大の ch が予言の ch と同じ、ピーク / 中央値 34.6〜54.7 dB（P-13b は 35.5〜54.7 dB）。
+  SG は終わった後、元の状態（2000.3 MHz・＋9 dBm・出力 OFF・基準 EXT）に戻した
+- 終わった後、ボードには M3 の bit が載ったまま（`~/spw8-m4/proj032b5.bit`）、`/dev/shm` は空。ATT は 13 dB のまま、ノイズソースは ON のまま（触っていない）
+- 記録は `hw/bits/spw8/runs/m4/`（git に入れない）
+
 ## 手順
 
 | 手順 | ブランチ | SpW8 ですること | 合格 |
@@ -174,7 +197,7 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 | — | `spw8/sim-targets` | 上の「sim の組」を Makefile の目標に書き起こす（**2026-11-03**: 上の「M2 の結果」） | — |
 | M2 | 同上 | sim を全部回し、proj032-m0 と並べる | 全部通過し、**出力がバイト単位で同じ**。陽性対照が落ちる（**2026-11-03**: 出力 298 個が同じ・tb の違いは決めること 2 の 7 個だけ） |
 | M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527）（**2026-11-04**: 上の「M3 の結果」） |
-| M4 | `spw8/m4-board` | 実機の短い回帰（`hw/bits/spw8/pynq/spw_b5.py`） | ID・`--cfg b5 --ng 10`（20.48 ms）の全部通過・`--fast --ng 5`（10.24 ms × 32 窓）の DROP 0・`--tone` の CW の ch が P-9・P-13・P-13b と同じ |
+| M4 | `spw8/m4-board` | 実機の短い回帰（`hw/bits/spw8/pynq/spw_b5.py`） | ID・`--cfg b5 --ng 10`（20.48 ms）の全部通過・`--fast --ng 5`（10.24 ms × 32 窓）の DROP 0・`--tone` の CW の ch が P-9・P-13・P-13b と同じ（**2026-11-04**: 上の「M4 の結果」） |
 | M5a | `spw8/m5a-delay-table` | **決め 3**: `timebase.WIN_DELAY_BEATS` を (BIT_KIND, BIT_REV) の表にし、SpW8 rev 10 の D(NS) を小数 2 桁で入れる。`timing.md` の残り（91 行目）を同じ PR で閉じる | SAM45-Fine の値が変わらない（test_cal_b・s45v2c）。(7, 10) が引ける。表に無い組は「未較正」 |
 | M5b | `spw8/m5b-specd` | **決め 2**: specd に SpW Backend（spwplan で論理の窓 → 流れ s・SET は組ごと・STATUS に対応・レコードを論理の番号に・C の読み手 `--fast-ring` の f32 版・ネットワークの 10.24 ms を断る） | PL なしの試験（`test_fake.sh`。PSPLIT の無い bit では割り当てが恒等で振る舞いが今と同じ）と、実機で W-1・TW・WRST・NET |
 | M5c | `spw8/m5c-usr-access` | USR_ACCESS を焼く（SAM45-Fine の M5b・2G-2 の M5） | M2〜M4 の回し直しが予言どおり（FDRI は変わらず、構成の流れが変わる） |
