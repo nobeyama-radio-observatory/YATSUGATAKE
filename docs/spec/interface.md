@@ -189,6 +189,8 @@ BIT_KIND（BITS.md の 9 本。proj の番号とは別の固定の番号）:
 | 0x100〜0x1FF | 種類に固有の設定 | DDC: WK・WDPHI・WNS・WCUR・WCUR_DPHI・WSTART・NS_MIN_MAX・WRST_T。SLICE: 下の表（点数はコアの FFT_N、2.4）。FULL: その流れの TP のレジスタ（コアの 0x0100〜 と同じ並び。値は TP のレコードで、s = この流れ。proj021 2-2d で決めた。FULL の流れは SRC を選べるので、その入力の Σx² を FULL のフレームの格子で持つ）。RAW: なし（0 を返す） |
 | 0x200〜0x3FF | 診断（約束の外） | DDC: PFB_SAT・DDC_SAT・WS_STALL・WS_RDY0・DDC_OVR・WRST_CNT。FULL: DIAG_*・SRST・GRST・INJ・RAW_*・ST_*。RAW: なし（0 を返す）。SLICE（Wide）: 0x200 PFB の飽和の数・0x204 {IP に待たされたクロック数, 待ち行列の語数, go, have_first}・0x208 BUILD_TAG・0x20C {IP の入口の位相, 出口の位相}・0x210 最初に受けてから待たされるまで（proj023 4b） |
 
+**DDC の WRST_T（0x11C）の下限は bit ごと**（2026-11-03、[ADR 0028](../decisions/0028-spw-wrst-floor-and-logical-window-keys.md)）: [15:0] は WRST でデータの道をリセットする長さ（クロック）、既定 64。**bit ごとの下限より短い値は下限に切り上げる**: SAM45-Fine は 1（0 は 1）、**SpW8 は 8 クロック**（WRST で替わる窓の設定を受け手ごとに 2 段の写しで配り、写しがリセットの中で揃うため。proj032 rev 10）。PS は WRST_T を書かない（既定のまま）
+
 RAW の流れ（KIND 4。proj021 2-5、`src/common/raw_core.v`）の 0x000〜0x0FF の読み方:
 - 区切りは FULL と同じ約束（フレーム 512 ビート、RUN の fin + 2 から N_ACC フレームごと、N_DUMP 個）。**DUMP_T・DUMP_F0 はダンプの最初のフレーム**（FULL と同じ点）、DUMP_N = N_ACC
 - PARAM [7:0] = 13（1 回に取るサンプル数の log2）・NCH 0・FRAME_BEATS 512・NFFT_MIN_MAX 0・DUMP_SAT 0。SHIFT・RUN_SHIFT は書けるが効かない。CTRL の [9]〜[11] は受けるが効かない
@@ -416,6 +418,12 @@ TP のレコード（type 2）:
 命令（今の HELP に足すもの）: `BITS`（許す bit の一覧）・`LOAD bit=<名前>`・`GET CAPS`（自己記述をそのまま返す）。
 `SET` の窓のキーは今と同じ（`A0.if`・`A0.bw`・`A0.ns`・`A0.shift`）に `A0.nfft`（点数を選べる bit）を足す。キーの頭は「ADC のラベル＋流れの番号 s」（`A0` = コア ADC_A の s = 0）。種類に固有のキーは KIND で決まる（DDC: `if`・`bw`・`ns`、SLICE: `nfft`・`ch0`）。**SLICE の実装（proj023 の specd `--wide`、2026-10-17）では `A.b`（束ね B 1・2・4。コアで 1 つ、`A0.b` もコアに効く）・`A.shift`（コアで 1 つ）・`A0.s0`（流れの最初の ch。`A0.ch0` は別名）・`all.b`・`all.shift` を正とする**（点数そのものより B のほうが、束ねる bit の作りに合う。`nfft` は使わない）。SRC を書き換えられる流れは `A2.src=B` のように入力を選ぶ。
 
+**SpW の窓のキーは論理の窓**（2026-11-03、[ADR 0028](../decisions/0028-spw-wrst-floor-and-logical-window-keys.md)）: SpW の bit（SpW8 から）では `A0`〜`A7` は利用者の並び（ADC_A の窓 0〜7）で、**流れの番号 s ではない**。specd は窓の計画（IF・幅 → 頭・粗い ch・機関・枠）で論理の窓を流れ s に割り当て、対応（キー ↔ s）を持って STATUS に出す。
+- SET は 1 コアの窓の組をまとめて受け、**計画できなければ組ごと断る**（理由つきの ERR。効いている組は変わらない）
+- 受け側へのレコードも論理の窓の番号で出す（6. の s の欄。specd が s から読み替える）
+- 粗い ch（2 番目に近い ch を使うか）・機関・枠は計画の既定で決め、利用者には出さない。試験のために決め打つ口だけ残す
+- PSPLIT（粗い PFB の偶奇）の無い bit（SAM45-Fine など）では割り当てが恒等で、今の振る舞いと同じ
+
 ### 5.1 束ねの区切り（決定、2026-10-08。見直しの 4 番目）
 
 状態: **決定**（2026-10-08）
@@ -483,7 +491,7 @@ TP のレコード（type 2）:
 - 共通の頭は今と同じ（magic・ver = 2・type・plen・crc・seq）
 - SPEC の utc_ns の意味を変える: v1 は「最初のサンプルの UTC」（DUMP_T − D(NS)）、**v2 は実効の区間の始まり（5.2）**
 - SPEC の頭に足す: bit の種類（u8）・nch（u32）・df（Hz、f64）・基本の単位（ns）・束ねた数 n_sum（u32）・fmt（u8: 1 = float32 が運転の形、0 = u64 は試験の照合のときだけ。4.5）。中身の長さは nch × 語の大きさ
-- SPEC の adc・win を core・s・src に替える（2.2。src = そのダンプの入力の ADC）
+- SPEC の adc・win を core・s・src に替える（2.2。src = そのダンプの入力の ADC）。**SpW の bit では s の欄は論理の窓の番号**（5. の SET の窓のキー、ADR 0028）
 - TP・SNAP の中身は v1 と同じ形（TP は 1.024 ms の区切りごとで束ねない。SNAP は FULL の ADC の生か DDC の PFB の出口かを kind で言う）
 - EVENT に `LOAD`（bit の名前・sha256・IF_ID・PROJ）を足す
 - 受け側は ver 1 と 2 の両方を読む（ver 1 は nch = 4096・n_sum = 1 として）
