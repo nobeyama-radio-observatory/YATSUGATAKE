@@ -67,3 +67,4 @@
 | [0026](0026-board-id-mac.md) | ボードの印は eth0 の MAC にする（eFuse の DNA は読めない） | 採用 | 2026-10-29 |
 | [0027](0027-2g-1-fine-records-time-rounding.md) | 2G-1-Fine の流れは KIND 5 STAGE2・荒い ch ごとのレコード、ブロックの位相は T に固定、荒い段の丸めは変えない | 採用 | 2026-10-30 |
 | [0028](0028-spw-wrst-floor-and-logical-window-keys.md) | WRST_T の下限は bit ごと、SpW の窓のキーは論理の窓 | 採用 | 2026-11-03 |
+| [0029](0029-spw-ring-records-f32.md) | SpW のリングのレコードは PL で丸めた float32（type 5・fmt 1） | 採用 | 2026-10-28 |
