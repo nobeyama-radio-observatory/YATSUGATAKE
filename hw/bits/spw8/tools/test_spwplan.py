@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
-"""proj032 P-10 — b5/pynq/spwplan.py の照らし（机の上、numpy なし）
+"""proj032 P-10 — pynq/spwplan.py の照らし（机の上、numpy なし）
 
   python3 tools/test_spwplan.py [--n 3000] [--posctl]
 
@@ -17,7 +17,7 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "b5", "pynq"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pynq"))
 import spwplan as P  # noqa: E402
 
 H, E, S, NK = 8, 3, 8, 8
@@ -91,7 +91,7 @@ def main():
             print("  落ちた:", msg)
 
     # 0. 定数を模型と照らす（P-10 の 1 回目は R0 を 512 と書き、WDPHI が半分になったのを机の上で見落とした）
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model"))
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "model"))
     import win64_model as WM
     for k, v, want in (("FS", P.FS, WM.FS), ("SC", P.SC, WM.S), ("R0", P.R0, WM.R0), ("NFFT", P.NFFT, WM.NFFT), ("ALT_WMAX", P.ALT_WMAX, WM.ALT_WMAX)):
         if v != want:

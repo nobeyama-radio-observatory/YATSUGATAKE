@@ -14,7 +14,7 @@ if os.environ.get('PSPLIT') == '1':
     K = K_PS
 NBEAT, YF = 400, 8
 here = __file__.rsplit('/', 1)[0]
-co = json.load(open(here + '/../runs/m0_coef.json'))['pfb']
+co = json.load(open(here + '/../../../../model/spw8_coef.json'))['pfb']
 h = np.array(co['coef'], float) / 2.0 ** co['shift']
 if sys.argv[1] == 'gen':
     rng = np.random.default_rng(32)
@@ -50,7 +50,7 @@ for i, k in enumerate(K):
     ok &= good
     print(f'k {k:2d}: 相対誤差 rms {err:.2e}（隣の k {k2} と {err2:.2f}）{"" if good else " ← NG"}')
 # P-5: 整数の模型（model/pfb64_fixed.py）と bit 単位で
-sys.path.insert(0, here + '/../model')
+sys.path.insert(0, here + '/../../../../model')
 import pfb64_fixed as PF  # noqa: E402
 xs16 = np.array([v - 65536 if v >= 32768 else v for v in (int(l.strip()[4 * (15 - j):4 * (16 - j)], 16) for l in open(sys.argv[2]) for j in range(16))])
 cnt = {}

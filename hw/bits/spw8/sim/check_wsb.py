@@ -15,7 +15,7 @@ import numpy as np
 d = sys.argv[1] if len(sys.argv) > 1 else "."
 HERE = os.path.dirname(os.path.abspath(__file__))
 NF, NG, NDUMP = 4096, 1, 2
-coef = np.array([int(l) for l in open(os.path.join(HERE, "..", "model", "pfb4_coef.txt")) if not l.startswith("#")], dtype=np.int64)
+coef = np.array([int(l) for l in open(os.path.join(HERE, "..", "..", "..", "..", "model", "pfb4_coef.txt")) if not l.startswith("#")], dtype=np.int64)
 assert len(coef) == 4 * NF
 
 run = open(os.path.join(d, "wsb_run.log")).read().split("\n")

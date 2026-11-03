@@ -10,8 +10,8 @@ RTL の段（src/spw/pfb64_core.v）をそのまま整数で:
   3. T[k] = W32^k·O[k]（cmul、k = 0・8 は自明）、Z[k] = E[k] + T[k]、Z[k+16] = E[k] − T[k]
   4. 頭ごとに A = Z[k] + conj(Z[32−k])、B = Z[k] − conj(Z[32−k])、X = conj(A + (−j·W64^k)·B)（cmul 1 個）
   5. (−j)^((k·m) mod 4) → y = sat_YW((X + 2^(SH2−1)) >>> SH2)、SH2 = UF + 1 − YF
-cmul（src/common/cmul.v）: y = (a·w + 2^15) >>> 16、w は 18 bit（2^16 = 1.0）。
-係数は runs/m0_coef.json と式から作り、src/spw/pfb64_coef.vh の値と一致することを load() で確かめる（RTL と模型が同じ表を見ていることの照合）。
+cmul（hw/common/cmul.v）: y = (a·w + 2^15) >>> 16、w は 18 bit（2^16 = 1.0）。
+係数は model/spw8_coef.json と式から作り、hw/bits/spw8/src/spw/pfb64_coef.vh の値と一致することを load() で確かめる（RTL と模型が同じ表を見ていることの照合）。
 途中の語幅（dft16f の U 23・Z 25、回転 25、Z 26、A・B 27、X 28）は RTL では巻き戻る。模型は巻き戻りを数え（cnt["wrap_*"]）、0 であることを求める。
 """
 import json
@@ -37,7 +37,7 @@ def _vh_list(txt, name):
 
 
 def load():
-    co = json.load(open(os.path.join(HERE, "..", "runs", "m0_coef.json")))["pfb"]
+    co = json.load(open(os.path.join(HERE, "spw8_coef.json")))["pfb"]
     H = np.array(co["coef"], dtype=np.int64)
     sh = int(co["shift"])
     tw = [wq(k, 32) for k in range(16)]
@@ -45,7 +45,7 @@ def load():
     for k in range(33):
         c, s = wq(k, 64)                 # W64^k = c + j·s（s は −sin）
         post.append((s, -c))             # −j·(c + j s) = s − j c
-    vh = open(os.path.join(HERE, "..", "src", "spw", "pfb64_coef.vh")).read()
+    vh = open(os.path.join(HERE, "..", "hw", "bits", "spw8", "src", "spw", "pfb64_coef.vh")).read()
     assert int(re.search(r"PFB64_SH = (\d+)", vh).group(1)) == sh, "PFB64_SH"
     assert _vh_list(vh, "PFB64_H") == list(H), "PFB64_H"
     assert _vh_list(vh, "TW32_R") == [t[0] for t in tw] and _vh_list(vh, "TW32_I") == [t[1] for t in tw], "TW32"
@@ -78,7 +78,7 @@ def cmul(ar, ai, wr, wi):
 
 
 def dft16f(zr, zi, uw, zw, cnt):
-    """(F, 16) → (F, 16)。src/common/dft16f.v と同じ: 段 1 の 4 点（加減算）→ W16^(b·c)（cmul、0・4 は自明）→ 段 3 の 4 点。"""
+    """(F, 16) → (F, 16)。hw/common/dft16f.v と同じ: 段 1 の 4 点（加減算）→ W16^(b·c)（cmul、0・4 は自明）→ 段 3 の 4 点。"""
     def dft4(x):
         (r0, i0), (r1, i1), (r2, i2), (r3, i3) = x
         return [(r0 + r1 + r2 + r3, i0 + i1 + i2 + i3), (r0 + i1 - r2 - i3, i0 - r1 - i2 + r3),
@@ -151,4 +151,4 @@ def pfb64_fixed(x16, ks, cnt, co=None):
 
 if __name__ == "__main__":
     load()
-    print("係数: m0_coef.json と式から作った値が pfb64_coef.vh と一致")
+    print("係数: spw8_coef.json と式から作った値が pfb64_coef.vh と一致")

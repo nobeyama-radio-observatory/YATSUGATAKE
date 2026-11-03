@@ -24,7 +24,7 @@
 #   （b1 は PL の DDR を載せず DDR の口を 0 に縛った。b2 は上の形で MIG へ）
 #   proj031 の build.tcl（12681f1）から写したところ: 補助の手続き・RFDC・Clocking Wizard・ギアボックス・リセット・外部ポート・vivado.log の見張り（中身は変えず、chans を ADC_A の 1 本に）
 #   書いたところ: FFT IP（win_fft、tools/ooc_rtl.tcl と同じ設定）・コア・time_core・リング・相互接続・番地・結線の照合
-#   PS は -1 のプリセット（src/board/ps_preset.tcl）を当てる（D-3 と同じ）
+#   PS は -1 のプリセット（hw/board/ps_preset.tcl）を当てる（D-3 と同じ）
 #   ID: BIT_KIND 7（SpW8）・BIT_REV 3（b2 = MIG あり。b1 は 1・2）・PROJ 0x0032_0300（s45_core_0・time_core_0・s45_ring_0）・clk_mon_0 は 0x0280_00C1
 #   成否は make の終了状態でなく build/vivado.log の「TIMING (確定)」「CRITICAL WARNING: n 件」「=== wrote」で読む
 set proj    proj032b5
@@ -178,16 +178,16 @@ file mkdir $outdir
 create_project $proj $projdir -part $part -force
 set part_actual [get_property PART [current_project]]
 if {$part_actual ne $part} { puts "ERROR: part が違う（要求 $part・実際 $part_actual）"; exit 1 }
-set ps_preset_file [file normalize ../src/board/ps_preset.tcl]
+set ps_preset_file [file normalize ../../board/ps_preset.tcl]
 source $ps_preset_file
 set has_preset 1
 
-set S [file normalize ../src]
+set S [file normalize ./src]; set C [file normalize ../../common]
 add_files -norecurse [list $S/spw/spw_s45_core.v $S/spw/spw_core.v $S/spw/spw_regs.v $S/spw/spw_front.v $S/spw/pfb64_core.v $S/spw/head_core.v \
     $S/spw/ddcb.v $S/spw/hbmc.v $S/spw/sfifo.v $S/spw/wsb.v $S/spw/eng.v $S/spw/pfb4_rom.v $S/spw/ddrr.v $S/spw/ddrw.v $S/spw/dsink.v \
     $S/spw/f32cv.v $S/spw/rmux128.v $S/spw/ring128.v $S/spw/rmux4.v \
-    $S/common/cmul.v $S/common/dft16f.v $S/common/hb2.v $S/common/hb2s.v $S/common/nco_rom.v \
-    $S/common/core_cmn.v $S/common/tp_core.v $S/common/adc_ev.v $S/common/time_core.v $S/common/gb_adc.v $S/common/gb_gate.v]
+    $C/cmul.v $C/dft16f.v $C/hb2.v $C/hb2s.v $C/nco_rom.v \
+    $C/core_cmn.v $C/tp_core.v $C/adc_ev.v $C/time_core.v $C/gb_adc.v $C/gb_gate.v]
 add_files -norecurse [list $S/spw/pfb64_coef.vh $S/spw/hb_coef.vh]
 set_property file_type {Verilog Header} [get_files [list pfb64_coef.vh hb_coef.vh]]
 set_property include_dirs [list $S/spw] [get_filesets sources_1]
@@ -855,8 +855,8 @@ if {$wrapper eq ""} { puts "ERROR: ラッパ HDL が見つからない"; exit 1 
 add_files -norecurse $wrapper
 set_property top ${bd_name}_wrapper [current_fileset]
 update_compile_order -fileset sources_1
-add_files -fileset constrs_1 -norecurse [file normalize ../src/board/timing.xdc]
-add_files -fileset constrs_1 -norecurse [file normalize ../src/board/pps.xdc]
+add_files -fileset constrs_1 -norecurse [file normalize ../../board/timing.xdc]
+add_files -fileset constrs_1 -norecurse [file normalize ../../board/pps.xdc]
 set_property USED_IN_SYNTHESIS false [get_files timing.xdc]
 
 # ---- 実装の戦略（環境変数 IMPL。Makefile の IMPL）。**読み返して確かめる**（proj031 と同じ）----

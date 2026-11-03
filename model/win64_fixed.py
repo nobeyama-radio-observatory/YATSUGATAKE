@@ -47,7 +47,7 @@ FS_SINE_RMS = 8192 / math.sqrt(2)
 
 
 def load_coef():
-    d = json.load(open(os.path.join(HERE, "..", "runs", "m0_coef.json")))
+    d = json.load(open(os.path.join(HERE, "spw8_coef.json")))
     out = {}
     for key in ("pfb", "light", "final"):
         out[key] = np.array(d[key]["coef"], dtype=np.int64)

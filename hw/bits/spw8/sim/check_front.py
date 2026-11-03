@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """proj032 P-1 — spw_front の照合。頭の入口（front_c.log、粗い PFB の出口 24 bit・Q 8）から、M-3 の整数の模型
-（model/win64_fixed.py の nco_table・nco_cs・fir_decim_int・rnd_shift・sat と runs/m0_coef.json の light・final）で ddcb の出口を作り、
+（model/win64_fixed.py の nco_table・nco_cs・fir_decim_int・rnd_shift・sat と model/spw8_coef.json の light・final）で ddcb の出口を作り、
 front_y.log の窓ごとの列と bit 単位で照らす。
 
   python3 sim/check_front.py DIR
@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "model"))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "..", "model"))
 import win64_fixed as WF  # noqa: E402
 
 BS = {1: 0, 2: 0, 3: 1, 4: 1, 5: 2}
