@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SpW8）
 
-- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）
+- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）
 - 移植元: **`study-rfsoc@proj032-m0`**（注釈つきタグ、commit a80cee7。push は下の「始める条件」）。proj032 の **b5 rev 10**（4 ADC × 窓 8 本、チップ内の枠だけ・PL の DDR なし）
   - proj032 は b1〜b5 が `src/` を共有する形で、b5 rev 10 は `b5/` の Makefile・build.tcl・build_post.tcl が `../src/` を読む。**移すのは b5 と、b5 と sim が読むものだけ**（b1〜b4・d1・d3 は移さない）
   - **実装の戦略は Performance_ExplorePostRoutePhysOpt**（`b5/build-PEPRPO/`、WNS +0.016 ns）。P-9 の実機の判定はこの bit で通った。既定（PND）の rev 10 は WNS −0.024 ns で閉じていない
@@ -146,6 +146,24 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 - 上の「ビルドは commit の前の作業ツリーから」: FDRI が違ったら、まず P-11 の直しが入っていたかを疑う（e8ff602 の `pfb64_core.v` で proj032 を作り直して FDRI を比べる）。`hw/common/` の 7 個（決めること 2）と切り分けるため、作り直しは 1 つずつ
 - `.hwh` は TIMESTAMP と hex・vh の絶対パスが違うはず（2G-2 の M3 と同じ）
 
+### M3 の結果（2026-11-04、ブランチ `spw8/m3-build`）
+
+この PC で、移植先（`hw/bits/spw8/`、717a468 の木 = M2 と同じ RTL・build.tcl）の `make build IMPL=Performance_ExplorePostRoutePhysOpt JOBS=8`（`-1`・PEPRPO、移植元と同じ並列数）を回した（126 分。ほかの Vivado のビルドは無し）。予言（上の「M3 の心配」）どおり、**ディレクトリだけ違う作り直しで構成データまで同じ**:
+
+| | 移植元（proj032 の `b5/build-PEPRPO/`） | 移植先（`build-PEPRPO/`） |
+|---|---|---|
+| FDRI | 8,608,824 語 / `de7e9d882f560f05b288a591edf8e3a8a7c5e42099e059d69c3b58036a7b3225` | **同じ** |
+| 構成の流れ（欄 e）の sha256 | `57bb27ea1efb0b5ae0b7d623733f592f74e6e94935e218e9ff2a92bd9e3a0a97` | **同じ**（.bit のファイルはヘッダの日付だけ違う） |
+| TIMING（確定） | WNS 0.015935 ns / WHS 0.009527 ns | **同じ** |
+| 報告 7 個（address_map・clock_interaction・clocks・rfdc_params・timing・utilization・utilization_hier） | LUT 265,530（62.44 %）など | 見出しの行（日付など）を除いて **全部同じ** |
+| CDC（routed dcp に `report_cdc`） | 要約・詳細 | 見出しを除いて **要約も詳細（3,340 行）も同じ** |
+| CRITICAL WARNING・ERROR | 0・0 | 同じ |
+
+- **`.hwh`** は TIMESTAMP の 1 行だけが違う。予言した hex・vh の絶対パスは出なかった（SpW8 は係数を `.vh` で RTL に読み込み、BD の IP の設定に絶対パスを持たないため。外れた予言として残す）
+- **P-11 の心配は消えた**: 移植元の .bit は rev 10 の commit（e8ff602）より前の作業ツリーから焼いたが、タグ（proj032-m0）の RTL で作り直した FDRI が同じなので、焼いた木はタグの RTL と同じだった
+- **`hw/common/` の 7 個（決めること 2）は構成データを変えない**: cmul の SH（既定 16）とコメント 1 行の 6 個は、合成の結果に効かない（M2 の sim の出力と同じ結論）
+- USR_ACCESS は焼いていない（M5c で入れる）。.bit は git に入れない（ADR 0018）
+
 ## 手順
 
 | 手順 | ブランチ | SpW8 ですること | 合格 |
@@ -155,7 +173,7 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 | M1 | `spw8/m1-place` | 表の行き先に置き、パスと名前（`spw8_coef.json`）だけを直す | 違う行はすべてパスの行か名前の行。在ってはいけない側の照合（**2026-11-03**: 上の「M1 の結果」） |
 | — | `spw8/sim-targets` | 上の「sim の組」を Makefile の目標に書き起こす（**2026-11-03**: 上の「M2 の結果」） | — |
 | M2 | 同上 | sim を全部回し、proj032-m0 と並べる | 全部通過し、**出力がバイト単位で同じ**。陽性対照が落ちる（**2026-11-03**: 出力 298 個が同じ・tb の違いは決めること 2 の 7 個だけ） |
-| M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527） |
+| M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527）（**2026-11-04**: 上の「M3 の結果」） |
 | M4 | `spw8/m4-board` | 実機の短い回帰（`hw/bits/spw8/pynq/spw_b5.py`） | ID・`--cfg b5 --ng 10`（20.48 ms）の全部通過・`--fast --ng 5`（10.24 ms × 32 窓）の DROP 0・`--tone` の CW の ch が P-9・P-13・P-13b と同じ |
 | M5a | `spw8/m5a-delay-table` | **決め 3**: `timebase.WIN_DELAY_BEATS` を (BIT_KIND, BIT_REV) の表にし、SpW8 rev 10 の D(NS) を小数 2 桁で入れる。`timing.md` の残り（91 行目）を同じ PR で閉じる | SAM45-Fine の値が変わらない（test_cal_b・s45v2c）。(7, 10) が引ける。表に無い組は「未較正」 |
 | M5b | `spw8/m5b-specd` | **決め 2**: specd に SpW Backend（spwplan で論理の窓 → 流れ s・SET は組ごと・STATUS に対応・レコードを論理の番号に・C の読み手 `--fast-ring` の f32 版・ネットワークの 10.24 ms を断る） | PL なしの試験（`test_fake.sh`。PSPLIT の無い bit では割り当てが恒等で振る舞いが今と同じ）と、実機で W-1・TW・WRST・NET |
