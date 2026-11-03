@@ -44,7 +44,8 @@
 |---|---|---|
 | FULL | 0（矩形の FFT。フレームの最初のビート） | 決定 |
 | RAW | 0（生サンプルのフレームの最初のビート） | 決定 |
-| DDC（PFB T = 4、SAM45-Fine の窓） | D(NS) ＋ 1.5·L(NS) | 決定。D(NS) は `timebase.WIN_DELAY_BEATS`（`hw/bits/sam45-fine` の `make sim-wdelay`）。窓の PFB は wspec の中（z の後）にあるので D(NS) に入らず、そのずれは 1.5·L(NS) で足す |
+| DDC（PFB T = 4、SAM45-Fine の窓） | D(NS) ＋ 1.5·L(NS) | 決定。D(NS) は `timebase.WIN_DELAY[(2, 3)]`（`hw/bits/sam45-fine` の `make sim-wdelay`）。窓の PFB は wspec の中（z の後）にあるので D(NS) に入らず、そのずれは 1.5·L(NS) で足す |
+| 窓（PFB T = 4、SpW8） | D(NS) ＋ 1.5·L(NS) | 決定。D(NS) は `timebase.WIN_DELAY[(7, 10)]`（NS 1〜5 = 86.03・135.07・231.05・411.01・757.03 ビート。study-rfsoc proj032 P-12、`hw/bits/spw8` の `make sim-dly` で同じ値） |
 | SLICE（PFB T = 4、SAM45-Wide） | D_S ＋ 1.5·L = 0 ＋ 3072 ビート = 12 µs | 決定（proj023 の sim-wds） |
 | FULL（PFB T = 4、2G-4） | D_S ＋ 1.5·L = 1 ＋ 6144 ビート = 6145 ビート ≒ 24.0 µs（L = 4096 ビート） | 決定（proj031 の sim-g24ds。YATSUGATAKE の M2 で移植元と同じ出力） |
 | FULL（PFB T = 4、2G-1-Fast） | D_S ＋ 1.5·L = 1 ＋ 24576 ビート = 24577 ビート ≒ 96.0 µs（L = 16384 ビート） | 決定（proj024・proj033 の sim-g21ds。YATSUGATAKE の M2 で移植元と同じ出力） |
@@ -83,12 +84,12 @@ TP の utc_ns = beat_utc(t_beat) − adc_to_core_ns[adc]（区切りの最初の
 | (3, 1) 2G-4 | 71.5（BLP-10.7+） | 140.9・141.1・141.6・141.9 | 50 | 2026-10-28 study-rfsoc proj031 rev 2 R-5 の F-2（LPF あり、ケーブルの入れ替え 2 回、LMX PWR 31）。bound は移植元の 50 のまま。2026-10-29 の 2G-4 の M5（PWR 3）の M は +0.3〜+1.1 ns で据え置き。その後は F-2 を回さない（道 1 なのでボードの較正ファイルが当たる）。[`../../test/acceptance/2g-4/F-2.md`](../../test/acceptance/2g-4/F-2.md) |
 
 - 本番のボードで LPF・ケーブル・分配を替えたら、`timecal.py` で測り直す。`CAL` の値は開発のボードのもので、本番の較正の代わりにしない
-- RTL を変える → BIT_REV を上げ、D を出し直す。ADC → コアの道を変えたときだけ `ADC_PATH` に新しい番号を足し、開発のボードで F-2 を回して `CAL` に足す
+- RTL を変える → BIT_REV を上げ、D を出し直して `WIN_DELAY` に新しい鍵で足す（古い鍵の値は新しい REV に当たらない）。ADC → コアの道を変えたときだけ `ADC_PATH` に新しい番号を足し、開発のボードで F-2 を回して `CAL` に足す
 - 要求は 100 µs。定数はどれもそれより 3 桁小さいが、黙って 0 にしない
 
 ## 持ち越し
 
-- DDC の D(NS) を (BIT_KIND, BIT_REV) の表に移す（今は全 bit 共通の `WIN_DELAY_BEATS`。DDC の窓を持つ bit が SAM45-Fine だけの間は値が当たる。[`interface.md`](interface.md) の 5.2）
+- ~~DDC の D(NS) を (BIT_KIND, BIT_REV) の表に移す~~ → **移した（2026-11-04、SpW8 の M5a）**: `timebase.WIN_DELAY` の鍵は (BIT_KIND, BIT_REV)。表に無い bit・NS は `accuracy()` に「未較正」と出し、D を引かない（`sw/pynq/test_win_delay.py`）
 - 幅の違う窓の区切りの差 X(NS)（NS 1 と 6 で 2.4 µs）は受け入れている（utc_ns はそれを含んだ正しい時刻）
 - 起こした直後の 1PPS の取り込みの異常・PPS のスタンプの量子化（±0.5 ビート）の見立ては調べている途中
 - F-2 の M は Overlay ごとに 4 ADC 共通でずれる（≒ 0.9 ビート、SAM45-Wide の M6 では 1.18 ビート ≒ 4.6 ns）。原因は確かめていない。`bound_ns` 5 はこれを含む
