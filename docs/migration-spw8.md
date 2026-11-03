@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SpW8）
 
-- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした
+- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）
 - 移植元: **`study-rfsoc@proj032-m0`**（注釈つきタグ、commit a80cee7。push は下の「始める条件」）。proj032 の **b5 rev 10**（4 ADC × 窓 8 本、チップ内の枠だけ・PL の DDR なし）
   - proj032 は b1〜b5 が `src/` を共有する形で、b5 rev 10 は `b5/` の Makefile・build.tcl・build_post.tcl が `../src/` を読む。**移すのは b5 と、b5 と sim が読むものだけ**（b1〜b4・d1・d3 は移さない）
   - **実装の戦略は Performance_ExplorePostRoutePhysOpt**（`b5/build-PEPRPO/`、WNS +0.016 ns）。P-9 の実機の判定はこの bit で通った。既定（PND）の rev 10 は WNS −0.024 ns で閉じていない
@@ -92,6 +92,18 @@ M1〜M4 では 6 個とも `hw/bits/spw8/pynq/` に移植元のまま置く（�
 - `runs/` は git に入れない（`.gitignore` に `/hw/bits/spw8/runs/`）
 - **在ってはいけない側の照合**: SpW8 の Makefile・Tcl・sim・tools・pynq が、`src/common/`（移植元の写し）・`b1/`〜`b4/`・`spw_s45_core_ddr`・ほかの bit のディレクトリ・`runs/m0_coef.json` を指す行が 0
 
+### M1 の結果（2026-11-03、ブランチ `spw8/m1-place`）
+
+- **置く**（527f613）: 付録の置く 58 個を `git show study-rfsoc@proj032-m0:proj032/…` から取り出して置いた。58 個とも移植元と blob が同じ・モードも同じ 100644（`runs/m0_coef.json` は `model/spw8_coef.json` に）
+- **パスの直し**: 8 個・23 行（build.tcl 7・sim の照合 4 個で 6・test_spwplan.py 3・模型 2 個で 7）。**違う行はすべてパスの行か係数の名前の行**: 新しい行のパスと名前を元に戻すと 23 行とも古い行と一致（機械で照合。陽性対照: 行に 1 字足すと不一致になる）
+  - build.tcl は `$S/common/…` の 11 個を `$C/…` に替え、`S` を定める行に `set C [file normalize ../../common]` を並べた（`S` は `./src` で、`$S/spw/…` と include_dirs は直していない）。`../src/board/` の 3 行は `../../board/`、注釈の 1 行は `hw/board/`
+  - 注釈と docstring の中の道も同じ規則で直した（check_front.py・pfb64_fixed.py・test_spwplan.py の 6 行）。**RTL と `.vh` の注釈の `runs/m0_coef.json` は直していない**（係数がどこから来たかの記録。M1 では RTL に触らない）
+- **在ってはいけない側**: SpW8 の Makefile・Tcl・sim・tools・pynq と模型 3 個のコードの行が、`../src/`・`src/common`・`src/board`・`runs/m0_coef.json`・`"b5", "pynq"`・`b1/`〜`b4/`・`spw_s45_core_ddr`・ほかの bit のディレクトリ・Fine と 2G の模型の import を指す行は 0（直す前の版 527f613 に当てると 12 行を拾う = 照合が働いている）
+- **動かして確かめたこと**（この PC、Vivado は使っていない）: `tools/test_spwplan.py` が「結果: 全部通過」（乱数の組 3000）。`pfb64_fixed.load()` が `spw8_coef.json` と式から作った係数を `hw/bits/spw8/src/spw/pfb64_coef.vh` と照らして一致。
+  短い sim 3 本（`tb_spw_regs`・`tb_rmux4`・`tb_hbmc`）を移植先の道（`-I src/spw -I ../../common -y src/spw -y ../../common`）で回して「結果: 全部通過」。Tcl 2 個が `info complete` で完結、Python 18 個（sim 8・tools 2・pynq 5・模型 3）が `py_compile` を通る
+- `runs/` と C の読み手の `libspwfast.so` は git に入れない（`.gitignore`）。`hw/bits/spw8/README.md` を足し、`hw/bits/README.md` の行を直した
+- **気づいたこと（直していない）**: `model/win64_model.py` の docstring の使い方の行が `python3 win_model.py` のまま（proj021 の名前。移植元の誤り）。M1 は中身を変えないので、M2 の後の別の直しで
+
 ### sim の組（M1 の後の `spw8/sim-targets`、M2 の前）
 
 proj032 には sim の Makefile の目標が無く、各 sim は README に書いた手で回した。**M2 の前に、移植先の Makefile に sim の目標を足す**（2G の makefile-trim の代わり。試行の目標を外すのではなく、手で回した形を目標に書き起こす）。組の候補（README の P-1〜P-13 から）:
@@ -127,7 +139,7 @@ proj032 には sim の Makefile の目標が無く、各 sim は README に書�
 |---|---|---|---|
 | M0 | `spw8/m0-map` | 置き場所の表（この文書と付録）・始める条件・`hw/common/` との違いの数え・判定の書き起こし | 全ファイルに行き先がある・始める条件が全部 [x] |
 | S | `spw8/spec` | ADR 0028（決め 1・2）。`interface.md` の WRST_T に「bit ごとに下限があり、短い値は下限に切り上げる（SpW8 は 8 クロック）」、specd の SpW の窓のキーは論理の窓（SET は 1 コアの組をまとめて受け、計画できなければ組ごと断る・STATUS に対応・受け側へのレコードも論理の番号）、`bits.md` の SpW8 の行（b5、ネットワークの tint は 20.48 ms から） | 文書だけ。M1〜M3 と並べて進めてよい |
-| M1 | `spw8/m1-place` | 表の行き先に置き、パスと名前（`spw8_coef.json`）だけを直す | 違う行はすべてパスの行か名前の行。在ってはいけない側の照合 |
+| M1 | `spw8/m1-place` | 表の行き先に置き、パスと名前（`spw8_coef.json`）だけを直す | 違う行はすべてパスの行か名前の行。在ってはいけない側の照合（**2026-11-03**: 上の「M1 の結果」） |
 | — | `spw8/sim-targets` | 上の「sim の組」を Makefile の目標に書き起こす | — |
 | M2 | 同上 | sim を全部回し、proj032-m0 と並べる | 全部通過し、**出力がバイト単位で同じ**。陽性対照が落ちる |
 | M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527） |
