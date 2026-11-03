@@ -217,6 +217,9 @@ class Ring:
                 log("WARNING: リングが 1 s たっても止まらない（busy）。バッファは返さずに残す")
                 return
             time.sleep(0.001)
+        # study-rfsoc proj037 Z-1: bo_sync の lambda が pyxrt の BO を握ったまま freebuffer() すると、終わり際の free() で
+        #   Segmentation fault が出た（捨ててから返すと 0 / 7、握ったままだと 3 / 3）。仕組みは確かめていない（Z-1e）
+        self.bo_sync = None
         self.buf.freebuffer()
 
 
