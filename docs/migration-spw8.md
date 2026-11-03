@@ -21,7 +21,7 @@
 - [x] SpW8 の運用に使う bit を決めた → **`b5/build-PEPRPO/`**（下の「移植元の bit」）
 - [x] YATSUGATAKE に移すときの仕様を決めた（2026-11-03、開発者。上の 3 点）
 - [x] **判定を `test/acceptance/spw8/` の書き方で書き起こした**（2026-11-03、M0 で）: 11 判定。specd を通す判定（V2-b・V2-L・RING・NET など）は study-rfsoc で回していない（M6 で初めて）
-- [ ] **タグ** `proj032-m0`（a80cee7、proj032 の README に「移植元を決める」の節を足した commit）を push する
+- [x] **タグ** `proj032-m0`（a80cee7、proj032 の README に「移植元を決める」の節を足した commit）を push した（2026-11-03）
 
 ### 移植元の bit（M3 の比べの相手）
 
