@@ -225,6 +225,18 @@ PL なしの試験（どこでも回る）:
 - 記録は `hw/bits/spw8/runs/m5b/`（git に入れない）。終わった後、ボードには M3 の bit が載ったまま、specd は止め、`/dev/shm` は空。ATT 13 dB・ノイズ ON のまま
 - `WRST_T` に 1〜7 を書く確かめ（判定 WRST の 3 つ目）は M4 の道具の分で、specd は WRST_T を書かない（interface の WRST_T）
 
+### M5c でしたこと（2026-11-04、ブランチ `spw8/m5c-usr-access`）
+
+- **USR_ACCESS のフック**（Fine の M5b・2G-2 の M5 と同じ）: `hw/bits/spw8/Makefile` に 12 行（git から `USR_ACCESS` を作って build.tcl に渡し、書き出した `proj032b5.bit` を `sw/pynq/bitinfo.py --expect` で読み返す）・`build.tcl` に 22 行（`STEPS.WRITE_BITSTREAM.TCL.PRE` のフック。本体は 2G-2 の行と同じ）。RTL・制約・build_post.tcl は変えない
+- PS は変えない: `SpwBackend` の ID は M5b から `usr=self._usr_access()`（載せた .bit を bitinfo で読む）
+- 机の上で: `make -n build` で USR_ACCESS が git から作られ（`0x` ＋ commit 7 桁 ＋ 汚れ）、vivado の後に読み返しが走る。M3 の bit を `bitinfo.py --expect none` で読むと通過、`--expect 0x12345670` で失敗。フックの節を tclsh で切り出して回すと、commit の値と `none` の両方で 2G-2 と同じ中身
+
+### M5c の予言（作り直しと回し直しの前に書いた、2026-11-04）
+
+1. **M2 の回し直し**（この commit の木、`make sim-all SIMDIR=build-sim-m5c`）: 14 個とも「全部通過」・陽性対照は落ちる。`build-sim-m5c/` は M2 の `build-sim/` と、iverilog の `tb` の番地（`0x…`）を除いてバイト単位で同じ（RTL も sim も変えていない）
+2. **M3 の焼き直し**（この commit の木、`make build IMPL=Performance_ExplorePostRoutePhysOpt JOBS=8 OUTDIR=build-m5c`）: USR_ACCESS が commit（汚れ 0）で、make の読み返しが通る。**FDRI は M3 と同じ**（`de7e9d88…3225`。USR_ACCESS は FDRI の外）、構成の流れ（欄 e）の sha256 は変わる（`57bb27ea…0a97` から）。TIMING（確定）は M3 と小数 6 桁まで同じ（WNS 0.015935 / WHS 0.009527 ns）。報告 7 個と CDC は見出しの行を除いて同じ。CRITICAL WARNING・ERROR 0。`.hwh` は TIMESTAMP の 1 行だけ違う。外れたら作り直しは繰り返さず、何が違ったかを数えてから決め直す
+3. **M4 の回し直し**（ボードの新しいディレクトリ、今回の bit、配線 N）: `spw_b5.py` の `m4_b5_ng10`・`m4_fast`・`m4_plan` の 3 つが M4 と同じ結果（窓のレコード 16,376・DROP 0 / 52.4 MB/s・DROP 0 / WRST の約束 6 つ・双子の比の中央値 1.0000x）。specd（M5b の起こし方）の ID に **usr = commit**・ほかは M5b と同じ、短い取得で `spw_recv_check.py` の記録の照らしが通る。ID の陽性対照: M3 の bit で起こすと usr none
+
 ## 手順
 
 | 手順 | ブランチ | SpW8 ですること | 合格 |
