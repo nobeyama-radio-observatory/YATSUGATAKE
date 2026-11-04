@@ -19,3 +19,4 @@ python3 specctl.py --host $B "CLEAR" "START n=50" "SEND ON"; python3 specrecv.py
 - **陽性対照**: 破らない設定が通ること（上）。机の上では `tools/test_spwplan.py` の陽性対照 3 つ（R0 512・機関を全部 lane 0・2 番目に近い ch を使わない）が落ちる
 - **記録**: proj032 P-10b（2026-11-02、b5 rev 10）: 6 つとも同じ印・CORE_FLAGS[0]・WRST_CNT 増えず、破らない設定は通った
 - **記録（specd、M5b）**: YATSUGATAKE M5b（2026-11-04）: 計画できない組 3 つ（ADC_B の偶奇の組の頭が埋まる・ADC_B の 128 MHz の窓の alt・ADC_A の 128 MHz の alt）とも ERR で理由つき、GET と spw_map は元のまま。次の START は WRST を通り（specd が CORE_FLAGS[0] 0・WRST_CNT ＋1・WCUR の読み返しを見る）、記録は `spw_recv_check.py` で全部通過。PL なしでは `test_fake.sh spwp`
+- **記録（M6）**: YATSUGATAKE M6（2026-11-04 06:56 UTC、M5c の bit、specd）: `SET B1.bw=128 B3.bw=128 B4.bw=128 B6.bw=128` は「ADC_B の窓の組を計画できない…窓 6: 粗い ch [13] の偶奇の組の頭が埋まっている」、`SET A0.coarse=alt` は「2 番目に近い粗い ch が使えない（幅 128）」で ERR。直後の GET・`spw_map` は前と同じ。続く 50 束は照合 通過・照らしの道具 全部通過・health 0。試行の道具の形（M5c の `m5c_plan`）で約束 [0]〜[6] の WRST_BAD が check() と同じ。**通過**

@@ -10,7 +10,8 @@
 照らすもの:
   - 記録: kind 3・bit_kind 7・fmt f32・nch 4096・src = core・NS と if_mhz が計画の窓 i と同じ・4 ADC × 窓の数だけの (core, s)・TP の dBFS
   - --tone F: F を含む窓（ピーク / 中央値 ≧ 20 dB）の最大の ch（FFT の ch の順、ch 0 = 窓の中心）が予言の ch とずれ 0（spw_b5.py --tone と同じ）
-  - --ref J: 試行の道具（spw_b5.py --out）の .json の窓ごとの平均スペクトルの中央値・16 区間の形（平らさ）と、ダンプ 1 つあたりで並べる（判定 H-0 の specd の形）。
+  - --ref J: 試行の道具（spw_b5.py --out）の .json の窓ごとの平均スペクトルの中央値・16 区間の形（平らさ）と、同じ積分の長さで並べる（判定 H-0 の specd の形）。
+    specd の PL のダンプは 10.24 ms（NG 5）、道具のダンプは --ng × 2.048 ms なので、specd のダンプ 1 つあたりを ng / 5 倍して比べる（M6 の 1 回目はこれを忘れ、比が 0.5 に出た）。
     合格: 32 窓とも中央値の比（specd ÷ 道具）が 1 ± 0.05、16 区間の値の差が 0.05 以内（M6 で測る前に決めた。同じ日・同じ配線で道具を回す）
   - --twin i,j: 双子の比（fftshift の中央 14/16、中心の 5 ch を除く）の中央値 1 ± 0.001・比の相対の揺れ ≦ 独立な雑音 √(2/N) の 1/4（N = 束ねたダンプの数。spw_b5.py と同じ）。TP が --tp-min 以上の ADC だけ合否に
 """
@@ -125,14 +126,16 @@ def main():
             if tw["judged"] and (tw["ratio_rel_std"] > 0.25 * tw["indep"] or abs(tw["ratio_median"] - 1) > 1e-3):
                 bad.append(f"{'ABCD'[c]} の双子 {wi}↔{wj} が合わない")
     if a.ref:
-        ref = json.load(open(a.ref))["diag"]
+        rj = json.load(open(a.ref))
+        ref = rj["diag"]
+        scale = rj["args"]["ng"] / 5.0                           # 道具のダンプの長さ ÷ specd の PL のダンプの長さ（10.24 ms）
         summ["flat"] = {}
         worst_r = worst_s = 0.0
         for c in range(4):
             for i, x in sorted(wins.items()):
                 if (c, i) not in acc:
                     continue
-                m = acc[(c, i)] / ndump[(c, i)]                  # ダンプ 1 つあたり（FFT の ch の順）
+                m = acc[(c, i)] / ndump[(c, i)] * scale          # 道具のダンプ 1 つと同じ積分の長さ（FFT の ch の順）
                 med = float(np.median(m))
                 seg = np.median(np.fft.fftshift(m).reshape(16, -1), axis=1) / med
                 r = ref.get(f"{c}.{x['s']}")

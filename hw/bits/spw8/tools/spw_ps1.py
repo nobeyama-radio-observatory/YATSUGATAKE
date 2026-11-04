@@ -111,10 +111,17 @@ def read_recs(path):
     return vers, spec
 
 
+U0 = [None]
+
+
 def e_of(d, wd, use_d=True, use_l=True):
+    """e の基準 U0（最初の記録の utc_ns・dump_t の分）を整数のまま引いてから float にする。utc_ns ≒ 1.8e18 は float64 の刻みが 256 ns
+    （M6 の 1 回目で、NS 3・4 の窓だけ ±256 ns ずれて見えた）"""
+    if U0[0] is None:
+        U0[0] = (int(d["utc_ns"]), int(d["dump_t"]))
     ns = d["ns"]
     corr = (wd.get(ns, 0.0) if use_d else 0.0) + (1.5 * 2 ** (12 + ns) if use_l else 0.0)
-    return d["utc_ns"] - d["dump_t"] * NS_PER_BEAT + corr * NS_PER_BEAT
+    return float(int(d["utc_ns"]) - U0[0][0]) - (int(d["dump_t"]) - U0[0][1]) * NS_PER_BEAT + corr * NS_PER_BEAT
 
 
 def check(a):
