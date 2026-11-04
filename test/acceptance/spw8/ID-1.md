@@ -16,3 +16,4 @@ python3 specctl.py --host $B ID STATUS | tee id1.txt
   - specd（M5b の後）: ID の adc_id 02070a01・time_id 02070a02・proj 00320300・kind は M5b の名前、M5c の後は `usr`・`tcal=board`。STATUS は IDLE・time_ok 1・health 0x0000・flags 0x000
 - **陽性対照**: 試行の道具を `--rev 9` で起こすと、ID の照らしで止まる（.bit は rev 10 なので）
 - **記録**: proj032 P-9（2026-11-02、b5 rev 10、`runs/p9b5_b5_ng10`）: 4 コアとも ID・ギアボックスが通過
+- **記録（specd、M5c）**: YATSUGATAKE M5c（2026-11-04、`hw/bits/spw8/runs/m5c/`）: USR_ACCESS を焼いた bit で ID の adc_id 02070a01・time_id 02070a02・**usr 6ed58430**（commit 6ed5843）・tcal board、STATUS は IDLE・time_ok 1・health 0x0000・flags 0x000。陽性対照: USR_ACCESS の無い M3 の bit で起こすと usr none

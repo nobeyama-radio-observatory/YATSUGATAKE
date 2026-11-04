@@ -13,14 +13,24 @@ ifneq ($(IMPL),)
   OUTDIR := $(OUTDIR)-$(shell echo $(IMPL) | tr -cd 'A-Z')
 endif
 
-export BOARD_REPO PART OUTDIR IMPL
+# YATSUGATAKE M5c（SpW8、Fine の M5b・2G-2 の M5 と同じフック）: .bit の USR_ACCESS に焼く値（docs/migration.md の M5b）。[31:4] commit の短いハッシュ 7 桁・[3:1] 0・
+#   [0] 追跡しているファイルに未コミットの変更がある。make を始めた時点で 1 回だけ決める。USR_ACCESS=none で焼かない（比べのため）
+ifeq ($(origin USR_ACCESS),undefined)
+  USR_ACCESS := $(shell h=$$(git rev-parse --short=7 HEAD 2>/dev/null | cut -c1-7); \
+                  [ $${#h} = 7 ] && printf '0x%s%s' $$h $$(git status --porcelain --untracked-files=no | grep -q . && echo 1 || echo 0))
+endif
+export BOARD_REPO PART OUTDIR IMPL USR_ACCESS
 
 .PHONY: all build post clean
 
 # 成果物は build/proj032b5.bit・.hwh。成否は make の終了状態でなく build/vivado.log の「TIMING (確定)」「CRITICAL WARNING: n 件」「=== wrote」で読む
 build:
+	@test -n "$(USR_ACCESS)" || { echo "USR_ACCESS を git から作れない（git の作業ツリーの中で make する。焼かないなら USR_ACCESS=none）"; exit 1; }
+	@echo "USR_ACCESS: $(USR_ACCESS)"
 	mkdir -p $(OUTDIR)
 	VIVADO_LOG=$(OUTDIR)/vivado.log $(VIVADO) -mode batch -nojournal -log $(OUTDIR)/vivado.log -source build.tcl -tclargs $(JOBS)
+	@# M5c: 書き出した .bit を読み返し、焼くはずの値と照らす（在るかと、値が合うかの両側。none なら「無いこと」）
+	@$(PYTHON) ../../../sw/pynq/bitinfo.py $(OUTDIR)/proj032b5.bit --expect $(USR_ACCESS) > $(OUTDIR)/bitinfo.txt; s=$$?; cat $(OUTDIR)/bitinfo.txt; exit $$s
 
 all: build
 
