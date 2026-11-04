@@ -305,7 +305,7 @@ AXI4-Lite で 4096 語を読む今の形をやめ、**読み出しの手間を�
 
 | 語 | 中身 |
 |---|---|
-| 0 | magic "S45R"（u32）/ rec_ver（u8）/ type（u8: 0 PAD・1 SPEC・2 TP・4 SNAP）/ core（u8、コア c）/ s（u8、流れの番号。TP は 0xFF） |
+| 0 | magic "S45R"（u32）/ rec_ver（u8）/ type（u8: 0 PAD・1 SPEC・2 TP・4 SNAP・**5 SpW の窓**（[ADR 0029](../decisions/0029-spw-ring-records-f32.md)））/ core（u8、コア c）/ s（u8、流れの番号。TP は 0xFF） |
 | 1 | SEQ（u32）/ DUMP_K（u32） |
 | 2 | DUMP_F0（u64） |
 | 3 | DUMP_T（u64） |
@@ -314,7 +314,7 @@ AXI4-Lite で 4096 語を読む今の形をやめ、**読み出しの手間を�
 | 6 | DUMP_CFG（u32）/ FLAGS（u32） |
 | 7 | 中身のバイト数（u32、詰めた後。PAD は端までのバイト数）/ KIND に固有（u32。**SLICE = そのダンプの S0_CUR**（最初の ch）、DDC・FULL・PAD = 0。2026-10-09、proj022 から。予約だった場所に足したので rec_ver は 1 のまま） |
 
-- 中身は FFT の ch の順（PS が IF の昇順に並べ替える。今と同じ）。fmt はリングの中では常に 0（u64 の生の積分値。4.5）
+- 中身は FFT の ch の順（PS が IF の昇順に並べ替える。今と同じ）。fmt はリングの中では常に 0（u64 の生の積分値。4.5）。**SpW の bit だけは type 5・fmt 1（PL が最近接・偶数で丸めた f32 × 4096。SEQ はコアごと・DUMP_K は窓ごと）**（2026-10-28、[ADR 0029](../decisions/0029-spw-ring-records-f32.md)）
 - **語 4 の log2 NFFT・log2 B と語 7 の上位（SLICE の S0）は、そのダンプを作ったときの値**（モードを切り替えた直後のレコードも、レコードだけで ch → IF が決まる。2.1）
 - 頭の項目は今の DUMP_* と同じ値（seqlock の代わりに、1 つのレコードの中で揃っていることを PL が保証する）
 - **STAGE2（2G-1-Fine）は荒い ch 1 本 × 1 チャンクで 1 レコード**（2026-10-30、[ADR 0027](../decisions/0027-2g-1-fine-records-time-rounding.md)）: 中身 114,688 × u64（周波数の昇順）、1 ダンプ = 32 レコード。
@@ -329,6 +329,7 @@ AXI4-Lite で 4096 語を読む今の形をやめ、**読み出しの手間を�
 
 状態: **決定**（2026-10-08）
 - **決定**: 値を切るのはネットワークだけ。リングの中は常に u64 の生の積分値（fmt 0 だけ）。PL は切らない・丸めない
+  **例外（2026-10-28、[ADR 0029](../decisions/0029-spw-ring-records-f32.md)）: SpW の bit はリングの中が PL で丸めた f32**（受け手の溜めと PS の DDR への口が u64 では足りない）。束ねは double の器、送るときに float32 に 1 回丸める。`fmt=u64`・`both` は SET で断り、丸めの照合は sim（`check_ring.py`）が受け持つ
   **理由**: PL → DDR は HP のポート（数 GB/s）で詰まらない。specd の束ねが整数の和のまま bit 単位で正しい。PL に丸めの論理と sim を足さずに済む。CAPS[3]（32 bit の形）は要らなくなった
   **見送った案**: PL で 32 bit にする（リングと PS の読みは半分になるが、束ねが bit 単位で一致しなくなる）
 - **決定**: ネットワークの形は**いつも float32**（束ねた u64 を最も近い float32 に丸めたもの。s45proto v2 の fmt 1）。9 本とも同じ形
@@ -449,7 +450,7 @@ TP のレコード（type 2）:
    - **STAGE2 のダンプ m は 32 レコード**（DUMP_K と DUMP_T が同じ、S0 = 0, 114,688, …, 31·114,688 が SEQ の連続で並ぶ）で揃う。下の 4. の「n_sum 個」は「n_sum 個のダンプ × 32 本」と読む。束ねは荒い ch ごとに足してよい
 3. 束の番号 **j = floor(m / n_sum)**。束 j = m が j·n_sum 〜 j·n_sum + n_sum − 1 のダンプ
 4. **束が揃う条件**: n_sum 個がすべてある（SEQ の飛びなし）・DUMP_CFG・SRC・NFFT・NS・SHIFT が全部同じ・DUMP_N がどれも BASE / L。**一つでも欠けたら束ごと捨て**、DROP の EVENT に流れと束の番号と理由を書く。STOP の前の半端な束も捨てる
-5. 束ね方: 中身は u64 の和（溢れない: 1 ダンプ ≦ 2^48 程度 × n_sum）→ ネットワークでは float32 に丸める（4.5）。DUMP_SAT は和、FLAGS・DUMP_H は OR、dump_t は最初のダンプの DUMP_T、n_sum を記録。**単位の式（1.）の N_ACC は束の総フレーム数 ΣDUMP_N に読み替える**
+5. 束ね方: 中身は u64 の和（溢れない: 1 ダンプ ≦ 2^48 程度 × n_sum）→ ネットワークでは float32 に丸める（4.5）。**SpW の bit は f32 の値を double の器に足し、送るときに float32 に丸める**（ADR 0029）。DUMP_SAT は和、FLAGS・DUMP_H は OR、dump_t は最初のダンプの DUMP_T、n_sum を記録。**単位の式（1.）の N_ACC は束の総フレーム数 ΣDUMP_N に読み替える**
 
 ### 5.2 時刻の補正（決定、2026-10-08）
 
