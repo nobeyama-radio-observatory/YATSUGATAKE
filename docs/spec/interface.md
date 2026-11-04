@@ -424,6 +424,9 @@ TP のレコード（type 2）:
 - 受け側へのレコードも論理の窓の番号で出す（6. の s の欄。specd が s から読み替える）
 - 粗い ch（2 番目に近い ch を使うか）・機関・枠は計画の既定で決め、利用者には出さない。試験のために決め打つ口だけ残す
 - PSPLIT（粗い PFB の偶奇）の無い bit（SAM45-Fine など）では割り当てが恒等で、今の振る舞いと同じ
+- **SpW8 の実装**（YATSUGATAKE の SpW8 の M5b、specd `--spw` か bits.json の `"kind": "spw8"`）: 窓のキーは `A0`〜`D7`。欄は `if`・`bw`（128 / 64 / 32 / 16 / 8）・`ns`（1〜5、`bw` の別名）・`shift`・**`on`**（1 使う / 0 使わない。使わない窓は計画に入れず、流れは止める窓）・**`coarse`**（`auto` 計画の既定 / `near` 近い粗い ch / `alt` 2 番目に近い粗い ch。上の「決め打つ口」）。`A.shift` のように ADC だけ・`all.shift`・`shift` も。`fmt` は `f32` だけ（ADR 0029）。束ねは全部の窓（`bundle` は無い）。SNAP は無い（RAW の流れが無い）
+  - SET のたびに 4 ADC とも計画し直す。計画できない組（機関の幅の和・偶奇の組の頭・帯の外・2 番目に近い粗い ch の無い窓の `alt` など）は `ERR ARG <ADC> の窓の組を計画できない …` で組ごと断る
+  - STATUS の `spw_map=A0:4,A1:5,…`（論理の窓 → 流れ s、使わない窓は `-`）と、振り分けの見張り `spw_hdrbad`（頭の NS・SHIFT・fmt・src が計画と違って捨てたレコード）・`spw_seqgap`（コアごとの SEQ の飛び）・`spw_stray`（動いていない流れのレコード）・`spw_valbad`（中身に負か有限でない値があったダンプ）
 
 ### 5.1 束ねの区切り（決定、2026-10-08。見直しの 4 番目）
 
@@ -499,6 +502,7 @@ TP のレコード（type 2）:
 - **SLICE（kind 2）の SPEC v2 の読み方（2026-10-17、proj023 の specd で決めた）**: ns の欄 = log2 B（PL のレコードの語 4 と同じ）・g = 0・nch = NCH・中身は **IF の昇順**（ゾーン 2 では流れの ch の逆順）・**if_mhz = 送る 2047 番目の ch の IF**・df_hz = fs / N（Wide は 125 kHz·B）。受け側は DDC と同じ式 **IF(i) = if_mhz ＋ (i − 2047)·df** で軸を作る（ns から幅を作らない）。DUMP_T の進みは nacc·FRAME_BEATS（Wide は 2048）
 - **2G-4 の FULL（kind 1）の SPEC v2 の読み方**（YATSUGATAKE の 2G-4 の M5）: ns の欄 0・g = 0・nch 32768・中身は **IF の昇順**（送る i = 32767 − c、ch c の IF = 4096 − c·df MHz）・if_mhz = 送る 2047 番目の ch の IF・df_hz 62,500。軸は SLICE と同じ式。DUMP_T の進みは nacc·4096（BASE で nacc 640）。窓 A0〜D0 = コア 0〜3、src の欄がそのダンプの入力の ADC
 - **2G-1-Fast の FULL（kind 1）の SPEC v2 の読み方**（proj024、YATSUGATAKE の 2G-1-Fast の M4）: 2G-4 と同じ形で nch 131072・df_hz 15,625・窓 A0 の 1 本（送る i = 131071 − c、ch c の IF = 4096 − c·df MHz）。DUMP_T の進みは nacc·16384（BASE で nacc 160）。PL のレコードは 1 MiB × 1 / 10.24 ms
+- **SpW8 の DDC（kind 3）の SPEC v2 の読み方**（YATSUGATAKE の SpW8 の M5b）: core = src = ADC・**s = 論理の窓の番号 0〜7**（ADR 0028）・ns 1〜5・g = 窓の計画の 8 bit の利得 WG（PL の DDR の窓だけ。b5 は 0）・nch 4096・fmt 1 だけ（ADR 0029）・中身は **IF の昇順**（SAM45-Fine と同じ IF_ORDER: 送る i ↔ ch (2047 − i) mod 4096）・if_mhz = 窓の中心（ch の格子に丸めた値）・df_hz = 幅 / 4096（31,250〜1,953.125）。軸は IF(i) = if_mhz ＋ (i − 2047)·df。DUMP_T の進みは nacc·L、L = 2^(12+NS) = 256e6 / df（BASE の nacc = 5·2^(7−NS)）。utc_ns は D(NS)（timebase の (7, 10) の行）＋ 1.5·L を引く（5.2）
 - **2G-2 の FULL（kind 1）の SPEC v2 の読み方**（proj025、YATSUGATAKE の 2G-2 の M4）: 2G-4 と同じ形で nch 65536・df_hz 31,250・窓 A0・B0 の 2 本（コア 0・1。送る i = 65535 − c、ch c の IF = 4096 − c·df MHz）。DUMP_T の進みは nacc·8192（BASE で nacc 320）。2 窓の DUMP_T は揃う。PL のレコードは 512 KiB × 2 / 10.24 ms
 
 ## 7. 版の運用

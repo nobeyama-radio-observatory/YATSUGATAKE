@@ -1,6 +1,6 @@
 # study-rfsoc からの移植計画（SpW8）
 
-- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-11-04、ブランチ `spw8/m4-board`。ID・NG 10・`--fast` の NG 5・計画の窓と WRST の約束・SG の CW の ch の位置が P-9・P-13・P-10b・P-13b と同じ。下の「M4 の結果」）。**M5a 済み**（2026-11-04、ブランチ `spw8/m5a-delay-table`。D(NS) を (BIT_KIND, BIT_REV) の表 `timebase.WIN_DELAY` にし、(7, 10) を足した。下の「M5a の結果」）
+- 状態: **M0**（2026-11-03、ブランチ `spw8/m0-map`）。置き場所の表・`hw/common/` との違い・移植元の bit を数え、判定を `test/acceptance/spw8/` に書き起こした（PR #98）。仕様の S は PR #99（ADR 0028）。**M1 済み**（2026-11-03、ブランチ `spw8/m1-place`。表の行き先に置き、パスと係数の名前だけを直した。下の「M1 の結果」）。**M2 済み**（2026-11-03、ブランチ `spw8/sim-targets`。sim を Makefile の目標に書き起こし、同じ目標を proj032-m0 に当てて出力がバイト単位で同じ。下の「M2 の結果」）。**M3 済み**（2026-11-04、ブランチ `spw8/m3-build`。PEPRPO の作り直しで FDRI・構成の流れ・WNS / WHS まで移植元と同じ。下の「M3 の結果」）。**M4 済み**（2026-11-04、ブランチ `spw8/m4-board`。ID・NG 10・`--fast` の NG 5・計画の窓と WRST の約束・SG の CW の ch の位置が P-9・P-13・P-10b・P-13b と同じ。下の「M4 の結果」）。**M5a 済み**（2026-11-04、ブランチ `spw8/m5a-delay-table`。D(NS) を (BIT_KIND, BIT_REV) の表 `timebase.WIN_DELAY` にし、(7, 10) を足した。下の「M5a の結果」）。**M5b 済み**（2026-11-04、ブランチ `spw8/m5b-specd`。specd の SpW Backend（論理の窓・計画・C のリングの道）で、実機の W-1・TW・WRST・NET が通った。下の「M5b の結果」）
 - 移植元: **`study-rfsoc@proj032-m0`**（注釈つきタグ、commit a80cee7。push は下の「始める条件」）。proj032 の **b5 rev 10**（4 ADC × 窓 8 本、チップ内の枠だけ・PL の DDR なし）
   - proj032 は b1〜b5 が `src/` を共有する形で、b5 rev 10 は `b5/` の Makefile・build.tcl・build_post.tcl が `../src/` を読む。**移すのは b5 と、b5 と sim が読むものだけ**（b1〜b4・d1・d3 は移さない）
   - **実装の戦略は Performance_ExplorePostRoutePhysOpt**（`b5/build-PEPRPO/`、WNS +0.016 ns）。P-9 の実機の判定はこの bit で通った。既定（PND）の rev 10 は WNS −0.024 ns で閉じていない
@@ -195,6 +195,36 @@ ID（`m4_b5_ng10`）: 4 コアとも IF_ID 0x0207_0A01・PROJ 0x0032_0300・NSTR
 - SAM45-Fine の値が変わらないこと: `test_cal_b.py` 全部通過（窓 NS 3 を含む）・`test_fake.sh all` 31 試験とも通過・`hw/bits/sam45-fine` の `make sim-regmap`（193 項目と test_regmap）が通過、陽性対照 `sim-regmap-p` は落ちた。`test_tpjump`・`test_timecal`・`test_nch`・`test_s45fast` も通過
 - [`spec/timing.md`](spec/timing.md) の持ち越し（窓の D の表）を閉じ、D_eff の表に SpW8 の行を足した
 
+### M5b の結果（2026-11-04、ブランチ `spw8/m5b-specd`、[ADR 0029](decisions/0029-spw-ring-records-f32.md) の PR #106 の上）
+
+作ったもの（`sw/pynq/`）:
+- `spwplan.py` を `hw/bits/spw8/pynq/` から移した（中身は同じ）。`hw/bits/spw8/pynq/` の `plring`・`s45core`・`extref` の写し（`sw/pynq/` の版との違いは既定値だけ）は消し、`spw_b5.py` は `sw/pynq/` の版を読む
+- `s45acq.py`: `default_settings_spw`（4 ADC とも plan2）・`spw_plan`（SET のたびに 4 ADC とも計画、計画できない組は理由つきで断る）・`spw_cfgs`・`spw_map`、`SpwBackend`（コア 4 × DDC 8、ARM_WRST・ARM_RUN を time_core で、WRST の後に CORE_FLAGS[0]・WRST_CNT ＋1・WCUR・WCUR_DPHI・WCUR2 を読み返す）と `FakeSpwBackend`（流れのレジスタから出した窓の中心の IF を中身に書く）、`Bundler` の f32 の型、`Acq` の窓の数（`nw` 8）・SET のキー（`on`・`coarse`）・`_spec_record_spw`。窓の数に依らない所は SAM45-Fine・2G の道のまま（`test_fake.sh` の前からの 31 試験が通る）
+- `s45fast.c`: `s45_spw_acc`（f32 → double の器・CRC・悪い値）・`s45_spw_rec`（器 → IF の昇順の float32・CRC）・**`s45_spw_scan`**（リングの [R, W) を 1 回なめ、magic・尾・CRC・(core, s) → 論理の窓・頭の照らし・SEQ・DUMP_K・束ねの区切り・足し込みを C で。束ができる・捨てる・TP で Python に戻る）
+- `specd.py`（`--spw`・bits.json の `"kind": "spw8"`・`--posctl-spw-map`、GET・STATUS）・`specrecv.py`（DDC の L = 256e6 / df）・`s45client.py`（鍵 A0〜D7）・`timebase.TimeCore.IDS`（0x0207_0A02）・`s45core.BIT_REV_MIN_BY_KIND`（7: 10）
+- 直したもの: `TpStream._take` は個を 1 つの組で書く（欄ごとに 4 回書くと 1 個 ≒ 20 µs）。`Clock.utc_ns` のスカラーは Python の整数で丸める（`_b2ns` に np.where を通すと 1 回 63 µs。式は同じ・10 万個で一致）。`test_ring_fast`・`test_bund_fast` の偽の Backend に `stall_at`（649f5ee から落ちていた）
+
+**取得の速さ（実機で踏んだ）**: 初めは Python の道（Ring.read → 列 → poll_win → Bundler → C の足し込み）で、PL のレコード 1 本 ≒ 270 µs（ボードの A53）。32 窓 × 10.24 ms = 3,125 本 / s に追いつかず、tint 20.48 ms で 60 s 回すとリングが溢れた（`pl_drop` 47,836）。100 束だけの短い回しでは追いついて見えた（溢れる前に終わる）。
+`--fast --fast-ring` を C のなめ（`s45_spw_scan`）にし、記録の道の重い所（時刻の丸め・TP の書き・ctypes の番地の引き）を直した後: なめ 57 µs / 本・束の記録 270 µs / 束・TP のレコード（10 個）≒ 240 µs / 本（実機の 60 s の STATUS の `spw_c_*` から）。tint 20.48 ms の 60 s で **SPEC 93,057・受け側の照合 通過・pl_drop 0・miss 0・1 周の p99 18.3 ms・最長 27 ms・リングの PEAK 2.6 MB**。取得の CPU は ≒ 69 %（なめ 18 %・束の記録 42 %・TP 9 %）。30 分（RATE・V2-b）と 0.3 s の止まり（RING）は M6
+
+PL なしの試験（どこでも回る）:
+- `test_spw_fast.py`（`spw_acc`・`SpwAcc`・`spw_rec` を zlib・numpy と bit で照らす）・`test_spw_ring.py`（type 5 のレコードを本物の `plring.Ring.read`・`SpwBackend` に通す。Python の道・C の足し込み・C のなめの 3 つで、32 窓 × 2 束が numpy の float64 の和と bit で同じ・CRC を壊した束を捨てる・頭の NS の違うレコードを捨てる・TP を Python で読む）: 全部通過。陽性対照（`-p`、`--posctl-spw-map`）は落ちる。ボードでも同じ結果
+- `test_fake.sh`: **35 試験とも通過**（前からの 31 ＋ `spw`・`spwmap`・`spwp`・`spwcli`、`net`・`netp` に SpW8 を足した）。`spwmap` は論理の窓と s を同じ NS の 2 本で入れ替える陽性対照で、入れ替えた 160 束が IF の照らしで落ちる（NS の違う 2 本を入れ替えると頭の照らし `spw_hdrbad` が先に捨て、受け側に届かない）
+
+実機（配線 N・ATT 13 dB と ノイズ ON を前後に読んだ。M3 の bit `proj032b5.bit`。ボードの `~/spw8-m5b` に `sw/pynq/` を置き `libs45fast.so` をボードで作った。specd `--clkin 0 --ref 10 --bits bits.json --fast --fast-ring --prefault`）:
+
+| 判定 | 結果 |
+|---|---|
+| ID-1（specd の分） | ID: adc 02070a01・time 02070a02・proj 00320300・kind spw8・tcal board・nw 8。STATUS IDLE・time_ok 1・health 0x0000・flags 0x000 |
+| W-1 | **通過**。CW 3 点（SG ＋9 dBm、基準 EXT）で、論理の窓の番号で 32 か所とも予言の ch とずれ 0（3891.125 MHz: A0〜D0 ch 284・窓 1・2 ch 4024・窓 3 ch 224・窓 4 ch 4032 / 3294.8125 MHz: 窓 5 ch 166・窓 6 ch 3480 / 2654.8125 MHz: 窓 7 ch 3942）。ピーク / 中央値 34.7〜54.8 dB（M4 34.6〜54.7 dB）。**陽性対照**（予言 ＋1 ch）は 3 点とも落ちた。SG は元の状態（2000.3 MHz・＋9 dBm・出力 OFF・基準 EXT）に戻した |
+| TW | **通過**。`A2.coarse=alt A1.coarse=near`（B〜D も）で 250 束: 4 ADC とも双子の比の中央値 1.00003〜1.00004・比の相対の揺れ 0.0016（線 = 独立な雑音の 1/4 = 0.0112）・形の相関 0.99998。**陽性対照**（spwplan の R0 512 の specd）: 比の中央値 1.34〜1.40・揺れ 0.45・相関 −0.86〜−0.91 で落ちた |
+| WRST | **通過**。計画できない組（ADC_B に `alt` の無い 128 MHz・ADC_B の偶奇の組の頭が埋まる組・ADC_A の 128 MHz の `alt`）は ERR で理由つき、直後の GET と `spw_map` は元のまま。次の START の WRST は約束を通り（CORE_FLAGS[0] 0・WRST_CNT ＋1・WCUR の読み返しが合う）、記録は照らしの道具で全部通過 |
+| NET | **通過**。32 窓の `SET tint=0.01024` は ERR（「51.2 MB/s」「予算 30 MB/s を越える」「この構成の tint の最小は 0.02048 s」）で GET は 0.04096 のまま、0.02048 は OK、窓 16 本（`C.on=0 D.on=0`）なら 0.01024 が OK。**陽性対照**（`--net-budget-mbs 0`）で 32 窓の 0.01024 が OK |
+
+- 照らしの道具は `hw/bits/spw8/tools/spw_recv_check.py`（specrecv の .s45 を読み、予言は自分の spwplan の計画から出す。CW・双子・記録の頭）
+- 記録は `hw/bits/spw8/runs/m5b/`（git に入れない）。終わった後、ボードには M3 の bit が載ったまま、specd は止め、`/dev/shm` は空。ATT 13 dB・ノイズ ON のまま
+- `WRST_T` に 1〜7 を書く確かめ（判定 WRST の 3 つ目）は M4 の道具の分で、specd は WRST_T を書かない（interface の WRST_T）
+
 ## 手順
 
 | 手順 | ブランチ | SpW8 ですること | 合格 |
@@ -207,7 +237,7 @@ ID（`m4_b5_ng10`）: 4 コアとも IF_ID 0x0207_0A01・PROJ 0x0032_0300・NSTR
 | M3 | `spw8/m3-build` | ビルド（`-1`、**PEPRPO**） | **FDRI が移植元と同じ**（`de7e9d88…3225`）。WNS / WHS が小数 6 桁まで同じ（+0.015935 / +0.009527）（**2026-11-04**: 上の「M3 の結果」） |
 | M4 | `spw8/m4-board` | 実機の短い回帰（`hw/bits/spw8/pynq/spw_b5.py`） | ID・`--cfg b5 --ng 10`（20.48 ms）の全部通過・`--fast --ng 5`（10.24 ms × 32 窓）の DROP 0・`--tone` の CW の ch が P-9・P-13・P-13b と同じ（**2026-11-04**: 上の「M4 の結果」） |
 | M5a | `spw8/m5a-delay-table` | **決め 3**: `timebase.WIN_DELAY_BEATS` を (BIT_KIND, BIT_REV) の表にし、SpW8 rev 10 の D(NS) を小数 2 桁で入れる。`timing.md` の残り（91 行目）を同じ PR で閉じる | SAM45-Fine の値が変わらない（test_cal_b・s45v2c）。(7, 10) が引ける。表に無い組は「未較正」（**2026-11-04**: 上の「M5a の結果」） |
-| M5b | `spw8/m5b-specd` | **決め 2**: specd に SpW Backend（spwplan で論理の窓 → 流れ s・SET は組ごと・STATUS に対応・レコードを論理の番号に・C の読み手 `--fast-ring` の f32 版・ネットワークの 10.24 ms を断る） | PL なしの試験（`test_fake.sh`。PSPLIT の無い bit では割り当てが恒等で振る舞いが今と同じ）と、実機で W-1・TW・WRST・NET |
+| M5b | `spw8/m5b-specd` | **決め 2**: specd に SpW Backend（spwplan で論理の窓 → 流れ s・SET は組ごと・STATUS に対応・レコードを論理の番号に・C の読み手 `--fast-ring` の f32 版・ネットワークの 10.24 ms を断る） | PL なしの試験（`test_fake.sh`。PSPLIT の無い bit では割り当てが恒等で振る舞いが今と同じ）と、実機で W-1・TW・WRST・NET（**2026-11-04**: 上の「M5b の結果」） |
 | M5c | `spw8/m5c-usr-access` | USR_ACCESS を焼く（SAM45-Fine の M5b・2G-2 の M5） | M2〜M4 の回し直しが予言どおり（FDRI は変わらず、構成の流れが変わる） |
 | M6 | `spw8/m6` | 判定（`test/acceptance/spw8/`）を全部通し、性能評価を書く | `docs/performance/spw8/v1.0.0.md` |
 | M7 | `spw8/m7-docs` | spec・design・user の SpW8 の分を書き、リリース | `release.md` |
