@@ -211,7 +211,8 @@ class TimeCore:
            0x0201_0102,                              # SAM45-Wide（BIT_KIND 1・BIT_REV 1、study-rfsoc proj023）
            0x020B_0102,                              # 2G-1（BIT_KIND 11・BIT_REV 1、study-rfsoc proj024）
            0x020A_0102,                              # 2G-2（BIT_KIND 10・BIT_REV 1、study-rfsoc proj025）
-           0x0203_0102)                              # 2G-4（BIT_KIND 3・BIT_REV 1、study-rfsoc proj027〜031）
+           0x0203_0102,                              # 2G-4（BIT_KIND 3・BIT_REV 1、study-rfsoc proj027〜031）
+           0x0207_0A02)                              # SpW8（BIT_KIND 7・BIT_REV 10、study-rfsoc proj032 b5 rev 10。YATSUGATAKE M5b）
     PROJ = 0x0021_0200            # 0x5C。記録だけ（M5a から CAL の鍵は IF_ID の (BIT_KIND, BIT_REV)）
     CTRL_ARM, CTRL_CANCEL, CTRL_ASET, CTRL_ACLR, CTRL_NCLR = 1, 2, 8, 16, 256
 

@@ -66,6 +66,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+sys.path.insert(1, os.path.join(HERE, "..", "..", "..", "..", "sw", "pynq"))   # YATSUGATAKE M5b: spwplan・plring・s45core・extref は sw/pynq の版（ボードでは同じ場所に写す）
 
 BITFILE = "proj032b5.bit"
 LMK_FREQ, LMX_FREQ = 245.76, 491.52
