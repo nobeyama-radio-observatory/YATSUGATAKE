@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
-"""proj032 P-10 — pynq/spwplan.py の照らし（机の上、numpy なし）
+"""proj032 P-10 — sw/pynq/spwplan.py の照らし（机の上、numpy なし）
 
   python3 tools/test_spwplan.py [--n 3000] [--posctl]
 
@@ -17,7 +17,7 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pynq"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "sw", "pynq"))   # YATSUGATAKE M5b: spwplan は sw/pynq（specd と同じもの）
 import spwplan as P  # noqa: E402
 
 H, E, S, NK = 8, 3, 8, 8
