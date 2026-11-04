@@ -3090,7 +3090,8 @@ class Acq:
             return None
         c = tb.cal
         return dict(state=tb.cal_state, why=tb.cal_why, file=c.get("_file"), date=c.get("date"), board=(tb.board or {}).get("id"),
-                    pps_det_ns=c["pps_det_ns"], adc_to_core_ns=c["adc_to_core_ns"], bound_ns=c["bound_ns"])
+                    pps_det_ns=c["pps_det_ns"], adc_to_core_ns=c["adc_to_core_ns"], bound_ns=c["bound_ns"],
+                    win_delay_key=list(tb.key), win_delay=tb.win_delay)          # SpW8 M6（PS-1）: 引いた D(NS) の表の鍵と値（表に無い bit は {} = 未較正）
 
     def _spec_record(self, j, m, spec):
         cf = self.be.cfgs[j]

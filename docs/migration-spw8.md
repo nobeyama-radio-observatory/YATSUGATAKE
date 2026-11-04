@@ -269,6 +269,15 @@ PL なしの試験（どこでも回る）:
 - 終わった後: specd は `SHUTDOWN confirm=1` で止め、`/dev/shm` は空。ボードには M3 の bit が載ったまま（陽性対照の分）。ATT 13 dB・ノイズ ON（15.00 V・511 mA）・SG（2000.3 MHz・＋9 dBm・出力 OFF・基準 EXT）は前と同じ
 - 記録は `hw/bits/spw8/runs/m5c/`（git に入れない）
 
+### M6 の決め（2026-11-04、測る前に書いた。ブランチ `spw8/m6`）
+
+対象の bit は M5c の bit（`6b38f918…0a2b`・USR_ACCESS 6ed58430）と、それに載せる `sw/pynq/`。配線は N（ATT 13 dB・ノイズ ON）、W-1 だけ N/S（SG ＋9 dBm、使う前の状態を記録して戻す）。判定の合格は `test/acceptance/spw8/` のまま変えない。specd の形で書き方が決まっていなかった所だけ、ここで決める:
+
+1. **RATE の specd の形**: 受けは V2-b と同じ 30 分（PL 10.24 ms・ネットワークの tint 20.48 ms・32 窓）で、V2-b と 1 回の運転で兼ねる。「輪の中の時間の割合」は、STOP の直前の STATUS の `spw_c_scan_s ＋ spw_c_ev_s ＋ spw_c_one_s`（C のなめ・束の記録・Python で読んだ TP）÷ RUN の秒とする（試行の道具の「輪の中の時間」と同じく、リングを読んで記録にするまでの時間）。線は 70 % のまま。M5b の 60 s では ≒ 69 % だったので、**落ちうる**。試行の道具の形（`spw_b5.py --fast --ng 5 --sec 1800`）も同じ日に回す
+2. **H-0 の specd の形**: b5 の組を IF:幅で SET する（`3584:128,3584:64,3328:64,3072:16,3520:128,2752:64,2496:32,3008:8`。spwplan はこれを b5 と同じ流れ s・粗い ch・NS・d 0 に計画する）。tint 0.02048 で 10 s 受け、`spw_recv_check.py --ref`（同じ日の試行の道具の `--cfg b5 --ng 10` の .json）で、32 窓とも**中央値の比 1 ± 0.05・16 区間の形の差 ≦ 0.05**。頭の欄・照合は受け側の照合と `spw_recv_check.py`、K_F・DUMP_K は試行の道具の形で見る（specd は DUMP_K の飛びを miss に数える）
+3. **PS-1**: SpW8 の記録は PL が丸めた f32 で、Fine の `s45v2c.py` の u64 と f32 の組は無い（ADR 0029）。「float32 が PL の記録とバイト単位で同じ」は、**n_sum 1（tint 0.01024・窓 16 本 = ADC 2 つずつ 2 回）の SPEC の本体と、同じ運転で PL のリングから写し取った type 5 の本体を IF の昇順に並べたもの**を比べる。写し取りはボードの試験用ディレクトリの `plring.py` に `hw/bits/spw8/tools/spw_ps1.py patch` で包みを足す（製品には入れない。写し取りは Python の道なので specd は `--fast`・`--fast-ring` なし）。e の照らしは H-0 の運転（32 窓・NS 1〜5）の記録で、`spw_ps1.py check`。表を引いたかは `GET CAL` に足した `wdly`・`wdly_ns`（この PR で足した）で見る。陽性対照は `spw_ps1.py patch-nodly` で (7, 10) の行を外した specd（`wdly_ns=none`、e が NS で D の差だけずれる）
+4. **順**: 試行の道具（H-0・RATE 30 分・陽性対照）→ specd 1（ID-1・GET CAL・H-0・W-1・TW・WRST・NET → V2-b ＝ RATE の specd の形 30 分）→ 写し取りの specd（PS-1）と陽性対照の specd → RING（0.3 s）と陽性対照（8 s）→ 起こし直した specd で V2-L 2 時間。AMS は RATE・V2-b・V2-L の間 10 s ごと（`amslog.py`）
+
 ## 手順
 
 | 手順 | ブランチ | SpW8 ですること | 合格 |
