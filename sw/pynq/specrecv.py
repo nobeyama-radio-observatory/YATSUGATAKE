@@ -80,7 +80,8 @@ class Check:
             if ver == 2:
                 self._f32_pair(d)
             kd = d.get("kind")
-            L = 2048 if kd == 2 else d["nch"] // 8 if kd == 1 else 4096 << (d["ns"] - 1)   # proj023: SLICE は 2048 ビート。proj024: FULL は nch / 8（2G-1 は 16384）
+            L = (2048 if kd == 2 else d["nch"] // 8 if kd == 1                 # proj023: SLICE は 2048 ビート。proj024: FULL は nch / 8（2G-1 は 16384）
+                 else int(round(256e6 / d["df_hz"])) if d.get("df_hz") else 4096 << (d["ns"] - 1))   # DDC: L = 256e6 / df（SAM45-Fine 2^(11+NS)・SpW8 2^(12+NS)）。v1 は NS から
             if key in self.k and self.k[key][2] == self.epoch:
                 k0, t0, _ = self.k[key]
                 if d["k"] != k0 + 1:

@@ -55,7 +55,8 @@ class LazyRec:
 
     @property
     def addr(self):
-        return self.ring.a8.ctypes.data + self.p             # 頭（64 バイト）の位置。中身はその 64 バイト後
+        a = getattr(self.ring, "a8p", None)                  # SpW8 M5b: Ring が先に引いた番地（ndarray.ctypes.data は 1 回 ≒ 18 µs、ボード）
+        return (self.ring.a8.ctypes.data if a is None else a) + self.p   # 頭（64 バイト）の位置。中身はその 64 バイト後
 
     def view(self):
         i = (self.p >> 3) + 8
@@ -87,6 +88,7 @@ class Ring:
         #   specd の最初の周で、RUN の前に溜まった TP のレコード 200 個の Ring.read が 74 ms = 1 個 0.37 ms だった）
         self.a64 = self.buf.view(np.ndarray)
         self.a8 = self.a64.view(np.uint8)
+        self.a8p = self.a8.ctypes.data                       # SpW8 M5b: LazyRec.addr が使う（1 本ごとに引かない）
         self.inval = inval
         # proj021 2-3a: 陽性対照を確かにするための「先読み」。読み終えた W から touch バイト先までの各キャッシュ行を 1 バイトずつ読み、
         #   **PL がまだ書いていない行をわざとキャッシュに載せる**。次の読みでそこに来たレコードは、捨てなければ古い行のまま見える。

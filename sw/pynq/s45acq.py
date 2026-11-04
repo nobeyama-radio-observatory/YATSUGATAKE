@@ -27,6 +27,7 @@ import os
 import resource
 import time
 import traceback
+import zlib
 
 import numpy as np
 
@@ -238,8 +239,8 @@ def g22_tp_slots(src):
     return out
 
 
-def win_key(j):
-    i, w = divmod(j, NW)
+def win_key(j, nw=NW):
+    i, w = divmod(j, nw)
     return f"{'ABCD'[i]}{w}"
 
 
@@ -292,13 +293,18 @@ class Bundler:
     m = round(DUMP_T / BASE)・r = DUMP_T − m·BASE（1 回の RUN で一定 ±1 のはず）・束 jb = m // n_sum。
     束が揃う条件: n_sum 個の m が jb·n_sum から続いている・DUMP_N がどれも pl_nacc・DUMP_CFG が同じ。欠けた束は丸ごと捨てる
     proj036: fast（s45fast）を渡すと、n_sum ≧ 2 の LazyRec（リングの上のレコード）を C で器へ写す・足す（PL の CRC も同じなめで照らす）。
-    器は窓ごとに 1 つで使い回す（束を返した周のうちに記録を作るので足りる）。CRC が合わない 1 本を含む束は丸ごと捨てる（理由 "CRC"）"""
+    器は窓ごとに 1 つで使い回す（束を返した周のうちに記録を作るので足りる）。CRC が合わない 1 本を含む束は丸ごと捨てる（理由 "CRC"）
+    SpW8 M5b（ADR 0029）: f32 = True で SpW の f32 のダンプを double の器 self.buf に足す（n_sum 1 でも器へ。束の値は float64 の配列）。
+    LazyRec は fast.spw_acc（CRC・負か有限でない値の数え）、ndarray（偽物・写したレコード。u64 の配列なら f32 の bit として読む）は numpy で。
+    負か有限でない値を含む束は丸ごと捨てる（理由 "値"）"""
 
-    def __init__(self, n_sum, pl_nacc, fast=None, posctl=0):
+    def __init__(self, n_sum, pl_nacc, fast=None, posctl=0, f32=False):
         self.n_sum, self.pl_nacc = n_sum, pl_nacc
         self.fast, self.posctl = fast, posctl
+        self.f32 = f32
         self.buf = None
         self.crc_bad = 0              # proj036: PL の CRC が合わなかった 1 本の数
+        self.val_bad = 0              # SpW8 M5b: 中身に負か有限でない値があった 1 本の数
         self.r0 = None
         self.r_bad = 0
         self.dead = False             # r が動いた（以後この RUN では束ねない）
@@ -337,6 +343,8 @@ class Bundler:
             dropped = self._close("欠け")
         bad = int(m["n"]) != self.pl_nacc
         lazy = not isinstance(spec, np.ndarray) and hasattr(spec, "crc_exp")
+        if self.f32:
+            return self._add_f32(m, spec, mi, jb, bad, lazy, dropped)
         crc_bad = False
         if lazy and self.n_sum > 1:                # proj036: リングの上から C で器へ（写さない・numpy を通さない）
             first = self.cur is None
@@ -379,6 +387,60 @@ class Bundler:
         self.cur = None
         return (mm, c["acc"]), dropped
 
+    def _add_f32(self, m, spec, mi, jb, bad, lazy, dropped):
+        """SpW8 M5b: add の f32 の道（器はいつも self.buf）"""
+        first = self.cur is None
+        crc_bad = val_bad = False
+        if lazy:
+            n = 2 * spec.n
+            if self.buf is None or self.buf.size != n:
+                if not first:
+                    raise ValueError("束の途中でダンプの長さが変わった")
+                self.buf = np.empty(n, np.float64)
+                self.sacc = self.fast.SpwAcc(self.buf)   # 器の番地を先に引く（1 本ごとに引くと 1 本 100 µs、ボード）
+                self.bufp = self.sacc.p
+            crc, nbad = self.sacc.add(spec, first, self.posctl)
+            crc_bad, val_bad = crc != spec.crc_exp, nbad != 0
+        else:
+            x = np.asarray(spec)
+            if x.dtype == np.uint64:
+                x = x.view(np.float32)
+            if self.buf is None or self.buf.size != x.size:
+                if not first:
+                    raise ValueError("束の途中でダンプの長さが変わった")
+                self.buf = np.empty(x.size, np.float64)
+                self.bufp = self.buf.ctypes.data
+            val_bad = bool(np.any(~np.isfinite(x)) or np.any(np.signbit(x)))
+            if first or (self.posctl & 1):
+                self.buf[:] = x
+            else:
+                self.buf += x
+        self.crc_bad += crc_bad
+        self.val_bad += val_bad
+        why = "CRC" if crc_bad else "値" if val_bad else "N" if bad else None
+        if first:
+            self.cur = dict(jb=jb, ms=[mi], acc=self.buf, m=m, sat=int(m["sat"]),
+                            flags=int(m["flags"]), h=int(m["h"]), n=int(m["n"]), bad=why)
+        else:
+            c = self.cur
+            if mi != c["ms"][-1] + 1:
+                c["bad"] = c["bad"] or "順"
+            if int(m["cfg"]) != int(c["m"]["cfg"]):
+                c["bad"] = c["bad"] or "CFG"
+            c["bad"] = c["bad"] or why
+            c["ms"].append(mi)
+            c["sat"] += int(m["sat"]); c["flags"] |= int(m["flags"]); c["h"] |= int(m["h"]); c["n"] += int(m["n"])
+        c = self.cur
+        if len(c["ms"]) < self.n_sum:
+            return None, dropped
+        if c["bad"] or c["ms"][0] != jb * self.n_sum:
+            d2 = self._close(c["bad"] or "頭")
+            return None, dropped or d2
+        mm = c["m"]                                # f32 の道の m は poll_win が 1 本ごとに作る辞書（写さずに使う）
+        mm.update(k=jb - self.jb0, n=c["n"], sat=c["sat"], flags=c["flags"], h=c["h"], accp=self.bufp)   # accp: 器の番地（記録の C の道）
+        self.cur = None
+        return (mm, c["acc"]), dropped
+
     def stop(self):
         return self._close("STOP")
 
@@ -388,6 +450,11 @@ def g_of(ns):
 
 
 # ================================================================ 時刻（timebase の式を、確かめは 1 秒に 1 回に分けて）
+def _b2ns_i(d):
+    """_b2ns の Python の整数の版（SpW8 M5b: スカラーに np.where を通すと 1 回 63 µs、ボード）"""
+    return (d * 125 + 16) // 32 if d >= 0 else -((-d * 125 + 16) // 32)
+
+
 def _b2ns(d):
     """timebase.beats_to_ns と同じ（最近接に丸める。負は対称）。numpy の配列も可"""
     d = np.asarray(d, np.int64)
@@ -417,7 +484,7 @@ class Clock:
         if not self.ok:
             return 0
         a, c = self.tb._anchor, self.tb.cal
-        t = a["utc_sec"] * 10**9 + int(_b2ns(int(beat) - a["stamp"])) + int(round(c["pps_det_ns"] or 0))   # pps_det は足す（2026-10-21、test_cal_b.py）
+        t = a["utc_sec"] * 10**9 + _b2ns_i(int(beat) - a["stamp"]) + int(round(c["pps_det_ns"] or 0))   # pps_det は足す（2026-10-21、test_cal_b.py）
         v = c["adc_to_core_ns"]
         t -= int(round((v.get(adc) if isinstance(v, dict) else v) or 0))
         if ns is not None and ns in self.wd:
@@ -486,9 +553,8 @@ def make_tp_reader(S):
                 self.bad_nfr += 1
             self.last_f0, self.last_nfr = f0, nfr
             if self.n < len(self.buf):
-                e = self.buf[self.n]
-                e["t_beat"] = f0            # フレームの番号。flush でビートに直す
-                e["sum"] = tsum; e["nfr"] = nfr; e["flags"] = fl
+                # t_beat はフレームの番号（flush でビートに直す）・utc_ns は flush で書く。1 つの組で書く（欄ごとに 4 回書くと 1 個 ≒ 20 µs、ボード。SpW8 M5b）
+                self.buf[self.n] = (f0, 0, tsum, nfr, fl)
                 self.n += 1
             else:
                 self.overflow += 1
@@ -504,7 +570,7 @@ TYPE_SPEC, TYPE_TP, TYPE_SNAP = 1, 2, 4
 
 def rec_meta(hw):
     """レコードの頭 w1..w6（INTERFACE 4.4）→ 今の meta と同じ鍵"""
-    w = [int(x) for x in hw]
+    w = hw.tolist() if hasattr(hw, "tolist") else [int(x) for x in hw]    # SpW8 M5b: tolist は 1 回 3 µs（int() を 7 回は 27 µs、ボード）
     return dict(seq=w[1] & 0xFFFFFFFF, k=w[1] >> 32, f0=w[2] & ((1 << 48) - 1), t=w[3], h=(w[4] >> 48) & 0xFFFF,
                 n=w[5] & 0xFFFFFFFF, sat=w[5] >> 32, cfg=w[6] & 0xFFFFFFFF, flags=w[6] >> 32)
 
@@ -1901,6 +1967,605 @@ class FakeG24Backend(FakeG22Backend):
     G = G4_GEOM
 
 
+# ================================================================ YATSUGATAKE M5b: SpW8（BIT_KIND 7、study-rfsoc proj032 b5 rev 10）
+# 窓のキーは論理の窓（ADR 0028）: A0〜A7 は ADC_A の窓 0〜7（利用者の並び）。spwplan が流れ s（頭）・粗い ch・機関・枠に割り当てる。
+# リングのレコードは type 5・fmt 1（PL が丸めた f32、ADR 0029）。束ねは double の器（Bundler の f32）。RUN・WRST はコアで 1 つ
+SPW_KIND = "spw8"
+SPW_NW = 8                                  # 論理の窓 / ADC
+SPW_H, SPW_E, SPW_S = 8, 3, 8               # 頭・機関・チップ内の履歴の枠（b5 に PL の DDR は無い）
+SPW_BIT_KIND, SPW_BIT_REV = 7, 10
+SPW_BW = (128, 64, 32, 16, 8)               # NS 1〜5
+SPW_NG = BASE_BEATS // G_BEATS              # 5: コアの NG（G の数）。PL のダンプ = BASE 10.24 ms
+SPW_SHIFT = 4                               # proj032 の既定
+SPW_PLAN2 = ((3900.0, 128), (3890.0, 64), (3890.0, 64), (3892.0, 16), (3891.0, 8), (3300.0, 128), (3290.0, 32), (2650.0, 128))   # 判定の窓の組 plan2
+SPW_COARSE = ("auto", "near", "alt")        # 粗い ch: 計画の既定・近い ch・2 番目に近い ch（試験のために決め打つ口、ADR 0028）
+TYPE_SPW = 5
+C_CORE_FLAGS, C_NG, C_NDUMP, C_WRST_BAD, C_WRST_CNT = 0x80, 0x84, 0x88, 0x8C, 0x90
+S_WCUR, S_WCUR_DPHI, S_WFL, S_WSL, S_WG, S_WCUR2 = 0x10C, 0x110, 0x120, 0x124, 0x128, 0x12C
+SPW_REGS = (("WK", 0x100), ("WDPHI", 0x104), ("WNS", 0x108), ("WFL", S_WFL), ("WSL", S_WSL), ("WG", S_WG))
+SPW_CT_STOP, SPW_CT_ARMRUN, SPW_CT_CANCEL, SPW_CT_FCLR, SPW_CT_ARMWRST = 1 << 1, 1 << 2, 1 << 3, 1 << 8, 1 << 13   # どの流れの CTRL でもコアに効く
+
+
+def spw_frame(ns):
+    """SpW の窓のフレーム L = 2^(12+NS) ビート（= 256e6 / df）"""
+    return 1 << (12 + ns)
+
+
+def default_settings_spw():
+    """4 ADC とも plan2（窓 8 本、チップ内の枠 0..7 を全部使う）"""
+    wins = [dict(if_mhz=f, bw=w, shift=SPW_SHIFT, on=1, coarse="auto") for _ in range(4) for f, w in SPW_PLAN2]
+    return dict(kind=SPW_KIND, tint=0.04096, cfg=0, fmt="f32", wins=wins)
+
+
+def spw_plan(st):
+    """4 ADC とも窓の組を計画する（interface 5. の「SpW の窓のキーは論理の窓」）。→ ADC ごとの spwplan.plan の結果（wins の各々に論理の番号 i）。
+    計画できない組は ValueError（どの ADC の組かと理由）。計画が WRST の約束を破るのは spwplan の誤り（同じく断る）"""
+    import spwplan
+    out = []
+    for a in range(4):
+        ws = st["wins"][a * SPW_NW:(a + 1) * SPW_NW]
+        on = [i for i, w in enumerate(ws) if w["on"]]
+        req = [(ws[i]["if_mhz"], ws[i]["bw"]) for i in on]
+        fk = {n: ws[i]["coarse"] for n, i in enumerate(on) if ws[i]["coarse"] != "auto"}
+        try:
+            p = spwplan.plan(req, H=SPW_H, E=SPW_E, S=SPW_S, ddr=False, force_k=fk)
+        except spwplan.PlanError as e:
+            raise ValueError(f"{ADC_NAMES[a]} の窓の組を計画できない（組ごと断る。今の組のまま）: {e}") from None
+        bad = spwplan.check(p["streams"], E=SPW_E, S=SPW_S)
+        if bad:
+            raise ValueError(f"{ADC_NAMES[a]} の計画が WRST の約束を破る（印 {bad:#x}。spwplan の誤り）")
+        for x, i in zip(p["wins"], on):
+            x["i"] = i                             # 計画の番号（on の窓だけの並び）→ 論理の窓の番号
+        out.append(p)
+    return out
+
+
+def spw_cfgs(st, plans):
+    """論理の窓 j = 8·ADC ＋ i ごとの cfg（START の EVENT の wins・記録の頭）。使わない窓（on 0）は active False"""
+    n_sum = check_tint(st["tint"])
+    cfgs = []
+    for a, p in enumerate(plans):
+        by_i = {x["i"]: x for x in p["wins"]}
+        for i in range(SPW_NW):
+            ws = st["wins"][a * SPW_NW + i]
+            x = by_i.get(i)
+            if x is None:
+                cfgs.append(dict(kind="spw", active=False, bundle=0, n_sum=n_sum, s=None, ns=0, shift=ws["shift"], if_mhz=ws["if_mhz"], bw=ws["bw"]))
+                continue
+            L = spw_frame(x["ns"])
+            cfgs.append(dict(kind="spw", active=True, bundle=1, n_sum=n_sum, pl_nacc=BASE_BEATS // L, nacc=n_sum * (BASE_BEATS // L),
+                             s=x["s"], k=x["k"], alt=bool(x["alt"]), dphi=x["dphi"], fl=x["fl"], sl=x["sl"], g=x["wg"],
+                             w4=12 | (x["ns"] << 8) | (ws["shift"] << 16) | (1 << 32),   # レコードの頭の語 4 の期待（src は振り分けで足す）
+                             ns=x["ns"], bw=x["w"], frame=L, shift=ws["shift"], if_mhz=x["if_mhz"], df_hz=x["w"] * 1e6 / P.NCH))
+    return cfgs
+
+
+def spw_map(plans):
+    """STATUS の対応（論理の窓 → 流れ s）。使わない窓は -"""
+    out = []
+    for a, p in enumerate(plans):
+        by_i = {x["i"]: x for x in p["wins"]}
+        out += [f"{win_key(a * SPW_NW + i, SPW_NW)}:{by_i[i]['s'] if i in by_i else '-'}" for i in range(SPW_NW)]
+    return ",".join(out)
+
+
+class _SpwRoute:
+    """SpW の実機と偽物で同じ振り分け: レコード (core, s) → 論理の窓 j（smap）、頭の照らし、DUMP_K からの読み落とし、コアごとの SEQ の飛び。
+    陽性対照 --posctl-spw-map: ADC ごとに同じ NS・SHIFT の 2 本の論理の窓の s を入れ替える（頭の照らしは通り、受け側の IF の照らしが落ちるはず）"""
+
+    def _spw_init(self, cfgs):
+        self.smap = {}
+        for j, cf in enumerate(cfgs):
+            if cf["active"]:
+                self.smap[(j // SPW_NW, cf["s"])] = j
+        if getattr(self.o, "posctl_spw_map", False):
+            for a in range(4):                     # 同じ NS・SHIFT の 2 本（頭の照らしを通り、中身の IF でだけ見える取り違え）
+                ss = sorted((s for (c, s) in self.smap if c == a), key=lambda s: self.smap[(a, s)])
+                kind = lambda s: (cfgs[self.smap[(a, s)]]["ns"], cfgs[self.smap[(a, s)]]["shift"])
+                pr = next(((x, y) for n, x in enumerate(ss) for y in ss[n + 1:] if kind(x) == kind(y)), None)
+                if pr:
+                    x, y = pr
+                    self.smap[(a, x)], self.smap[(a, y)] = self.smap[(a, y)], self.smap[(a, x)]
+            self.log("陽性対照: 論理の窓と流れ s の対応を ADC ごとに 2 本（同じ NS・SHIFT）入れ替える（--posctl-spw-map）")
+        self.q = [collections.deque() for _ in range(4 * SPW_NW)]
+        self.dk = [None] * (4 * SPW_NW)
+        self.cseq = [None] * 4
+        self.seq_gap = self.hdr_bad = self.stray = 0
+
+    def _spw_route(self, core, s, seq, hw, pay):
+        """type 5 のレコード 1 本（CRC・尾は照らした後）"""
+        if 0 <= core < 4:
+            last = self.cseq[core]
+            if last is not None and seq != (last + 1) & 0xFFFFFFFF:
+                self.seq_gap += 1
+            self.cseq[core] = seq
+        j = self.smap.get((core, s))
+        if j is None:
+            self.stray += 1                        # 動いていない流れ・知らないコアのレコード
+            return
+        self.q[j].append((core, hw, pay))
+
+    def poll_win(self, j):
+        """窓 j の閉じたダンプ（BASE ごと）→ (メタ, 中身（f32 の LazyRec か ndarray）, 読み落とした数 = DUMP_K の飛び)。頭が cfg と合わないレコードは捨てて数える"""
+        q = self.q[j]
+        cf = self.cfgs[j]
+        while q:
+            core, hw, pay = q.popleft()
+            hw = hw.tolist() if hasattr(hw, "tolist") else hw            # 1 回 3 µs（ボード）。以下は Python の int で
+            w4 = hw[4]
+            if w4 & 0xFFFF00FFFFFF != cf["w4"] | (core << 40):           # log2N 12・NS・SHIFT・fmt 1・src（G と DUMP_H は見ない）
+                l2n, ns, sh, _g, fmt, src = [(w4 >> (8 * i)) & 0xFF for i in range(6)]
+                self.hdr_bad += 1
+                if self.hdr_bad <= 5:
+                    self.log(f"{win_key(j, SPW_NW)}（s {cf['s']}）: レコードの頭 log2N {l2n}・NS {ns}・SHIFT {sh}・fmt {fmt}・src {src}"
+                             f"（期待 12・{cf['ns']}・{cf['shift']}・1・{core}）。捨てる")
+                continue
+            w1, w5, w6 = hw[1], hw[5], hw[6]
+            k, last = w1 >> 32, self.dk[j]
+            if last is not None and k <= last:
+                continue                           # 前の RUN の残り
+            self.dk[j] = k
+            m = {"seq": w1 & 0xFFFFFFFF, "k": k, "t": hw[3], "h": w4 >> 48, "n": w5 & 0xFFFFFFFF, "sat": w5 >> 32,   # rec_meta と同じ鍵（f0 は使わない）
+                 "cfg": w6 & 0xFFFFFFFF, "flags": w6 >> 32}
+            return m, pay, (0 if last is None else k - last - 1)
+        return None
+
+    def spw_stat(self):
+        return dict(seq_gap=self.seq_gap, hdr_bad=self.hdr_bad, stray=self.stray)
+
+    def snap(self, adc, n, nacc, timeout=5.0):
+        raise RuntimeError("SpW8 に RAW の流れは無い（SNAP は使えない）")
+
+
+class _CBund:
+    """SpW8 M5b の C の道の窓の束ね（状態は s45fast.SpwScan の win[j]）。Acq が Bundler に求める欄だけを持つ"""
+
+    def __init__(self, sc, j):
+        self.sc, self.j, self.drop_why = sc, j, {}
+
+    def _g(self, k):
+        return int(self.sc.win[k][self.j])
+
+    n_sum = property(lambda self: self._g("n_sum"))
+    drop = property(lambda self: self._g("drop"))
+    r_bad = property(lambda self: self._g("r_bad"))
+    val_bad = property(lambda self: self._g("val_bad"))
+    crc_bad = property(lambda self: self._g("crc_bad"))
+
+    @property
+    def r0(self):
+        return self._g("r0") if self._g("has_r0") else None
+
+    def stop(self):
+        w = self.sc.win
+        if not w["cur"][self.j]:
+            return None
+        w["cur"][self.j] = 0
+        w["drop"][self.j] += 1
+        self.drop_why["STOP"] = self.drop_why.get("STOP", 0) + 1
+        return (self._g("jb"), "STOP", self._g("cnt"))
+
+
+class SpwBackend(_SpwRoute, HwBackend):
+    """SpW8（BIT_KIND 7・BIT_REV 10）の裏。コア 4 個（ADC_A〜D）× DDC の流れ 8 本。RAW の流れは無い（SNAP は断る）。
+    --fast --fast-ring で C の道（cmode）: pump がリングの [R, W) を s45fast.SpwScan で 1 回なめ、束ができる・捨てるたびに on_spw（Acq）を呼ぶ。
+    Python の道（Ring.read → 列 → poll_win → Bundler）は 32 窓 × 10.24 ms に追いつかない（M5b の実機: 1 本 ≒ 270 µs、20.48 ms で 60 s 回すと溢れた）"""
+
+    def __init__(self, opts, log):
+        super().__init__(opts, log)
+        self.cmode = bool(getattr(opts, "fast", False) and getattr(opts, "fast_ring", False))
+        self.on_spw = None
+        self.discard = False
+
+    def open(self):
+        import spectrometer as S
+        import timetest as T
+        import window as W
+        import timebase as TB
+        import s45core as SC
+        self.S, self.T, self.W, self.TB, self.SC = S, T, W, TB, SC
+        from pynq import Overlay
+        import xrfdc                               # Overlay() より前に import する（VERSIONS.md）
+        S.setup_clocks(self.o.clkin, self.o.ref)
+        self._setup_lmx()
+        self.ol = Overlay(self.o.bitfile)
+        if not isinstance(self.ol.rfdc, xrfdc.RFdc):
+            raise RuntimeError("RFDC に xrfdc のドライバが当たっていない")
+        S.check_tiles(self.ol.rfdc, 2)
+        time.sleep(self.o.settle)
+        self.cores, tmm = SC.discover(self.ol, bit_kind=SPW_BIT_KIND, ncore=4, bit_rev_min=SPW_BIT_REV)
+        if [c.adc for c in self.cores] != [0, 1, 2, 3]:
+            raise RuntimeError(f"コアの CORE_PORT が {[c.adc for c in self.cores]}（期待 [0, 1, 2, 3]）")
+        for c in self.cores:
+            if c.nstream != SPW_H or any(x.kind != SC.KIND_DDC for x in c.streams):
+                raise RuntimeError(f"{c.name} の流れが DDC × {SPW_H} でない（NSTREAM {c.nstream}・KIND {[x.kind for x in c.streams]}）")
+            if (c.caps & 3) != 3:
+                raise RuntimeError(f"{c.name} の CAPS の [0]〜[1]（レコード・TP）が無い（{c.caps:#x}）")
+            if c.base_beats != BASE_BEATS:
+                raise RuntimeError(f"{c.name} の BASE_BEATS {c.base_beats}（{BASE_BEATS} を期待）")
+            prm = int(c.m.read(W.A_BASE + S.R_TP_PARAM)) & 0xFFFFFFFF
+            if prm != S.TP_PARAM_EXPECT:
+                raise RuntimeError(f"{c.name} の TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
+        self.wms = [c.m for c in self.cores]
+        self.tc = TB.TimeCore(tmm)
+        self.tc.configure(src=self.o.path, tol=1)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
+        self.TpStream = make_tp_reader(S)
+        c0 = self.cores[0]
+        self.ids = dict(win=f"{c0.streams[0].sid:08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}", proj=f"{c0.proj:08x}",
+                        kind=SPW_KIND, usr=self._usr_access(), **self._lmx_ids())
+        self.clock = Clock(None, {})
+        import plring as PR
+        rip = getattr(self.ol, "s45_ring_0", None)
+        if rip is None:
+            raise RuntimeError("ol.s45_ring_0 が無い")
+        self.ring = PR.Ring(rip.mmio, ring_mib_of(self.o, G_RING_MIB) << 20)
+        self.ring.enable(True)
+        self.amap = {c.adc: i for i, c in enumerate(self.cores)}
+        self._spw_init(spw_cfgs(default_settings_spw(), spw_plan(default_settings_spw())))
+        self.log(f"リング: BASE {self.ring.base:#x} / SIZE {self.ring.size}（SpW8: 窓 32 本 × 16 KiB の f32 のレコード / 10.24 ms）")
+        self.ids["read"] = "ring"
+        self.ids["tcal"] = self.tb.cal_state
+        self.ids["board"] = (self.tb.board or {}).get("id", "-")
+        self.bit_kind = c0.bit_kind
+        self.anchor()
+
+    def _ctrl(self, c, v):
+        c.streams[0].wr(self.SC.S_CTRL, v)        # コアに効く（spw_regs: どの流れの CTRL でも）
+
+    def _rec_off(self):
+        for c in self.cores:
+            c.wr(TP_REC_CTRL, TP_REC_K << 8)       # 窓のレコードは RUN の間だけ出る（流れの REC_CTRL は無い）
+
+    def _drain(self):
+        self.ring.read()
+        for d in self.q:
+            d.clear()
+        self.ring.release()
+
+    def disarm(self):
+        T, W = self.T, self.W
+        for c in self.cores:
+            self._ctrl(c, SPW_CT_CANCEL)
+            c.m.write(W.A_BASE + T.RA_TP_CTRL, T.TP_DISARM)
+
+    def _arm_tc(self, sa):
+        try:
+            self.tc.arm(sa)
+        except Exception:
+            self.tc.wr(0x08, self.TB.TimeCore.CTRL_CANCEL)
+            self.disarm()
+            raise
+
+    def start(self, st, at_beat, force):
+        """4 コアとも STOP → 窓の設定（計画の流れ 8 本）・SHIFT・NG・NDUMP・CFG_ID → ARM_WRST（tint の格子）→ 約束・WRST_CNT・WCUR の読み返し →
+        TP → ARM_RUN と TP_ARM を tint の格子で。戻り値 START_AT"""
+        SC, T, W = self.SC, self.T, self.W
+        if self.clock.ok:
+            try:
+                self.tb.check()
+            except Exception as e:
+                self.clock.ok, self.clock.err = False, str(e)
+        if not self.clock.ok and not force:
+            raise RuntimeError("時刻を答えられない（錨が無い・PPS が来ていない）。ANCHOR か force=1")
+        self.disarm()
+        if st.get("fmt", "f32") != "f32":
+            raise RuntimeError("SpW の bit は fmt=f32 だけ（ADR 0029）")
+        self.tint_beats = check_tint(st["tint"]) * BASE_BEATS
+        plans = spw_plan(st)
+        self.cfgs = spw_cfgs(st, plans)
+        sh = {}
+        for j, cf in enumerate(self.cfgs):
+            if cf["active"]:
+                sh[(j // SPW_NW, cf["s"])] = cf["shift"]
+        n0 = []
+        for a, c in enumerate(self.cores):
+            self._ctrl(c, SPW_CT_STOP)
+            for s, r in enumerate(plans[a]["streams"]):
+                x = c.streams[s]
+                for name, off in SPW_REGS:
+                    x.wr(off, r[name])
+                x.wr(SC.S_SHIFT, sh.get((a, s), SPW_SHIFT))
+            c.streams[0].wr(SC.S_CFG, st["cfg"])  # CFG_ID はコアで 1 つ
+            c.wr(C_NG, SPW_NG)
+            c.wr(C_NDUMP, 0)
+            self._ctrl(c, SPW_CT_FCLR)
+            n0.append(c.rd(C_WRST_CNT))
+            self._ctrl(c, SPW_CT_ARMWRST)
+        sa_w = self.grid_after(self.now_beat() + BEATS_PER_SEC // 2)
+        self._arm_tc(sa_w)
+        self._wait_fired(5.0)
+        time.sleep(0.01)
+        for a, c in enumerate(self.cores):
+            t_e = time.time() + 1.0
+            while c.streams[0].rd(SC.S_CTRL) & (1 << 4):
+                if time.time() > t_e:
+                    raise RuntimeError(f"{c.name}: WRST が明けない（CTRL {c.streams[0].rd(SC.S_CTRL):#x}）")
+                time.sleep(0.001)
+            bad, cf, n1 = c.rd(C_WRST_BAD), c.rd(C_CORE_FLAGS), c.rd(C_WRST_CNT)
+            if (cf & 1) or n1 != (n0[a] + 1) & 0xFFFFFFFF:
+                raise RuntimeError(f"{c.name}: WRST が通らない（CORE_FLAGS {cf:#x}・WRST_BAD {bad:#x}・WRST_CNT {n0[a]} → {n1}）")
+            for s, r in enumerate(plans[a]["streams"]):
+                x = c.streams[s]
+                want = ((r["WK"] & 0x3F) | ((r["WNS"] & 7) << 8), r["WDPHI"], (r["WFL"] & 3) | ((r["WSL"] & 0xF) << 4) | ((r["WG"] & 0xF) << 8))
+                got = (x.rd(S_WCUR), x.rd(S_WCUR_DPHI), x.rd(S_WCUR2))
+                if got != want:
+                    raise RuntimeError(f"{c.name} の流れ {s}: WRST の後の WCUR・WCUR_DPHI・WCUR2 {[hex(v) for v in got]}（書いた値 {[hex(v) for v in want]}）")
+        for c in self.cores:
+            c.m.write(W.A_BASE + T.RA_TP_N, TP_N)
+            c.wr(TP_REC_CTRL, (TP_REC_K << 8) | 1)
+        self._spw_init(self.cfgs)
+        if self.cmode:
+            self._c_init()
+        self._drain()
+        sa = self.grid_after(max(at_beat or 0, self.now_beat() + BEATS_PER_SEC // 2))
+        for c in self.cores:
+            self._ctrl(c, SPW_CT_FCLR | SPW_CT_ARMRUN)
+            c.m.write(W.A_BASE + T.RA_TP_CTRL, T.TP_ARM)
+        self._arm_tc(sa)
+        self.sa = sa
+        self.armed = True
+        return sa
+
+    def begin(self):
+        S, T, W, SC = self.S, self.T, self.W, self.SC
+        runts = []
+        for c in self.cores:
+            x = c.streams[0]
+            runts.append(x.rd(SC.S_RUN_T) | (x.rd(SC.S_RUN_T + 4) << 32))
+            if not x.rd(SC.S_CTRL) & 1:
+                raise RuntimeError(f"{c.name} が RUN に入っていない（CTRL {x.rd(SC.S_CTRL):#x}・CORE_FLAGS {c.rd(C_CORE_FLAGS):#x}）")
+        runts += [T.tp_run_t(c.m) for c in self.cores]
+        bad = [i for i, t in enumerate(runts) if t != self.sa + 1]
+        for j, cf in enumerate(self.cfgs):
+            if cf["active"]:
+                x = self.cores[j // SPW_NW].streams[cf["s"]]
+                if x.rd(SC.S_RUN_SHIFT) != cf["shift"]:
+                    raise RuntimeError(f"{win_key(j, SPW_NW)}（s {cf['s']}）: RUN_SHIFT {x.rd(SC.S_RUN_SHIFT)}（書いた値 {cf['shift']}）")
+        self.tps, self.anch = [], []
+        for c in self.cores:
+            tp = _WinTp(c.m, W.A_BASE)
+            tf0 = tp.rd(S.R_TP_F0_LO) | (tp.rd(S.R_TP_F0_HI) << 32)
+            self.tps.append(self.TpStream(tp, TP_N, tf0))
+            self.anch.append(self._tanch(c.m))
+        self.gap0 = [int(c.m.read(W.A_BASE + T.RA_GAP)) for c in self.cores]
+        self.running = True
+        return dict(run_t_bad=bad)
+
+    def _c_init(self):
+        """C の道の窓の状態（START ごと）。smap は _spw_init の対応（陽性対照の入れ替えも）"""
+        import s45fast as F
+        sc = F.SpwScan(4 * SPW_NW, P.NCH, BASE_BEATS, posctl=1 if getattr(self.o, "posctl_noacc", False) else 0)
+        for j, cf in enumerate(self.cfgs):
+            if cf["active"]:
+                sc.win["n_sum"][j], sc.win["pl_nacc"][j] = cf["n_sum"], cf["pl_nacc"]
+                sc.win["w4"][j] = cf["w4"] | ((j // SPW_NW) << 40)
+        for (a, s_), j in self.smap.items():
+            sc.smap[a * 256 + s_] = j
+        self.sc = sc
+        self.accp = sc.win["acc"].tolist()        # 器の番地（Acq._spw_ev が記録の C の道に渡す）
+        self.crc_py = 0
+        self.discard = False
+        self.c_t = [0.0, 0.0, 0.0]                 # 診断: C のなめ・束の知らせ（記録を含む）・Python で読んだレコード [s]
+        self.c_n = [0, 0]
+
+    def _one(self, r):
+        """C の道が止まった type 5 でないレコード 1 本（TP など）を Python で読む。→ 次の R"""
+        import plring as PR
+        rg = self.ring
+        p = r % rg.size
+        i = p >> 3
+        h = rg.a64[i:i + 8].tolist()
+        pb = h[7] & 0xFFFFFFFF
+        nb = 64 + pb
+        t0w, t1w = rg.a64[(p + nb) >> 3:((p + nb) >> 3) + 2].tolist()
+        seq, ty, core, s = h[1] & 0xFFFFFFFF, h[0] >> 40 & 0xFF, h[0] >> 48 & 0xFF, h[0] >> 56 & 0xFF
+        ok = (t0w & 0xFFFFFFFF) == PR.MAGIC_E and (t0w >> 32) == seq and zlib.crc32(rg.a8[p:p + nb]) == (t1w & 0xFFFFFFFF)
+        if not ok:
+            self.crc_py += 1
+        elif ty == TYPE_TP and s == 0xFF and core in self.amap and self.running:
+            self.tps[self.amap[core]].feed(seq, h[5] & 0xFFFFFFFF, rg.a64[i + 8:i + 8 + (pb >> 3)].copy(), TP_REC_K)
+        else:
+            self.stray += 1
+        return (r + nb + 64) & 0xFFFFFFFF
+
+    def _pump_c(self):
+        import plring as PR
+        rg = self.ring
+        t0 = time.perf_counter()
+        w = rg.rd(PR.R_W)
+        n_all = (w - rg.r) & 0xFFFFFFFF
+        if n_all:                                  # Ring.read と同じに [R, W) のキャッシュをまとめて捨てる
+            p0 = rg.r % rg.size
+            k = min(n_all, rg.size - p0)
+            rg._invalidate(p0, k)
+            if n_all > k:
+                rg._invalidate(0, n_all - k)
+        t1 = time.perf_counter()
+        r, sc, nrec = rg.r, self.sc, 0
+        pc = time.perf_counter
+        while True:
+            ta = pc()
+            st, r, evs = sc.scan(rg.a8p, rg.size, r, w)
+            tb = pc()
+            self.c_t[0] += tb - ta
+            if st == 1:
+                if self.on_spw is not None and not self.discard:
+                    for e in evs:
+                        self.on_spw(e)
+                self.c_t[1] += pc() - tb
+                self.c_n[1] += len(evs)
+            elif st == 2:
+                r = self._one(r)
+                self.c_t[2] += pc() - tb
+                nrec += 1
+            elif st == 0:
+                break
+            else:
+                raise RuntimeError(f"リングの C の道: {'magic が違う' if st == -1 else 'PAD の長さが違う'}（位置 {r}、W {w}）")
+        rg.r = r
+        rg.wr(PR.R_R, r)
+        self.seq_gap, self.stray_c, self.hdr_bad = int(sc.ctr[0]), int(sc.ctr[1]), int(sc.ctr[2])
+        self.ring_crc = int(sc.ctr[3]) + self.crc_py
+        self.last_pump = (t1 - t0, time.perf_counter() - t1)
+        return nrec
+
+    def spw_stat(self):
+        d = super().spw_stat()
+        if self.cmode and hasattr(self, "sc"):
+            d["stray"] = self.stray + getattr(self, "stray_c", 0)
+            d.update(c_scan_s=round(self.c_t[0], 2), c_ev_s=round(self.c_t[1], 2), c_one_s=round(self.c_t[2], 2), c_ev=self.c_n[1],
+                     c_rec=int(self.sc.win["pl_dumps"].sum()))
+        return d
+
+    def pump(self):
+        """リングを [R, W) まで読み、窓のレコード（type 5）は論理の窓の列へ（C の道は束ねまで）、TP（s 0xFF）は ADC の欄へ"""
+        if self.cmode and hasattr(self, "sc"):
+            self.n_pump += 1
+            self._posctl_stall()
+            return self._pump_c()
+        self.n_pump += 1
+        self._posctl_stall()
+        t0 = time.perf_counter()
+        sm = self.smap
+        lazy = (lambda core, s, ty: ty == TYPE_SPW and (core, s) in sm) if self.lazy_wins and self.running else None
+        recs = self.ring.read(lazy)
+        t1 = time.perf_counter()
+        route = self._spw_route
+        for core, s, seq, hw, pay, crc_ok, tail_ok in recs:
+            if crc_ok is False or not tail_ok:     # crc_ok None = LazyRec（PL の CRC は束ねのときに C で照らす）
+                self.ring_crc += 1
+                continue
+            ty = int(hw[0]) >> 40 & 0xFF
+            if ty == TYPE_SPW:
+                route(core, s, seq, hw, pay)
+            elif ty == TYPE_TP and s == 0xFF and core in self.amap and self.running:
+                self.tps[self.amap[core]].feed(seq, int(hw[5]) & 0xFFFFFFFF, pay, TP_REC_K)
+        self.last_pump = (t1 - t0, time.perf_counter() - t1)
+        return len(recs)
+
+    def release(self):
+        """列に残った LazyRec を写してから R を進める（HwBackend.release と同じ。列の要素は (core, hw, pay)）"""
+        rg = self.ring
+        if rg is None or not rg.hold:
+            return
+        for d in self.q:
+            if not any(not isinstance(x[2], np.ndarray) for x in d):
+                continue
+            keep = []
+            for core, hw, pay in d:
+                if not isinstance(pay, np.ndarray):
+                    pay, ok = pay.materialize()
+                    self.n_mat += 1
+                    if not ok:
+                        self.ring_crc += 1
+                        continue
+                keep.append((core, hw, pay))
+            d.clear()
+            d.extend(keep)
+        rg.release()
+
+    def stop(self):
+        if not self.running:
+            self.disarm()
+            self.tc.wr(0x08, self.TB.TimeCore.CTRL_CANCEL)
+            self._rec_off()
+            return []
+        for c in self.cores:
+            self._ctrl(c, SPW_CT_STOP)
+        self.discard = True                        # 止めた後に閉じた束は記録しない（Python の道も列に置くだけ）
+        self.pump()
+        self._rec_off()
+        self.running = False
+        out = []
+        for i, c in enumerate(self.cores):
+            try:
+                af1, at1 = self._tanch(c.m)
+                af, at = self.anch[i]
+                gap1 = int(c.m.read(self.W.A_BASE + self.T.RA_GAP))
+                out.append(dict(adc=i, anch_dev=(at1 - at) - (af1 - af) * 512, gap=gap1 - self.gap0[i]))
+            except Exception as e:
+                out.append(dict(adc=i, err=str(e)))
+        return out
+
+    def close(self):
+        if self.ring is None:
+            return
+        try:
+            for c in self.cores:
+                self._ctrl(c, SPW_CT_STOP)
+        finally:
+            super().close()
+
+
+class FakeSpwBackend(_SpwRoute, FakeBackend):
+    """PL なしの SpW8。計画の流れのレジスタ（WK・WDPHI）から窓の中心の IF を出し、BASE ごとのダンプ（type 5 の頭の語と f32 × 4096）を
+    流れ (コア, s) ごとに作って、実機と同じ振り分け（smap）に通す。中身はどの ch も「レジスタから出した窓の中心の IF [MHz]」、
+    ch 1 だけその 2 倍（IF の昇順では i 2046）。受け側は束の値 / n_sum を記録の頭の if_mhz と照らす（読み替えの誤りが見える）"""
+
+    def open(self):
+        super().open()
+        self.ids["kind"] = SPW_KIND
+        self.bit_kind = SPW_BIT_KIND
+        self.lazy_wins = set()
+        self._spw_init(spw_cfgs(default_settings_spw(), spw_plan(default_settings_spw())))
+
+    def grid_after(self, beat):
+        q = getattr(self, "tint_beats", G_BEATS)
+        return -(-int(beat) // q) * q
+
+    def start(self, st, at_beat, force):
+        import spwplan
+        if not self.clock.ok and not force:
+            raise RuntimeError("時刻を答えられない（錨が無い・PPS が来ていない）。ANCHOR か force=1")
+        if st.get("fmt", "f32") != "f32":
+            raise RuntimeError("SpW の bit は fmt=f32 だけ（ADR 0029）")
+        self.tint_beats = check_tint(st["tint"]) * BASE_BEATS
+        plans = spw_plan(st)
+        self.cfgs = spw_cfgs(st, plans)
+        self.cfg = st["cfg"]
+        self.fl = []                               # 動く流れ: (コア, s, NS, SHIFT, 中身)
+        sh = {(j // SPW_NW, cf["s"]): cf["shift"] for j, cf in enumerate(self.cfgs) if cf["active"]}
+        for a, p in enumerate(plans):
+            for s, r in enumerate(p["streams"]):
+                if r["WFL"] >= SPW_E:
+                    continue                       # 止める窓
+                c = spwplan.SC * r["WK"] + spwplan.d_of(r["WDPHI"])
+                x = np.full(P.NCH, spwplan.FS - c, np.float32)
+                x[1] *= 2
+                self.fl.append((a, s, r["WNS"], sh[(a, s)], x))
+        self._spw_init(self.cfgs)
+        self.sa = self.grid_after(max(at_beat or 0, self.now_beat() + BEATS_PER_SEC // 2))
+        return self.sa
+
+    def begin(self):
+        r = super().begin()
+        self.n_next = 0                            # 次の BASE のダンプの番号（全部の流れで同じ格子）
+        self.pseq = [0] * 4
+        return r
+
+    def pump(self):
+        if not self.running:
+            return 0
+        now = self.now_beat()
+        n = 0
+        while self.sa + 1 + (self.n_next + 1) * BASE_BEATS + 20000 <= now:   # 閉じてから読めるまで ≒ 80 µs
+            for a, s, ns, sh, x in self.fl:
+                L = spw_frame(ns)
+                kf = 100 + s                       # K_F（鎖の遅れ）。偽物は流れごとに一定
+                t = self.sa + 1 + self.n_next * BASE_BEATS + kf
+                hw = np.array([TYPE_SPW << 40, self.pseq[a] | (self.n_next << 32), (t - kf) // L, t,
+                               12 | (ns << 8) | (sh << 16) | (1 << 32) | (a << 40), BASE_BEATS // L, self.cfg, 0], np.uint64)
+                self._spw_route(a, s, self.pseq[a], hw, x)
+                self.pseq[a] = (self.pseq[a] + 1) & 0xFFFFFFFF
+                n += 1
+            self.n_next += 1
+        return n
+
+    def ring_stat(self):
+        return None
+
+
 # ================================================================ 取得の本体
 class Acq:
     IDLE, ARMED, RUN, ERROR = "IDLE", "ARMED", "RUN", "ERROR"
@@ -1911,13 +2576,17 @@ class Acq:
         self.g21 = bool(getattr(opts, "g21", False))                 # proj024: 2G-1（FULL の流れ 1 本）
         self.g22 = bool(getattr(opts, "g22", False))                 # proj025: 2G-2（FULL の流れ 2 本）
         self.g24 = bool(getattr(opts, "g24", False))                 # proj027: 2G-4（FULL の流れ 4 本）
-        if self.wide + self.g21 + self.g22 + self.g24 > 1:
-            raise SystemExit("--wide・--g21・--g22・--g24 は同時に使えない")
+        self.spw = bool(getattr(opts, "spw", False))                 # YATSUGATAKE M5b: SpW8（論理の窓 8 本 / ADC）
+        if self.wide + self.g21 + self.g22 + self.g24 + self.spw > 1:
+            raise SystemExit("--wide・--g21・--g22・--g24・--spw は同時に使えない")
+        self.nw = SPW_NW if self.spw else NW                         # 窓 / ADC（鍵 A0〜A{nw−1}）
+        self.nslot = 4 * self.nw
         self.g2 = G4_GEOM if self.g24 else G2_GEOM if self.g22 else None   # proj027: 多コアの 2G の形（2G-2・2G-4 は同じ道）
         nb = getattr(opts, "net_budget_mbs", None)
         self.net_budget = NET_BUDGET_MBS if nb is None else float(nb)   # 2G-4 の M5: SET の tint の照合（INTERFACE 4.5）。0 で照らさない
-        self.st = (default_settings_g22(self.g2) if self.g2 else default_settings_g21() if self.g21 else
+        self.st = (default_settings_spw() if self.spw else default_settings_g22(self.g2) if self.g2 else default_settings_g21() if self.g21 else
                    default_settings_wide() if self.wide else default_settings())
+        self.plans = spw_plan(self.st) if self.spw else None          # SpW: 今の組の計画（STATUS の対応）
         self.state = self.IDLE
         self.seq = 0
         self.drop = dict(n=0, first=None, last=None, pending=None)
@@ -1948,18 +2617,18 @@ class Acq:
         print("[acq]", *a, flush=True)
 
     def _reset_counters(self):
-        self.n_dump = [0] * (4 * NW)
-        self.active = [True] * (4 * NW)            # proj023: B 4 の流れ 1 は空（数えない）
-        self.n_miss = [0] * (4 * NW)
-        self.kgap = [0] * (4 * NW)
-        self.last_k = [None] * (4 * NW)
+        self.n_dump = [0] * self.nslot
+        self.active = [True] * self.nslot          # proj023: B 4 の流れ 1 は空（数えない）
+        self.n_miss = [0] * self.nslot
+        self.kgap = [0] * self.nslot
+        self.last_k = [None] * self.nslot
         self.h_or = 0
         self.fl_or = 0
         self.sat = 0
         self.loop_max = 0.0
         self.loop_max_at = 0                       # proj021 2-3a: 最大だった周の番号（RUN から）
-        self.bund = [None] * (4 * NW)              # proj021 2-3b: 窓ごとの Bundler（START で作る）
-        self.pl_dumps = [0] * (4 * NW)
+        self.bund = [None] * self.nslot            # proj021 2-3b: 窓ごとの Bundler（START で作る）
+        self.pl_dumps = [0] * self.nslot
         self.loop_slow = 0                         # 1 周が tint を越えた回数
         self.n_loop_log = 0                        # proj025 4c: --loop-log-ms で残した周の数
         self.hist[:] = 0
@@ -2025,7 +2694,7 @@ class Acq:
             if op == "status":
                 return dict(ok=True, **self.status())
             if op == "id":
-                return dict(ok=True, ids=self.be.ids, version=VERSION, adcs=4, nw=NW, fake=bool(self.o.fake))
+                return dict(ok=True, ids=self.be.ids, version=VERSION, adcs=4, nw=self.nw, fake=bool(self.o.fake))
             if op == "get":
                 return dict(ok=True, settings=self.st)
             if op == "cal":
@@ -2035,6 +2704,17 @@ class Acq:
                     return dict(ok=False, code="STATE", msg=f"{self.state} の間は SET できない（STOP の後に）")
                 st = self.st
                 new = dict(tint=st["tint"], cfg=st["cfg"], fmt=st.get("fmt", "f32"), wins=[dict(w) for w in st["wins"]])
+                if self.spw:
+                    new["kind"] = SPW_KIND
+                    for k, v in cmd["kv"].items():
+                        self._set1_spw(new, k, v)
+                    check_tint(new["tint"])
+                    if new["fmt"] != "f32":
+                        raise ValueError(f"fmt={new['fmt']}: SpW の bit のリングは PL が丸めた f32 で、u64 が無い（fmt=f32 だけ。ADR 0029）")
+                    plans = spw_plan(new)                       # 計画できない組は ADC ごとの理由つきで断る（今の組のまま。ADR 0028）
+                    check_net(new, sum(1 for w in new["wins"] if w["on"]) * P.NCH, self.net_budget)
+                    self.st, self.plans = new, plans
+                    return dict(ok=True)
                 if self.g2 is not None:
                     new.update(kind=self.g2.kind, src=list(st["src"]), shift=list(st["shift"]))
                     for k, v in cmd["kv"].items():
@@ -2192,6 +2872,51 @@ class Acq:
         else:
             raise ValueError(f"知らない流れの設定 {k}（b・shift・s0）")
 
+    def _set1_spw(self, new, k, v):
+        """YATSUGATAKE M5b（ADR 0028）: tint・fmt・cfg と、論理の窓の A0.if・A0.bw（128/64/32/16/8）・A0.ns（1〜5）・A0.shift・A0.on（0/1）・
+        A0.coarse（auto / near / alt: 粗い ch を決め打つ試験の口）。A.shift のように ADC だけ・all.shift・shift（全部）も。鍵は A0〜D7"""
+        if k in ("tint", "fmt", "cfg"):
+            return self._set1(new, k, v)
+        name, _, field = k.partition(".")
+        nu = name.upper()
+        if not field and nu in ("SHIFT", "ON", "COARSE"):
+            js, field = range(4 * SPW_NW), name.lower()
+        elif nu == "ALL" and field:
+            js = range(4 * SPW_NW)
+        elif len(nu) == 1 and nu in "ABCD" and field:
+            js = [SPW_NW * "ABCD".index(nu) + i for i in range(SPW_NW)]
+        elif len(nu) == 2 and nu[0] in "ABCD" and nu[1] in "01234567" and field:
+            js = [SPW_NW * "ABCD".index(nu[0]) + int(nu[1])]
+        else:
+            raise ValueError(f"知らない設定 {k}（SpW8: tint・fmt・cfg・A0.if・A0.bw・A0.ns・A0.shift・A0.on・A0.coarse（窓は A0〜D7）・A.shift・all.shift・shift）")
+        if field == "if":
+            x = float(v)
+        elif field == "bw":
+            x = int(float(v))
+            if x not in SPW_BW or float(v) != x:
+                raise ValueError(f"{k}: SpW8 の幅は 128 / 64 / 32 / 16 / 8 MHz")
+        elif field == "ns":
+            n = int(v)
+            if n not in range(1, 6):
+                raise ValueError(f"{k}: NS は 1..5（SpW8）")
+            field, x = "bw", 256 >> n
+        elif field == "shift":
+            x = int(v)
+            if x not in range(16):
+                raise ValueError(f"{k}: SHIFT は 0..15")
+        elif field == "on":
+            if str(v) not in ("0", "1"):
+                raise ValueError(f"{k}: on は 1（使う）/ 0（使わない）")
+            x = int(v)
+        elif field == "coarse":
+            x = str(v).lower()
+            if x not in SPW_COARSE:
+                raise ValueError(f"{k}: coarse は auto（計画の既定）/ near（近い粗い ch）/ alt（2 番目に近い粗い ch）")
+        else:
+            raise ValueError(f"知らない窓の設定 {k}（if・bw・ns・shift・on・coarse）")
+        for j in js:
+            new["wins"][j]["if_mhz" if field == "if" else field] = x
+
     def _set1(self, new, k, v):
         if k == "tint":
             new["tint"] = float(v)
@@ -2260,17 +2985,20 @@ class Acq:
         self.start_at = sa
         self.active = [bool(cf.get("active", True)) for cf in self.be.cfgs]
         fr = self.fast if self.fast_ring else None   # proj036: --fast-ring なら n_sum ≧ 2 の束ねも C で（リングの上から器へ）
-        self.bund = [Bundler(cf["n_sum"], cf["pl_nacc"], fast=fr, posctl=self.posctl_noacc) if cf.get("bundle") else None
+        self.bund = [Bundler(cf["n_sum"], cf["pl_nacc"], fast=fr, posctl=self.posctl_noacc, f32=cf.get("kind") == "spw") if cf.get("bundle") else None
                      for cf in self.be.cfgs]
-        if hasattr(self.be, "lazy_wins"):          # proj029 2: --fast-ring の窓（FULL。proj036: n_sum ≧ 2 も）
+        if getattr(self.be, "cmode", False):       # SpW8 M5b: 束ねは C（SpwScan）。Acq は束ができた・捨てたの知らせ（_spw_ev）を受ける
+            self.bund = [_CBund(self.be.sc, j) if cf["active"] else None for j, cf in enumerate(self.be.cfgs)]
+            self.be.on_spw = self._spw_ev
+        if hasattr(self.be, "lazy_wins"):          # proj029 2: --fast-ring の窓（FULL。proj036: n_sum ≧ 2 も。SpW8 M5b: SpW の窓も）
             self.be.lazy_wins = {j for j, (cf, b) in enumerate(zip(self.be.cfgs, self.bund))
-                                 if self.fast_ring and b is not None and cf.get("kind") == "full"}
+                                 if self.fast_ring and b is not None and cf.get("kind") in ("full", "spw")}
         self.ndump_target = int(cmd.get("n") or 0)
         utc = self.be.clock.utc_ns(sa)
         self.event(dict(ev="START", start_at=sa, utc_ns=utc, n=self.ndump_target, forced=self.forced, version=VERSION,
                         proto=self.proto, fmt=self.st.get("fmt", "f32") if self.proto == 2 else "u64",
                         ids=self.be.ids, tint=self.st["tint"], cfg=self.st["cfg"], tp_cal=self._cal_pub(), time_cal=self._tcal_pub(),
-                        wins=[dict(key=win_key(j), adc=j // NW, win=j % NW, **cf) for j, cf in enumerate(self.be.cfgs)]))
+                        wins=[dict(key=win_key(j, self.nw), adc=j // self.nw, win=j % self.nw, **cf) for j, cf in enumerate(self.be.cfgs)]))
         self.log(f"START: START_AT {sa}（格子 {sa // G_BEATS}·G、UTC {utc / 1e9:.6f}）n = {self.ndump_target}")
         return dict(ok=True, start_at=sa, utc_ns=utc)
 
@@ -2340,7 +3068,9 @@ class Acq:
                     tp_dbfs=[None if v is None else round(float(s45cal.dbfs(v)), 2) for v in self.tp_last],
                     tp_dbm=[None if v is None or self.cal is None else round(float(s45cal.dbm(v, self.cal, "ABCD"[i])), 2)
                             for i, v in enumerate(self.tp_last)],
-                    ring=self.be.ring_stat() if hasattr(self.be, "ring_stat") else None)
+                    ring=self.be.ring_stat() if hasattr(self.be, "ring_stat") else None,
+                    **(dict(spw_map=spw_map(self.plans), spw=self.be.spw_stat(),
+                            val_bad=sum(b.val_bad for b in self.bund if b is not None)) if self.spw else {}))
 
     def _dumps_min(self):
         v = [n for n, a in zip(self.n_dump, self.active) if a]
@@ -2370,6 +3100,9 @@ class Acq:
             return
         if cf.get("kind") == "full":
             self._spec_record_full(j, m, spec, cf, h)
+            return
+        if cf.get("kind") == "spw":
+            self._spec_record_spw(j, m, spec, cf, h)
             return
         utc = self.be.clock.utc_ns(m["t"], cf["ns"], j // NW)
         if self.proto == 2:
@@ -2404,6 +3137,28 @@ class Acq:
                                 m["t"], utc, P.BASE_NS, cf["if_mhz"], df)
             self._put(P.T_SPEC, [hd, data], P.crc32(hd, data))
         self.h_or |= int(m["h"]); self.fl_or |= int(m["flags"]) & FLAGS_OK_MASK; self.sat += int(m["sat"])
+
+    def _spec_record_spw(self, j, m, acc, cf, h):
+        """YATSUGATAKE M5b: SpW8 の SPEC（s45proto v2、kind 3 = DDC）。core = src = ADC・s = 論理の窓の番号（ADR 0028）・ns 1〜5・g = 計画の WG（b5 は 0）。
+        中身は double の器（束ね）を IF の昇順（P.IF_ORDER、SAM45-Fine と同じ）に並べ、float32 に 1 回丸める（ADR 0029）。df = 幅 / 4096。
+        utc_ns = beat_utc(dump_t) − adc_to_core − D(NS)（timebase.WIN_DELAY[(7, 10)]）− 1.5·L、L = 2^(12+NS)"""
+        adc, i = divmod(j, SPW_NW)
+        ns = cf["ns"]
+        utc = self.be.clock.utc_ns(m["t"], ns, adc)
+        if utc:
+            utc -= (3 * cf["frame"] * 125) // 64       # 1.5·L ビート → ns
+        hd = P.SPEC2_H.pack(adc, i, adc, 3, ns, cf["shift"], P.FMT_F32, int(getattr(self.be, "bit_kind", SPW_BIT_KIND)),
+                            P.NCH, int(cf["n_sum"]), m["cfg"], m["k"], cf["nacc"], m["sat"], m["flags"], h, cf["g"], 0,
+                            m["t"], utc, P.BASE_NS, cf["if_mhz"], cf["df_hz"])
+        if self.fast is not None and "accp" in m:      # 並べ替え・丸め・CRC を C の 1 回のなめで（numpy の道と bit で同じ。test_spw_fast.py）
+            if getattr(self, "spw_rec", None) is None:
+                self.spw_rec = self.fast.SpwRec(P.NCH)
+            data, crc = self.spw_rec.rec(m["accp"], hd)
+        else:
+            data = np.asarray(acc, np.float64)[P.IF_ORDER].astype(np.float32)
+            crc = P.crc32(hd, data)
+        self._put(P.T_SPEC, [hd, data], crc)
+        self.h_or |= int(m["h"]); self.fl_or |= int(m["flags"]); self.sat += int(m["sat"])   # SpW の機関の FLAGS は全部が異常
 
     def _spec_record_slice(self, j, m, spec, cf, h):
         """proj023: SLICE の SPEC（s45proto v2、kind 2）。ns の欄 = log2 B。中身は IF の昇順（流れの ch i の逆順）。
@@ -2493,14 +3248,31 @@ class Acq:
             self._put(P.T_SPEC, [hd, data], P.crc32(hd, data))
         self.h_or |= int(m["h"]); self.fl_or |= int(m["flags"]); self.sat += int(m["sat"])
 
+    def _spw_ev(self, e):
+        """SpW8 M5b の C の道: 束ができた（kind 1）→ 記録、捨てた（kind 2）→ BDROP。e は s45fast.SPW_EV の 1 つ"""
+        kind, j, why, jb, have, k, t, n, sat, flags, h, cfg, seq = e.tolist()    # SPW_EV の並び（欄ごとに int() は 9 回で 41 µs、ボード）
+        if kind == 2:
+            why = self.fast.SPW_WHY[why] if self.fast else str(why)
+            b = self.bund[j]
+            b.drop_why[why] = b.drop_why.get(why, 0) + 1
+            self._bdrop(j, (jb, why, have))
+            return
+        sc = self.be.sc
+        m = dict(seq=seq, k=k, t=t, h=h, n=n, sat=sat, cfg=cfg, flags=flags, accp=self.be.accp[j])
+        if self.last_k[j] is not None and m["k"] != self.last_k[j] + 1:
+            self.kgap[j] += 1
+        self.last_k[j] = m["k"]
+        self.n_dump[j] += 1
+        self._spec_record(j, m, sc.acc[j])
+
     def _bdrop(self, j, d):
         """束を捨てた（INTERFACE 5.1 の 4）。EVENT は最初の 20 回まで（止まりの後に窓ごとに続くので）"""
         jb, why, have = d
         tot = sum(b.drop for b in self.bund if b is not None)
         if tot <= 20 and why != "STOP":
-            self.event(dict(ev="BDROP", key=win_key(j), bundle=int(jb), why=why, have=int(have), n_sum=self.bund[j].n_sum))
+            self.event(dict(ev="BDROP", key=win_key(j, self.nw), bundle=int(jb), why=why, have=int(have), n_sum=self.bund[j].n_sum))
         if why == "r":
-            self.event(dict(ev="ERROR", msg=f"{win_key(j)}: DUMP_T − m·BASE が RUN の中で動いた（r0 {self.bund[j].r0}）。この窓は束ねない"))
+            self.event(dict(ev="ERROR", msg=f"{win_key(j, self.nw)}: DUMP_T − m·BASE が RUN の中で動いた（r0 {self.bund[j].r0}）。この窓は束ねない"))
 
     def _flush_tp(self, i, final=False):
         t = self.be.tps[i]
@@ -2544,12 +3316,15 @@ class Acq:
         f_loop0 = resource.getrusage(resource.RUSAGE_SELF).ru_minflt    # proj029 1d: この周のページフォルト
         be = self.be
         nrec = be.pump()                           # proj021 2-3a: リングを 1 回読んで振り分ける（axi・偽物では何もしない）
+        if getattr(be, "cmode", False) and hasattr(be, "sc"):   # SpW8 M5b: 読み落とし・PL のダンプの数は C の窓の状態から
+            self.n_miss[:] = be.sc.win["miss"].tolist()
+            self.pl_dumps[:] = be.sc.win["pl_dumps"].tolist()
         t_p = time.perf_counter()
         n_spec = 0                                 # proj025 4c: この周で書いた SPEC の記録（束）の数
         t_poll = t_bund = t_rec = 0.0              # proj029 1c: 窓の記録の内訳（poll_win・束ね・記録（put を含む）。put は self.t_put）
         self.t_put = 0.0
         self.f_put = 0
-        for j in range(4 * NW):
+        for j in range(self.nslot):
             for _ in range(64):                    # 溜まったぶんを全部（リングでは止まりの後に何個も来る）
                 ta = time.perf_counter()
                 r = be.poll_win(j)
@@ -2569,7 +3344,7 @@ class Acq:
                         be.ring_crc += 1
                         self.n_miss[j] += 1
                         if be.ring_crc <= 5:
-                            self.log(f"{win_key(j)}: PL のレコードの CRC が合わない（seq {m.get('seq')}）。その束は記録しない")
+                            self.log(f"{win_key(j, self.nw)}: PL のレコードの CRC が合わない（seq {m.get('seq')}）。その束は記録しない")
                     if dropped is not None:
                         self._bdrop(j, dropped)
                     if got is None:
@@ -2617,7 +3392,9 @@ class Acq:
     # ---- 本体
     def run(self):
         self._rt()
-        if self.g24:
+        if self.spw:
+            self.be = (FakeSpwBackend if self.o.fake else SpwBackend)(self.o, self.log)
+        elif self.g24:
             self.be = (FakeG24Backend if self.o.fake else G24Backend)(self.o, self.log)
         elif self.g22:
             self.be = (FakeG22Backend if self.o.fake else G22Backend)(self.o, self.log)
@@ -2640,14 +3417,14 @@ class Acq:
             else:
                 self.log(f"TP の較正: {self.cal.get('_file')}（" + "・".join(
                     f"{a} K {c['k_db']:+.2f}{' 暫定' if c.get('provisional') else ''}" for a, c in sorted(self.cal["adc"].items())) + "）")
-        if (self.g21 or self.g2) and not getattr(self.o, "no_malloc_tune", False):
+        if (self.g21 or self.g2 or self.spw) and not getattr(self.o, "no_malloc_tune", False):
             self.log(malloc_tune()[1])               # proj024 3d: 2G-1 の 1 MiB の配列（Fine・Wide の道は今までどおり）
         if getattr(self.o, "prefault", False):        # proj029 1d: 溜まりのページを先に触る（運転の最初の ≒ 5 秒のページフォルトを起動に寄せる）
             t0 = time.perf_counter()
             n = self.ring.prefault(write=True)
             self.log(f"溜まりのページを先に触った: {n} ページ・{time.perf_counter() - t0:.2f} 秒")
         if self.fast is not None:
-            self.log(f"SPEC の記録（FULL）は C（s45fast、CRC {'命令' if self.fast.HW_CRC else '表'}）"
+            self.log(f"SPEC の記録（FULL）・SpW の束ねは C（s45fast、CRC {'命令' if self.fast.HW_CRC else '表'}）"
                      + ("・リングの SPEC のレコードは写さずに（--fast-ring、n_sum 1 は記録へ・2 以上は C で器へ）" if self.fast_ring else ""))
         gc.collect(); gc.freeze(); gc.disable()
         self.conn.send(dict(ok=True, ids=self.be.ids, version=VERSION))

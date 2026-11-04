@@ -467,8 +467,102 @@ EOF
   judge $([ "$r" = "$w/$w/$w/$w:0:0" ] && echo 1 || echo 0) "A0〜D0 の 手元のダンプ:ch:軸:昇順、説明のない欠け:CRC $r（期待 $w/$w/$w/$w:0:0）"
 }
 
+spw_check() {   # spw_check <記録> <窓の組>: SpW8 の f32 の数:NG:窓ごとの数の種類:TP の ADC。組は ADC を ";"、窓を "," で（IF:幅、使わない窓は -）
+  # 偽物の中身はどの ch も「流れのレジスタから出した窓の中心の IF」（ch 1 だけ 2 倍）。束の値 / n_sum を、計画（spwplan.center）から出した期待の IF と頭の if_mhz に照らす
+  python3 - "$1" "$2" <<'EOF2'
+import sys, numpy as np, s45proto as P, spwplan
+from s45client import if_axis
+f = open(sys.argv[1], "rb").read(); o = 0; n = ng = 0; tps = set(); per = {}
+exp = {}
+for a, grp in enumerate(sys.argv[2].split(";")):
+    for i, w in enumerate(grp.split(",")):
+        if w != "-":
+            fi, bw = (float(v) for v in w.split(":"))
+            exp[(a, i)] = (spwplan.FS - spwplan.center(fi, bw), bw, spwplan.NS_OF[int(bw)])
+for _ in range(10**6):
+    if o >= len(f):
+        break
+    rt, pl, crc, seq = P.parse_header(f[o:o + 24]); ver = P.header_ver(f[o:o + 24])
+    d = P.decode(rt, f[o + 24:o + 24 + pl], ver); o += 24 + pl
+    if rt == P.T_TP:
+        tps.add(d["adc"])
+    if rt != P.T_SPEC:
+        continue
+    key = (d["core"], d["s"])
+    e = exp.get(key)
+    x = d["data"].astype(np.float64) / d["n_sum"]
+    ifx = if_axis(d)
+    bad = (e is None or d["fmt"] != P.FMT_F32 or d["kind"] != 3 or d["bit_kind"] != 7 or d["nch"] != 4096 or d["src"] != d["core"]
+           or d["ns"] != e[2] or abs(d["if_mhz"] - e[0]) > 1e-9 or d["df_hz"] != e[1] * 1e6 / 4096
+           or int(np.argmax(x)) != 2046 or float(np.max(np.abs(np.delete(x, 2046) - e[0]))) > 1e-3 or abs(x[2046] - 2 * e[0]) > 2e-3
+           or abs(ifx[2047] - e[0]) > 1e-9 or not np.all(np.diff(ifx) > 0))
+    ng += bad; n += 1
+    per[key] = per.get(key, 0) + 1
+print(f"{n}:{ng}:{','.join(str(v) for v in sorted(set(per.values())))}/{len(per)}:{''.join('ABCD'[a] for a in sorted(tps))}")
+EOF2
+}
+PLAN2="3900:128,3890:64,3890:64,3892:16,3891:8,3300:128,3290:32,2650:128"
+t_spw() {     # YATSUGATAKE M5b: SpW8（--spw、論理の窓 A0〜D7）。窓を変えた組（B0 の IF・B3 を止める・C7 の幅と IF・D の SHIFT）で 20 束ずつ。
+  # 記録の s は論理の窓・中身の IF が窓の組の期待と合う・頭の NS・df・軸。STATUS の対応に止めた窓（B3:-）が出る
+  echo "== spw"; rm -f "$OUT/spw.s45"; srv spw --spw
+  ctl "SET tint=0.02048 B0.if=3800 B3.on=0 C7.bw=64 C7.if=2700 D.shift=6" "GET" "START n=20" "SEND ON" > "$OUT/spw.ctl.log"
+  rcv --seconds 6 --out "$OUT/spw.s45" --json "$OUT/spw.json" > "$OUT/spw.recv.log"
+  ctl "STATUS" > "$OUT/spw.st.log"
+  stop_srv
+  local P2=$PLAN2 B="3800:128,3890:64,3890:64,-,3891:8,3300:128,3290:32,2650:128" C="3900:128,3890:64,3890:64,3892:16,3891:8,3300:128,3290:32,2700:64"
+  local ax=$(spw_check "$OUT/spw.s45" "$P2;$B;$C;$P2") s=$(js "$OUT/spw.json" spec)
+  judge $([ "$s" = 620 ] && [ "$ax" = "620:0:20/31:ABCD" ] && grep -q "照合: 通過" "$OUT/spw.recv.log" && grep -q "B3.on=0" "$OUT/spw.ctl.log" && grep -q "D7.shift=6" "$OUT/spw.ctl.log" \
+          && grep -q "C7.bw=64" "$OUT/spw.ctl.log" && grep -q "B3:-" "$OUT/spw.st.log" && grep -q "spw_hdrbad=0" "$OUT/spw.st.log" && grep -q "spw_seqgap=0" "$OUT/spw.st.log" && echo 1 || echo 0) \
+    "SPEC $s（期待 620 = 20 × 31 窓）・f32 の数:NG:窓ごとの数/窓:TP の ADC $ax（期待 620:0:20/31:ABCD）・対応 $(grep -o 'spw_map=[^ ]*' "$OUT/spw.st.log" | cut -c1-40)…"
+}
+t_spwmap() {  # SpW8 の陽性対照: 論理の窓と s の対応を ADC ごとに同じ NS の 2 本（plan2 では 128 MHz の A0・A5）で入れ替える（--posctl-spw-map）→ 入れ替えた窓（4 ADC × 2 本 × 20 束）が IF の照らしで NG
+  echo "== spwmap（陽性対照）"; rm -f "$OUT/spwmap.s45"; srv spwmap --spw --posctl-spw-map
+  ctl "START n=20" "SEND ON" > /dev/null
+  rcv --seconds 6 --out "$OUT/spwmap.s45" --json "$OUT/spwmap.json" > "$OUT/spwmap.recv.log"
+  stop_srv
+  local ax=$(spw_check "$OUT/spwmap.s45" "$PLAN2;$PLAN2;$PLAN2;$PLAN2")
+  judge $([ "$ax" = "640:160:20/32:ABCD" ] && echo 1 || echo 0) "f32 の数:NG:窓ごとの数/窓:TP の ADC $ax（期待 640:160:20/32:ABCD）"
+}
+t_spwp() {    # SpW8 の陽性対照（ADR 0028・0029）: 計画できない組（ADC_A に 128 MHz × 7）・帯の外の IF・2 番目の粗い ch の無い窓の alt・範囲の外の幅と NS・
+  # 窓の無い鍵（A8）・fmt=u64・both・SNAP は ERR。ERR の後も GET と対応は元のまま
+  echo "== spwp（陽性対照）"; srv spwp --spw
+  local g0=$(ctl "GET" "STATUS" | grep -v "^>" | tr ' ' '\n' | grep -E "^(A[0-7]\.|tint|fmt|spw_map)" | sort)
+  local r1=$(ctl "SET A1.bw=128 A2.bw=128 A3.bw=128 A4.bw=128") r2=$(ctl "SET A0.if=2000") r3=$(ctl "SET A0.coarse=alt") r4=$(ctl "SET A0.bw=256") \
+        r5=$(ctl "SET A0.ns=6") r6=$(ctl "SET A8.if=3000") r7=$(ctl "SET fmt=u64") r8=$(ctl "SET fmt=both") r9=$(ctl "SNAP adc=A") r10=$(ctl "SET A0.bundle=0")
+  local g1=$(ctl "GET" "STATUS" | grep -v "^>" | tr ' ' '\n' | grep -E "^(A[0-7]\.|tint|fmt|spw_map)" | sort)
+  local r11=$(ctl "SET A2.coarse=alt A1.coarse=near" "GET" "STATUS")
+  stop_srv
+  local e=0; for r in "$r1" "$r2" "$r3" "$r4" "$r5" "$r6" "$r7" "$r8" "$r9" "$r10"; do echo "$r" | grep -q "ERR" && e=$((e+1)); done
+  judge $([ $e = 10 ] && [ -n "$g0" ] && [ "$g0" = "$g1" ] && echo "$r1" | grep -q "ADC_A の窓の組を計画できない" && echo "$r11" | grep -q "A2.coarse=alt" \
+          && echo "$r11" | grep -q "spw_map=A0:4,A1:5,A2:0," && echo 1 || echo 0) \
+    "ERR $e 個（期待 10）・ERR の後の GET と対応が元のまま $([ "$g0" = "$g1" ] && echo はい || echo いいえ)・A2.coarse=alt で A2 → s 0（$(echo "$r11" | grep -o 'spw_map=[^ ]*' | cut -c1-30)）・$(echo "$r1" | cut -c1-70)"
+}
+t_spwcli() {  # SpW8: 受け側の s45client で acquire(20)。A0〜D7 の 32 窓を数えて時間切れにならない・4096 ch・軸は昇順
+  echo "== spwcli"; srv spwcli --spw
+  local r=$(timeout 90 python3 - $PORTC $PORTD <<'EOF2'
+import sys, numpy as np
+from s45client import S45
+s = S45("127.0.0.1", ctrl_port=int(sys.argv[1]), data_port=int(sys.argv[2]))
+try:
+    d = s.acquire(20, **{"A7.bw": "16"})
+    out = set()
+    for a in "ABCD":
+        for i in range(8):
+            sp, f = d.spec(f"{a}{i}"), d.freq(f"{a}{i}")
+            out.add(f"{sp.shape[1]}:{f.size}:{int(np.all(np.diff(f) > 0))}:{int(sp.shape[0] >= 20)}")
+    c = s.check()
+    print("/".join(sorted(out)) + f":{c['unexplained']}:{c['crc_bad']}:{d.freq('A7')[-1] - d.freq('A7')[0]:.4f}")
+finally:
+    s.close()
+EOF2
+)
+  stop_srv
+  judge $([ "$r" = "4096:4096:1:1:0:0:15.9961" ] && echo 1 || echo 0) "32 窓の ch:軸:昇順:20 以上、説明のない欠け:CRC:A7 の軸の幅 $r（期待 4096:4096:1:1:0:0:15.9961）"
+}
+
 t_net() {     # 2G-4 の M5（判定 NET、INTERFACE 4.5）: float32 でも予算 30 MB/s を越える tint は SET で断り、設定は変わらない。
   # 2G-4・2G-2 は 10.24 ms（51.2 MB/s）が ERR・20.48 ms（25.6）が OK、2G-1 も同じ。Fine・Wide は 10.24 ms（12.8）で OK
+  # SpW8（M5b）: 32 窓は 10.24 ms（51.2）が ERR・20.48 ms が OK、窓 16 本（C・D を止める）なら 10.24 ms（25.6）が OK
   echo "== net"
   srv net24 --g24
   local a1=$(ctl "SET tint=0.01024" "GET" | grep -v "^>") a2=$(ctl "SET tint=0.02048" "GET" | grep -v "^>")
@@ -476,6 +570,8 @@ t_net() {     # 2G-4 の M5（判定 NET、INTERFACE 4.5）: float32 でも予�
   local b1=$(ctl "SET tint=0.01024" | grep -v "^>") b2=$(ctl "SET tint=0.02048" | grep -v "^>")
   stop_srv; srv net21 --g21
   local c1=$(ctl "SET tint=0.01024" | grep -v "^>") c2=$(ctl "SET tint=0.02048" | grep -v "^>")
+  stop_srv; srv netspw --spw
+  local s1=$(ctl "SET tint=0.01024" "GET" | grep -v "^>") s2=$(ctl "SET tint=0.02048" | grep -v "^>") s3=$(ctl "SET C.on=0 D.on=0 tint=0.01024" | grep -v "^>")
   stop_srv; srv netf
   local f1=$(ctl "SET tint=0.01024" | grep -v "^>")
   stop_srv; srv netw --wide
@@ -483,18 +579,23 @@ t_net() {     # 2G-4 の M5（判定 NET、INTERFACE 4.5）: float32 でも予�
   stop_srv
   judge $(echo "$a1" | head -1 | grep -q "^ERR" && echo "$a1" | grep -q "予算 30 MB/s" && echo "$a1" | grep -q "^OK tint=0.04096" && echo "$a2" | head -1 | grep -q "^OK$" && echo "$a2" | grep -q "^OK tint=0.02048" \
           && echo "$b1" | grep -q "^ERR" && echo "$b2" | grep -q "^OK" && echo "$c1" | grep -q "^ERR" && echo "$c2" | grep -q "^OK" \
+          && echo "$s1" | head -1 | grep -q "^ERR" && echo "$s1" | grep -q "51.2 MB/s" && echo "$s1" | grep -q "の最小は 0.02048" && echo "$s1" | grep -q "^OK tint=0.04096" \
+          && echo "$s2" | grep -q "^OK" && echo "$s3" | grep -q "^OK" \
           && echo "$f1" | grep -q "^OK" && echo "$w1" | grep -q "^OK" && echo 1 || echo 0) \
-    "2G-4 の 10.24 ms: $(echo "$a1" | head -1 | cut -c1-60)・GET は $(echo "$a1" | grep -o 'tint=[0-9.]*' | head -1)（期待 0.04096 のまま）・20.48 ms 後の GET $(echo "$a2" | grep -o 'tint=[0-9.]*' | head -1)、2G-2 $(echo $b1 | cut -c1-3)/$(echo $b2 | cut -c1-2)・2G-1 $(echo $c1 | cut -c1-3)/$(echo $c2 | cut -c1-2)・Fine $(echo $f1 | cut -c1-2)・Wide $(echo $w1 | cut -c1-2)"
+    "2G-4 の 10.24 ms: $(echo "$a1" | head -1 | cut -c1-60)・GET は $(echo "$a1" | grep -o 'tint=[0-9.]*' | head -1)（期待 0.04096 のまま）・20.48 ms 後の GET $(echo "$a2" | grep -o 'tint=[0-9.]*' | head -1)、2G-2 $(echo $b1 | cut -c1-3)/$(echo $b2 | cut -c1-2)・2G-1 $(echo $c1 | cut -c1-3)/$(echo $c2 | cut -c1-2)・SpW8 32 窓 $(echo "$s1" | head -1 | cut -c1-3)/$(echo $s2 | cut -c1-2)・16 窓 10.24 ms $(echo $s3 | cut -c1-2)・Fine $(echo $f1 | cut -c1-2)・Wide $(echo $w1 | cut -c1-2)"
 }
-t_netp() {    # net の陽性対照: 照合を外した specd（--net-budget-mbs 0）では 2G-4 の 10.24 ms が通る
+t_netp() {    # net の陽性対照: 照合を外した specd（--net-budget-mbs 0）では 2G-4・SpW8（32 窓）の 10.24 ms が通る
   echo "== netp（陽性対照）"; srv netp --g24 --net-budget-mbs 0
   local r=$(ctl "SET tint=0.01024" "GET" | grep -v "^>")
+  stop_srv; srv netpspw --spw --net-budget-mbs 0
+  local q=$(ctl "SET tint=0.01024" "GET" | grep -v "^>")
   stop_srv
-  judge $(echo "$r" | head -1 | grep -q "^OK$" && echo "$r" | grep -q "^OK tint=0.01024" && echo 1 || echo 0) "照合なしで SET tint=0.01024: $(echo "$r" | head -1 | cut -c1-40)・GET $(echo "$r" | grep -o 'tint=[0-9.]*' | head -1)（期待 0.01024）"
+  judge $(echo "$r" | head -1 | grep -q "^OK$" && echo "$r" | grep -q "^OK tint=0.01024" && echo "$q" | head -1 | grep -q "^OK$" && echo "$q" | grep -q "^OK tint=0.01024" && echo 1 || echo 0) \
+    "照合なしで SET tint=0.01024: 2G-4 $(echo "$r" | head -1 | cut -c1-40)・GET $(echo "$r" | grep -o 'tint=[0-9.]*' | head -1)、SpW8 $(echo "$q" | head -1 | cut -c1-40)・GET $(echo "$q" | grep -o 'tint=[0-9.]*' | head -1)（期待 0.01024）"
 }
 
 case "${1:-all}" in
-  all) t_basic; t_corrupt; t_gap; t_drop; t_skip; t_reconnect; t_stall; t_f32; t_f32p; t_v1; t_load; t_tpjump; t_idle; t_shm; t_wide; t_widep; t_widesnap; t_widekind; t_g21; t_g21p; t_g21cli; t_g22; t_g22same; t_g22p; t_g22cli; t_g24; t_g24same; t_g24p; t_g24cli; t_net; t_netp ;;
+  all) t_basic; t_corrupt; t_gap; t_drop; t_skip; t_reconnect; t_stall; t_f32; t_f32p; t_v1; t_load; t_tpjump; t_idle; t_shm; t_wide; t_widep; t_widesnap; t_widekind; t_g21; t_g21p; t_g21cli; t_g22; t_g22same; t_g22p; t_g22cli; t_g24; t_g24same; t_g24p; t_g24cli; t_spw; t_spwmap; t_spwp; t_spwcli; t_net; t_netp ;;
   *) "t_$1" ;;
 esac
 if [ $NG = 0 ]; then echo "test_fake: 全部通過"; else echo "test_fake: NG $NG 件"; exit 1; fi

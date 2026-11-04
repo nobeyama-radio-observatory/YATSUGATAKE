@@ -34,6 +34,7 @@ from specctl import Ctl
 from specrecv import Check
 
 KEYS = [f"{a}{w}" for a in "ABCD" for w in "01"]
+ALL_KEYS = [f"{a}{w}" for a in "ABCD" for w in "01234567"]   # YATSUGATAKE M5b: SpW8 の論理の窓 A0〜D7（手元の溜め・Data.keys は全部の鍵で）
 
 
 def _key(adc, win):
@@ -69,13 +70,13 @@ def _adc_index(a):
 
 
 class Data:
-    """受けた記録の手元の写し（その時点のもの）。窓は "A0"〜"D1"、ADC は "A"〜"D"（か 0〜3）"""
+    """受けた記録の手元の写し（その時点のもの）。窓は "A0"〜"D1"（SpW8 は "A0"〜"D7"）、ADC は "A"〜"D"（か 0〜3）"""
 
     def __init__(self, wins, tps, events):
         self._w, self._t, self.events = wins, tps, events
 
     def keys(self):
-        return [k for k in KEYS if self._w.get(k)]
+        return [k for k in ALL_KEYS if self._w.get(k)]
 
     def meta(self, key):
         """窓 key のダンプごとのメタ（k・dump_t・utc_ns・health・sat・flags・shift・nacc・ns・if_mhz・cfg）の構造化配列"""
@@ -132,7 +133,7 @@ class S45:
         self.host, self.keep, self.keep_tp = host, keep, keep_tp
         self.ctl = Ctl(host, ctrl_port, timeout=timeout)
         self._lock = threading.Lock()
-        self._w = {k: collections.deque(maxlen=keep) for k in KEYS}
+        self._w = {k: collections.deque(maxlen=keep) for k in ALL_KEYS}
         self._nrec = collections.Counter()             # proj024 3c: (run, 窓) ごとに届いた SPEC の数（手元の溜めは nch で絞るので、数は別に持つ）
         self._t = {i: collections.deque() for i in range(4)}
         self._tn = {i: 0 for i in range(4)}

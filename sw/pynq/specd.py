@@ -22,6 +22,10 @@ proj027 3c: `--g24`（または bits.json の項目に "kind": "g24"）で 2G-4 
   tint・fmt・cfg・A0〜D0.src・A0〜D0.shift・all.shift・shift（src はコアごと。4 コアに同じ ADC も可）。SNAP はコア 0 の RAW の流れ（s 1）
 proj024 3c: `--g21`（または bits.json の項目に "kind": "g21"）で 2G-1 の .bit（FULL の流れ 1 本・131072 ch、鍵は A0）。SET のキーは
   tint・fmt・cfg・src（FULL の入力の ADC A〜D、次の WRST で効く）・shift（RUN で効く）・A0.src・A0.shift・all.shift。SNAP は RAW の流れ（s 1）
+YATSUGATAKE M5b: `--spw`（または bits.json の項目に "kind": "spw8"）で SpW8 の .bit（コア 4 個 × DDC の流れ 8 本）。窓のキー A0〜D7 は
+  論理の窓（ADC ごとの利用者の並び、ADR 0028）で、流れの番号 s ではない。SET のキーは tint・fmt（f32 だけ、ADR 0029）・cfg・A0.if・A0.bw（128/64/32/16/8）・
+  A0.ns（1〜5）・A0.shift・A0.on（0/1）・A0.coarse（auto/near/alt、試験の口）・A.shift・all.shift・shift。SET のたびに 4 ADC とも計画し直し、計画できない組は
+  組ごと ERR（今の組のまま）。STATUS の spw_map が論理の窓 → s の対応。SNAP は無い（RAW の流れが無い）
 proj021 2-3d: BITS（bits.json の許す bit の一覧）| LOAD bit=<名前>（IDLE のときだけ。取得のプロセスを新しい bit で起こし直す。
   制御・データの口と溜まりは保つ。データの口に EVENT LOAD を出す）
 データの口（既定 51001、同時に 1 接続）: s45proto の記録を続けて送る。SEND ON の間だけ。
@@ -46,7 +50,7 @@ import time
 import s45proto as P
 import s45ring as R
 
-HELP = ("ID | STATUS | GET | GET CAL | SET key=val ...（tint cfg A0.if A0.ns A0.bw A0.shift A0.bundle all.shift …） | ANCHOR | "
+HELP = ("ID | STATUS | GET | GET CAL | SET key=val ...（tint cfg A0.if A0.ns A0.bw A0.shift A0.bundle all.shift …。SpW8 は A0〜D7 の論理の窓と A0.on A0.coarse） | ANCHOR | "
         "START [at=<UTC ISO8601 か unix 秒>] [n=<ダンプ数>] [force=1] | STOP | SEND ON [from=oldest|now] | SEND OFF | CLEAR | BYE | "
         "SHUTDOWN confirm=1 | SNAP adc=A|B|C|D [n=1] [every=20] | BITS | LOAD bit=<名前>")
 
@@ -167,6 +171,7 @@ class Server:
         o.g21 = bool(getattr(self.a, "g21", False)) if e.get("kind") is None else e.get("kind") == "g21"   # proj024: 2G-1
         o.g22 = bool(getattr(self.a, "g22", False)) if e.get("kind") is None else e.get("kind") == "g22"   # proj025: 2G-2
         o.g24 = bool(getattr(self.a, "g24", False)) if e.get("kind") is None else e.get("kind") == "g24"   # proj027: 2G-4
+        o.spw = bool(getattr(self.a, "spw", False)) if e.get("kind") is None else e.get("kind") == "spw8"  # YATSUGATAKE M5b: SpW8
         if e.get("tp_cal"):
             o.tp_cal = None
             if os.path.exists(e["tp_cal"]):
@@ -311,6 +316,13 @@ class Server:
                     if "mat" in rg:
                         d["pl_mat"] = rg["mat"]           # proj029 2: --fast-ring で使い切れずに写したレコードの数
                     d["tp_rec_lost"] = rg["tp_rec_lost"]
+                if r.get("spw_map"):                   # YATSUGATAKE M5b: SpW8 の論理の窓 → 流れ s・振り分けの見張り
+                    d["spw_map"] = r["spw_map"]
+                    sw = r.get("spw") or {}
+                    d["spw_seqgap"], d["spw_hdrbad"], d["spw_stray"], d["spw_valbad"] = sw.get("seq_gap"), sw.get("hdr_bad"), sw.get("stray"), r.get("val_bad")
+                    for k in ("c_scan_s", "c_ev_s", "c_one_s", "c_ev", "c_rec"):    # C の道の診断（なめ・束の知らせ・Python で読んだレコードの時間 [s]、知らせ・なめたダンプの数）
+                        if k in sw:
+                            d["spw_" + k] = sw[k]
                 if r.get("err"):
                     d["err"] = r["err"]
                 if r.get("time_err"):
@@ -338,6 +350,15 @@ class Server:
             def f(r):
                 st = r["settings"]
                 d = dict(tint=st["tint"], cfg=f"{st['cfg']:#x}")
+                if st.get("kind") == "spw8":                 # YATSUGATAKE M5b: 論理の窓 A0〜D7（coarse は auto でないときだけ）
+                    d["fmt"] = st.get("fmt")
+                    for j, ws in enumerate(st["wins"]):
+                        key = f"{'ABCD'[j // 8]}{j % 8}"
+                        d[f"{key}.if"] = ws["if_mhz"]; d[f"{key}.bw"] = ws["bw"]; d[f"{key}.ns"] = {128: 1, 64: 2, 32: 3, 16: 4, 8: 5}[ws["bw"]]
+                        d[f"{key}.shift"] = ws["shift"]; d[f"{key}.on"] = ws["on"]
+                        if ws["coarse"] != "auto":
+                            d[f"{key}.coarse"] = ws["coarse"]
+                    return kv_line(d)
                 if st.get("kind") in ("g22", "g24"):         # proj025: 2G-2（FULL の流れ A0・B0 の 2 本、コアごとの src・shift）。proj027: 2G-4 は A0〜D0 の 4 本
                     d["fmt"] = st.get("fmt")
                     for c, key in enumerate(("A0", "B0", "C0", "D0")[:len(st["src"])]):
@@ -665,6 +686,8 @@ def main():
     p.add_argument("--g21", action="store_true", help="proj024: 2G-1 の .bit（FULL の流れ 1 本・131072 ch。bits.json の項目の kind が優先）")
     p.add_argument("--g24", action="store_true", help="proj027: 2G-4 の .bit（FULL の流れ 4 本・32768 ch × 4、鍵は A0〜D0。bits.json の項目の kind が優先）")
     p.add_argument("--g22", action="store_true", help="proj025: 2G-2 の .bit（FULL の流れ 2 本・65536 ch × 2、鍵は A0・B0。bits.json の項目の kind が優先）")
+    p.add_argument("--spw", action="store_true", help="YATSUGATAKE M5b: SpW8 の .bit（コア 4 × DDC の流れ 8 本、鍵は論理の窓 A0〜D7。bits.json の項目の kind \"spw8\" が優先）")
+    p.add_argument("--posctl-spw-map", action="store_true", help="陽性対照（SpW8）: 論理の窓と流れ s の対応を ADC ごとに同じ NS・SHIFT の 2 本で入れ替える（受け側の IF の照らしが落ちるはず）")
     p.add_argument("--no-malloc-tune", action="store_true", help="proj024 3d: 2G-1 の取得で mallopt（1 MiB の配列を mmap で取らせない）をしない（比べる用）")
     p.add_argument("--tp-cal", default=None, help="TP の dBm の較正ファイル（既定はボードの /etc/yatsugatake/tp_cal.json、"
                    "環境変数 YATSUGATAKE_TP_CAL。無ければ使わない。ADR 0025・s45cal.py）")
@@ -679,7 +702,7 @@ def main():
     p.add_argument("--posctl-f32-trunc", action="store_true", help="陽性対照: v2 の float32 を最も近い値でなく 0 へ切り捨てる（fmt=both の照合が落ちる）")
     p.add_argument("--read", default="ring", choices=("ring",),
                    help="proj021 2-3a: PL からの読み口（ring = PL が書くリングのレコード。2-2d で axi = 仮の読み窓の道は外した）")
-    p.add_argument("--ring-mib", type=int, default=None, help="PL が書くリングの大きさ [MiB]（既定: SAM45-Fine・SAM45-Wide は 32、2G（--g21・--g22・--g24・bits.json の kind）は 64 = allocate の上限。proj024 3e・INTERFACE 8. の 11）")
+    p.add_argument("--ring-mib", type=int, default=None, help="PL が書くリングの大きさ [MiB]（既定: SAM45-Fine・SAM45-Wide は 32、2G（--g21・--g22・--g24・bits.json の kind）と SpW8（--spw）は 64 = allocate の上限。proj024 3e・INTERFACE 8. の 11）")
     p.add_argument("--net-budget-mbs", type=float, default=None, help="SET の tint の照合: float32 の SPEC がこの MB/s を越える tint を断る（既定 30 = INTERFACE 4.5・8. の 10。0 で照らさない = 陽性対照・試験用）")
     p.add_argument("--posctl-ring-stall", type=float, default=0.0, help="陽性対照: RUN の 100 周目にこの秒数リングを読まない")
     p.add_argument("--no-tp-jump", action="store_true", help="B2 の TP の跳ねの見張りを止める（1 周の重さの比べ用）")
