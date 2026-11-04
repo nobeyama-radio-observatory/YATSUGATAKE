@@ -320,7 +320,7 @@ class Server:
                     d["spw_map"] = r["spw_map"]
                     sw = r.get("spw") or {}
                     d["spw_seqgap"], d["spw_hdrbad"], d["spw_stray"], d["spw_valbad"] = sw.get("seq_gap"), sw.get("hdr_bad"), sw.get("stray"), r.get("val_bad")
-                    for k in ("c_scan_s", "c_ev_s", "c_one_s", "c_ev", "c_rec"):    # C の道の診断（なめ・束の知らせ・Python で読んだレコードの時間 [s]、知らせ・なめたダンプの数）
+                    for k in ("c_scan_s", "c_ev_s", "c_one_s", "c_ev", "c_out", "c_rec"):    # C の道の診断（なめ・束の知らせ・Python で読んだレコードの時間 [s]、知らせ・なめたダンプの数）
                         if k in sw:
                             d["spw_" + k] = sw[k]
                 if r.get("err"):

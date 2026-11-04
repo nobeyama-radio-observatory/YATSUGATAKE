@@ -9,6 +9,7 @@
 - w・r の更新は Lock の中で行う（セマフォの取得・解放がメモリの順序の壁になる。aarch64 で中身より先に w が見えることを防ぐ）
 - 言語に依らない形（固定の頭 ＋ バイトの環）にしておき、取得の側を C に替えられるようにする（README の方針）
 """
+import ctypes
 import multiprocessing as mp
 from multiprocessing import shared_memory
 
@@ -70,6 +71,16 @@ class Ring:
         return w - r
 
     # ---- 書き手
+    def buf_addr(self):
+        """SpW8 M6: buf の番地（書き手の C の道 s45fast.SpwScan が記録を直に書く）。写像はこの Ring が閉じるまで在る。
+        acqboot.attach_ring は __init__ を通らないので、初めて呼んだときに引いて覚える"""
+        a = getattr(self, "_addr", None)
+        if a is None:
+            c = ctypes.c_char.from_buffer(self.buf)
+            a = self._addr = ctypes.addressof(c)
+            del c                                       # 書き出しを残さない（残ると close できない）
+        return a
+
     def put(self, parts):
         """parts（bytes-like の並び、合計は 8 の倍数・頭を含む）を 1 つの記録として置く。入らなければ False"""
         parts = [memoryview(p).cast("B") for p in parts]     # numpy の配列（uint64）もバイトの並びとして

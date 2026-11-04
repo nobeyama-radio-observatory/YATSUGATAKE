@@ -2149,6 +2149,9 @@ class _CBund:
 class SpwBackend(_SpwRoute, HwBackend):
     """SpW8（BIT_KIND 7・BIT_REV 10）の裏。コア 4 個（ADC_A〜D）× DDC の流れ 8 本。RAW の流れは無い（SNAP は断る）。
     --fast --fast-ring で C の道（cmode）: pump がリングの [R, W) を s45fast.SpwScan で 1 回なめ、束ができる・捨てるたびに on_spw（Acq）を呼ぶ。
+    SpW8 M6: できた束は C が出口の溜まりへ直に SPEC の記録として書く（Acq._spw_out_pre・_spw_out_post）。書けないとき（溢れて捨てている最中・
+    端で入らない・陽性対照の gap・corrupt）だけ on_spw に知らせ、Python の道（_spec_record_spw ＋ _put）が書く。M6 の 1 回目の実機で 1 本 ≒ 250 µs の
+    Python の道が取得の CPU の 6 割を占め、V2-b・V2-L の loop_slow・RING の溢れの元になった
     Python の道（Ring.read → 列 → poll_win → Bundler）は 32 窓 × 10.24 ms に追いつかない（M5b の実機: 1 本 ≒ 270 µs、20.48 ms で 60 s 回すと溢れた）"""
 
     def __init__(self, opts, log):
@@ -2342,12 +2345,36 @@ class SpwBackend(_SpwRoute, HwBackend):
                 sc.win["w4"][j] = cf["w4"] | ((j // SPW_NW) << 40)
         for (a, s_), j in self.smap.items():
             sc.smap[a * 256 + s_] = j
+        # SpW8 M6: 束を C で溜まりへ直に書くための、窓ごとの SPEC の頭の雛形（Acq._spec_record_spw と同じ欄。束ごとに変わる欄は 0 で、C が入れる）
+        self.hd_tmpl = np.zeros((4 * SPW_NW, P.SPEC2_H.size), np.uint8)
+        bk = int(getattr(self, "bit_kind", SPW_BIT_KIND))
+        for j, cf in enumerate(self.cfgs):
+            if cf["active"]:
+                adc, i = divmod(j, SPW_NW)
+                self.hd_tmpl[j] = np.frombuffer(P.SPEC2_H.pack(adc, i, adc, 3, cf["ns"], cf["shift"], P.FMT_F32, bk, P.NCH, int(cf["n_sum"]),
+                                                               0, 0, cf["nacc"], 0, 0, 0, cf["g"], 0, 0, 0, P.BASE_NS, cf["if_mhz"], cf["df_hz"]), np.uint8)
+        sc.win["hd"] = [self.hd_tmpl.ctypes.data + j * P.SPEC2_H.size for j in range(4 * SPW_NW)]
+        self.uoff_key = None
+        self.out_acq = None                        # Acq（_spw_out_pre・_spw_out_post）。Acq が START で置く
         self.sc = sc
         self.accp = sc.win["acc"].tolist()        # 器の番地（Acq._spw_ev が記録の C の道に渡す）
         self.crc_py = 0
         self.discard = False
-        self.c_t = [0.0, 0.0, 0.0]                 # 診断: C のなめ・束の知らせ（記録を含む）・Python で読んだレコード [s]
+        self.c_t = [0.0, 0.0, 0.0]                 # 診断: C のなめ（SpW8 M6 から、C が溜まりへ直に書く記録を含む）・束の知らせ（Python の道の記録を含む）・Python で読んだレコード [s]
         self.c_n = [0, 0]
+
+    def spw_uoff(self):
+        """SpW8 M6: 窓ごとの utc_ns の差（C が utc_ns = uoff ＋ ビート→ns(dump_t − stamp) と書く）を、錨が変わったときだけ引き直す。
+        uoff = Clock.utc_ns(stamp, ns, adc) − 1.5·L（Acq._spec_record_spw と同じ式を、ビートの項 0 で）。→ 錨の stamp"""
+        a = self.clock.tb._anchor
+        key = (a["utc_sec"], a["stamp"])
+        if key != self.uoff_key:
+            w = self.sc.win
+            for j, cf in enumerate(self.cfgs):
+                if cf["active"]:
+                    w["uoff"][j] = self.clock.utc_ns(a["stamp"], cf["ns"], j // SPW_NW) - (3 * cf["frame"] * 125) // 64
+            self.uoff_key = key
+        return a["stamp"]
 
     def _one(self, r):
         """C の道が止まった type 5 でないレコード 1 本（TP など）を Python で読む。→ 次の R"""
@@ -2384,9 +2411,17 @@ class SpwBackend(_SpwRoute, HwBackend):
         t1 = time.perf_counter()
         r, sc, nrec = rg.r, self.sc, 0
         pc = time.perf_counter
+        ao = self.out_acq if (self.on_spw is not None and not self.discard) else None
+        o = sc.out[0]
+        if ao is None:
+            o["on"] = 0
         while True:
             ta = pc()
+            if ao is not None:
+                ao._spw_out_pre(o)                 # SpW8 M6: 出口の溜まりの位置・seq・時刻を C に渡す（直に書けないときは on 0）
             st, r, evs = sc.scan(rg.a8p, rg.size, r, w)
+            if ao is not None:
+                ao._spw_out_post(o)                # 直に書いた分の w を置き、seq・数えを Acq へ戻す
             tb = pc()
             self.c_t[0] += tb - ta
             if st == 1:
@@ -2414,7 +2449,7 @@ class SpwBackend(_SpwRoute, HwBackend):
         d = super().spw_stat()
         if self.cmode and hasattr(self, "sc"):
             d["stray"] = self.stray + getattr(self, "stray_c", 0)
-            d.update(c_scan_s=round(self.c_t[0], 2), c_ev_s=round(self.c_t[1], 2), c_one_s=round(self.c_t[2], 2), c_ev=self.c_n[1],
+            d.update(c_scan_s=round(self.c_t[0], 2), c_ev_s=round(self.c_t[1], 2), c_one_s=round(self.c_t[2], 2), c_ev=self.c_n[1], c_out=getattr(self.out_acq, "n_out", 0),
                      c_rec=int(self.sc.win["pl_dumps"].sum()))
         return d
 
@@ -2630,6 +2665,7 @@ class Acq:
         self.bund = [None] * self.nslot            # proj021 2-3b: 窓ごとの Bundler（START で作る）
         self.pl_dumps = [0] * self.nslot
         self.loop_slow = 0                         # 1 周が tint を越えた回数
+        self.n_out = 0                             # SpW8 M6: C が溜まりへ直に書いた SPEC の記録の数（STATUS の spw_c_out）
         self.n_loop_log = 0                        # proj025 4c: --loop-log-ms で残した周の数
         self.hist[:] = 0
         self.n_loop = 0
@@ -2990,6 +3026,7 @@ class Acq:
         if getattr(self.be, "cmode", False):       # SpW8 M5b: 束ねは C（SpwScan）。Acq は束ができた・捨てたの知らせ（_spw_ev）を受ける
             self.bund = [_CBund(self.be.sc, j) if cf["active"] else None for j, cf in enumerate(self.be.cfgs)]
             self.be.on_spw = self._spw_ev
+            self.be.out_acq = self                 # SpW8 M6: できた束は C が溜まりへ直に書く（_spw_out_pre・_spw_out_post）
         if hasattr(self.be, "lazy_wins"):          # proj029 2: --fast-ring の窓（FULL。proj036: n_sum ≧ 2 も。SpW8 M5b: SpW の窓も）
             self.be.lazy_wins = {j for j, (cf, b) in enumerate(zip(self.be.cfgs, self.bund))
                                  if self.fast_ring and b is not None and cf.get("kind") in ("full", "spw")}
@@ -3260,11 +3297,35 @@ class Acq:
             return
         sc = self.be.sc
         m = dict(seq=seq, k=k, t=t, h=h, n=n, sat=sat, cfg=cfg, flags=flags, accp=self.be.accp[j])
-        if self.last_k[j] is not None and m["k"] != self.last_k[j] + 1:
-            self.kgap[j] += 1
-        self.last_k[j] = m["k"]
-        self.n_dump[j] += 1
-        self._spec_record(j, m, sc.acc[j])
+        self._spec_record(j, m, sc.acc[j])         # k の飛び・束の数は C が数える（SpW8 M6。_loop_once が win の kgap・ndump を写す）
+
+    def _spw_out_pre(self, o):
+        """SpW8 M6: なめの前に、C が溜まりへ直に書くための値を o（s45fast.SPW_OUT の 1 つ）に置く。
+        _put と同じく、溢れて捨てている最中・陽性対照（gap・corrupt）は直に書かない（on 0 → 束ごとに ev、_spw_ev → _put の道）"""
+        rg, be = self.ring, self.be
+        on = self.drop["pending"] is None and not self.posctl["gap"] and not self.posctl["corrupt"]
+        o["on"] = on
+        if not on:
+            return
+        w, r = rg.positions()
+        o["buf"], o["cap"], o["w"], o["r"] = rg.buf_addr(), rg.cap, w, r
+        o["seq"], o["ver"] = self.seq, self.proto
+        ok = be.clock.ok
+        o["clock_ok"] = ok
+        o["stamp"] = be.spw_uoff() if ok else 0
+        o["h_add"] = (0 if ok else P.H_NOTIME) | (P.H_FORCED if self.forced else 0)
+
+    def _spw_out_post(self, o):
+        """なめの後: 直に書いた記録があれば、w をロックの中で溜まりに置き（_put と同じ順序の壁）、seq・health・flags・sat を戻す"""
+        if not o["on"] or not o["n_out"]:
+            return
+        rg = self.ring
+        with rg.lock:
+            rg.ctl[0] = int(o["w"])
+        self.seq = int(o["seq"])
+        self.h_or |= int(o["h_or"]); self.fl_or |= int(o["fl_or"]); self.sat += int(o["sat"])
+        self.n_out += int(o["n_out"])
+        o["h_or"] = o["fl_or"] = o["sat"] = o["n_out"] = 0
 
     def _bdrop(self, j, d):
         """束を捨てた（INTERFACE 5.1 の 4）。EVENT は最初の 20 回まで（止まりの後に窓ごとに続くので）"""
@@ -3320,6 +3381,8 @@ class Acq:
         if getattr(be, "cmode", False) and hasattr(be, "sc"):   # SpW8 M5b: 読み落とし・PL のダンプの数は C の窓の状態から
             self.n_miss[:] = be.sc.win["miss"].tolist()
             self.pl_dumps[:] = be.sc.win["pl_dumps"].tolist()
+            self.kgap[:] = be.sc.win["kgap"].tolist()
+            self.n_dump[:] = be.sc.win["ndump"].tolist()
         t_p = time.perf_counter()
         n_spec = 0                                 # proj025 4c: この周で書いた SPEC の記録（束）の数
         t_poll = t_bund = t_rec = 0.0              # proj029 1c: 窓の記録の内訳（poll_win・束ね・記録（put を含む）。put は self.t_put）
