@@ -89,6 +89,7 @@ def make_be(ring, lazy):
     be.q = [collections.deque() for _ in range(4 * A.NW)]
     be.seq = [0] * (4 * A.NW)
     be.running, be.tp_slot, be.n_pump, be.ring_crc, be.n_mat = True, {}, 0, 0, 0
+    be.stall_at = 0.0                 # 649f5ee の陽性対照（--posctl-ring-stall）は使わない
     be.lazy_wins = set(A.G2_WIN) if lazy else set()
     be.bit_kind = 10
 
