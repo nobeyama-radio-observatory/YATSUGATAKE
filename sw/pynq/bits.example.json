@@ -12,6 +12,8 @@
     "2g-1-fast": {"bit": "proj033.bit", "pydir": ".", "kind": "g21",
                 "note": "2G-1-Fast（BIT_KIND 11）。kind は g21（FULL の流れ 1 本・131072 ch）。係数は bit の中の ROM（hex は要らない）。specd は --prefault --fast --fast-ring（build_fast.sh で libs45fast.so）"},
     "2g-2": {"bit": "proj034.bit", "pydir": ".", "kind": "g22",
-                "note": "2G-2（BIT_KIND 10）。kind は g22（FULL の流れ 2 本・65536 ch × 2、鍵は A0・B0）。係数は bit の中の ROM（hex は要らない）。specd は --prefault --fast --fast-ring（build_fast.sh で libs45fast.so）"}
+                "note": "2G-2（BIT_KIND 10）。kind は g22（FULL の流れ 2 本・65536 ch × 2、鍵は A0・B0）。係数は bit の中の ROM（hex は要らない）。specd は --prefault --fast --fast-ring（build_fast.sh で libs45fast.so）"},
+    "spw8": {"bit": "proj032b5.bit", "pydir": ".", "kind": "spw8",
+                "note": "SpW8（BIT_KIND 7）。kind は spw8（コア 4 個 × 窓 8 本、鍵は論理の窓 A0〜D7）。係数は bit の中（hex は要らない）。specd は --prefault --fast --fast-ring（build_fast.sh で libs45fast.so）"}
   }
 }
