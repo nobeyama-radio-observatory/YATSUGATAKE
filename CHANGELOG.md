@@ -3,6 +3,19 @@
 リリースごとに、何が変わったか・互換性（インターフェースの版）・対応する性能評価を書く。
 書き方は [`docs/release.md`](docs/release.md)。
 
+## v1.5.0（`v1.5.0`・`spw8/v1.0.0`、2026-11-05）— SpW8 を足す
+
+study-rfsoc の proj032 の b5 rev 10（`proj032-m0`）を移した SpW8 を、6 本目の bit として出す。SAM45-Fine・SAM45-Wide・2G-4・2G-1-Fast・2G-2 の bit は変えない（`sam45-fine/v1.0.0`・`sam45-wide/v1.0.0`・`2g-4/v1.0.0`・`2g-1-fast/v1.0.0`・`2g-2/v1.0.0` のまま）。
+
+- **bit**: SpW8（4 ADC × 窓 8 本。コアごとに粗い PFB（64 MHz 間隔）→ 窓の頭 8 本 → 共有の後段 → 時分割の機関 3 本（PFB T 4 ＋ 4096 点 FFT）。幅 128・64・32・16・8 MHz・4096 ch、窓は全部チップ内の履歴の枠で PL の DDR は使わない。ダンプ 10.24 ms を束ねて tint）。BIT_KIND 7・BIT_REV 10・PROJ 0x0032_0300。**Performance_ExplorePostRoutePhysOpt で作る**（WNS +0.016 ns。既定の戦略では閉じない）。FDRI は移植元と同じ（`de7e9d88…`）。USR_ACCESS にタグの commit
+- **インターフェース**: v2 のまま。足したもの: WRST_T の下限は bit ごと（SpW8 は 8 クロック）・**SpW の窓のキーは論理の窓**（SET は組ごとに計画して受けるか断る、STATUS の `spw_map`。[ADR 0028](docs/decisions/0028-spw-wrst-floor-and-logical-window-keys.md)）・リングの type 5（PL で丸めた f32 の窓のレコード、[ADR 0029](docs/decisions/0029-spw-ring-records-f32.md)）・SPEC の kind 3 の s は論理の窓の番号。ネットワークの予算は 32 窓で tint の最小 20.48 ms（16 窓なら 10.24 ms）
+- **PS**: specd の SpW の Backend（`--spw` か bits.json の `"kind": "spw8"`、`spwplan.py` で窓の計画）・`timebase.WIN_DELAY` を (BIT_KIND, BIT_REV) の表にし (7, 10) の D(NS) を入れた（`GET CAL` の `wdly`・`wdly_ns`）・`s45fast.c` の f32 の束ねと、**束ができたら C が SPEC の記録を溜まりへ直に書く道**（取得の CPU 69 → 34 %）。STATUS に `spw_hdrbad`・`spw_seqgap`・`spw_stray`・`spw_valbad`・`spw_c_*`。bits.json の例に `"spw8"`。SpW8 の ADC → コアの道は共通の道 1（時刻・TP の較正ファイルがそのまま当たる）。SAM45-Fine の窓の遅れの値は変わらない
+- **ボードの準備**: 2G-4 と同じ（AXI_MAX_PIPELINE 0x0102・`build_fast.sh` で「CRC: 命令」）。specd は `--prefault --fast --fast-ring`
+- **判定**: `test/acceptance/spw8/` の 11 本（ID-1・H-0・W-1・TW・WRST・NET・PS-1・RATE・V2-b・RING・V2-L）がすべて通過（V2-b・V2-L・RING は C の道に移した後の回し直しで）。2 時間で取りこぼし 0、VCCINT 39.4 A
+- **性能評価**: [`docs/performance/spw8/v1.0.0.md`](docs/performance/spw8/v1.0.0.md)（既知の制限 8 件）
+- **文書**: 仕様（`bits.md`・`timing.md`・`units.md`・`interface.md` の SpW8 の分）・設計（`docs/design/spw8/`）・使い方（`install.md` の bits.json の `"kind": "spw8"`・`specd.md` の SpW8 の SET と STATUS・`client.md` の記録・`calibration.md`）
+- **既知の制限のうち運転に効くもの**: ネットワークの tint の最小（32 窓で 20.48 ms）。VCCINT 39.4 A・temp20 ≒ 68 ℃ で目安（40 A・70 ℃）までの余裕が小さい（冷やし方を変えない）。`-1` の WNS +0.016 ns（RTL を変えるときは閉じるかを必ず確かめる）
+
 ## v1.4.0（`v1.4.0`・`2g-2/v1.0.0`、2026-11-01）— 2G-2 を足す
 
 study-rfsoc の proj034（`proj034-m0`）を移した 2G-2 を、5 本目の bit として出す。SAM45-Fine・SAM45-Wide・2G-4・2G-1-Fast の bit は変えない（`sam45-fine/v1.0.0`・`sam45-wide/v1.0.0`・`2g-4/v1.0.0`・`2g-1-fast/v1.0.0` のまま）。

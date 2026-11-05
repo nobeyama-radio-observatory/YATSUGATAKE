@@ -11,7 +11,7 @@
 | 512M | `512m/` | 未着手 |
 | 256M | `256m/` | 未着手 |
 | SpW6 | `spw6/` | 未着手 |
-| SpW8 | [`spw8/`](spw8/) | 移植中（[docs/migration-spw8.md](../../docs/migration-spw8.md)） |
+| SpW8 | [`spw8/`](spw8/) | 移植中（M7 のリリースの準備、[docs/migration-spw8.md](../../docs/migration-spw8.md)） |
 | SpW20 | `spw20/` | 未着手 |
 | Fine | `fine/` | 未着手 |
 
