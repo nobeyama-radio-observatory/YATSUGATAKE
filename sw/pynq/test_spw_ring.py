@@ -12,6 +12,9 @@
   3. 中身を 1 byte 壊したレコードは C の道で CRC の誤りになり、その束を捨てる（理由 CRC）
   4. 頭の NS が計画と違うレコードは捨てて数える（hdr_bad）
   5. C の道（--fast --fast-ring の SpwBackend.cmode、s45_spw_scan）で 1〜4 が Python の道と同じ（束・捨てた束・数え）。間に TP のレコードを挟み、Python に戻って読む
+  6. SpW8 M6: できた束を C が出口の溜まり（s45ring.Ring）へ直に書く道と、Acq._spw_ev → _spec_record_spw → _put の道で、
+     溜まりから読んだ記録（SPEC・DROP・BDROP の EVENT）の bytes・seq・Acq の数え（seq・drop・n_dump・kgap・health・flags・sat）が同じ。
+     溜まりは小さく（端の折り返し・溢れて捨てる・1/4 まで戻るのを両方の道で通る）。陽性対照 -p では、直に書く道の時刻の錨を 1 ビートずらす
 """
 import sys
 import types
@@ -163,6 +166,65 @@ def run(lazy, posctl, corrupt=None, bad_ns=None, ndump=8, cmode=False):
     return be, want, got, drops, bund
 
 
+class _O:
+    spw = fast = fast_ring = True
+    posctl_corrupt = posctl_gap = 0
+    proto = 2
+
+    def __getattr__(self, k):
+        return None
+
+
+def run_out(direct, posctl, ndump=48, cap=None):
+    """6.: C のなめ（cmode）を本物の Acq につなぎ、出口の溜まりに書かせて、読み手の代わりに周ごとに読み出す"""
+    import s45ring as R
+    rng = np.random.default_rng(7)
+    r = fake_ring(16 << 20)
+    be = make_be(r, True, False, cmode=True)
+    rec = 24 + A.P.SPEC2_H.size + 4 * A.P.NCH
+    out = R.Ring(cap or int(20.5 * rec))
+    try:
+        acq = A.Acq(None, out, _O())
+        tb = types.SimpleNamespace(_anchor=dict(utc_sec=1793778000, stamp=10**10 + (1 if (direct and posctl) else 0)),
+                                   cal=dict(pps_det_ns=12.3, adc_to_core_ns={0: 1.0, 1: 2.0, 2: 3.0, 3: 4.0}))
+        be.clock = A.Clock(tb, {1: 86.03, 2: 135.07, 3: 231.05, 4: 411.01, 5: 757.03})
+        acq.be = be
+        acq.bund = [A._CBund(be.sc, j) if cf["active"] else None for j, cf in enumerate(be.cfgs)]
+        be.on_spw = acq._spw_ev
+        be.out_acq = acq if direct else None
+        plans = A.spw_plan(A.default_settings_spw())
+        seq = [0] * 4
+        recs = []
+        t0 = 1000 * 4 * BASE
+        for n in range(ndump):
+            if n == 21:
+                continue                               # 欠けたダンプ（全部の窓で、束を捨てる・k が飛ぶ）
+            for a in range(4):
+                for x in plans[a]["wins"]:
+                    pay = (rng.random(A.P.NCH) * 2.0 ** rng.integers(10, 40)).astype(np.float32)
+                    put5(r, a, x["s"], seq[a], n, t0 + n * BASE + 101 + x["s"], x["ns"], A.SPW_SHIFT, pay)
+                    seq[a] += 1
+                put_tp(r, a, n, np.zeros(20, np.uint64))
+            if n % 3 == 2 or n == ndump - 1:
+                be.pump()
+                while True:                            # 読み手の代わり
+                    xx = out.next_record()
+                    if xx is None:
+                        break
+                    mv, sq, end = xx
+                    recs.append((sq, bytes(mv)))
+                    del mv
+                    out.advance(end)
+                    out.ack_to(end)
+        # _loop_once は PL が要るので回さない。kgap・n_dump は _loop_once と同じく win から写す
+        acq.kgap[:] = be.sc.win["kgap"].tolist()
+        acq.n_dump[:] = be.sc.win["ndump"].tolist()
+        cnt = dict(seq=acq.seq, drop=acq.drop["n"], n_dump=list(acq.n_dump), kgap=list(acq.kgap), h=acq.h_or, fl=acq.fl_or, sat=acq.sat)
+        return recs, cnt, acq.n_out
+    finally:
+        out.close()
+
+
 def main(posctl=False):
     ok = True
 
@@ -193,6 +255,17 @@ def main(posctl=False):
         be, want, got, drops, bund = run(True, posctl, bad_ns=(2, p0["s"], 1), cmode=cm)
         chk(f"{nm}: 頭の NS が計画と違うレコード 1 本を捨てて hdr_bad 1・その束は欠け", be.hdr_bad == 1 and len(got[16 + p0["i"]]) == 1
             and any(jj == 16 + p0["i"] and d[1] == "欠け" for jj, d in drops), f"hdr_bad {be.hdr_bad}・捨てた {drops}")
+    import s45proto as P
+    for cap, nm in ((None, "小さい溜まり（折り返し・溢れ）"), (64 << 20, "大きい溜まり")):
+        r1, c1, n1 = run_out(True, posctl, cap=cap)
+        r2, c2, n2 = run_out(False, posctl, cap=cap)
+        ty = {}
+        for _, b in r1:
+            t = P.T_NAMES[P.parse_header(b[:24])[0]]
+            ty[t] = ty.get(t, 0) + 1
+        chk(f"直に書く道（{nm}）: 読んだ記録の bytes・seq と Acq の数えが今までの道と同じ",
+            r1 == r2 and c1 == c2 and n2 == 0 and n1 > 0 and c1["kgap"] == [1 if cf["active"] else 0 for cf in A.spw_cfgs(A.default_settings_spw(), A.spw_plan(A.default_settings_spw()))],
+            f"記録 {len(r1)} / {len(r2)}（{ty}）・直に {n1}・drop {c1['drop']} / {c2['drop']}・seq {c1['seq']} / {c2['seq']}")
     print(f"結果: {'全部通過' if ok else '不合格'}")
     return 0 if ok else 1
 

@@ -320,7 +320,7 @@ class Server:
                     d["spw_map"] = r["spw_map"]
                     sw = r.get("spw") or {}
                     d["spw_seqgap"], d["spw_hdrbad"], d["spw_stray"], d["spw_valbad"] = sw.get("seq_gap"), sw.get("hdr_bad"), sw.get("stray"), r.get("val_bad")
-                    for k in ("c_scan_s", "c_ev_s", "c_one_s", "c_ev", "c_rec"):    # C の道の診断（なめ・束の知らせ・Python で読んだレコードの時間 [s]、知らせ・なめたダンプの数）
+                    for k in ("c_scan_s", "c_ev_s", "c_one_s", "c_ev", "c_out", "c_rec"):    # C の道の診断（なめ・束の知らせ・Python で読んだレコードの時間 [s]、知らせ・なめたダンプの数）
                         if k in sw:
                             d["spw_" + k] = sw[k]
                 if r.get("err"):
@@ -335,6 +335,10 @@ class Server:
                 t = r.get("time") or {}                       # ADR 0023: 時刻の較正（board / provisional）
                 dt = dict(tcal=t.get("state", "none"), tcal_file=t.get("file") or "-", tcal_date=t.get("date") or "-",
                           tcal_bound_ns=t.get("bound_ns", "-"))
+                if "win_delay_key" in t:                      # SpW8 M6（PS-1）: 引いた D(NS) の表。表に無い bit は wdly_ns=none（未較正、D を引かない）
+                    dt["wdly"] = ".".join(str(v) for v in t["win_delay_key"])
+                    wd = t.get("win_delay") or {}
+                    dt["wdly_ns"] = ",".join(f"{ns}:{v:g}" for ns, v in sorted((int(a), b) for a, b in wd.items())) or "none"
                 for i, v in sorted((t.get("adc_to_core_ns") or {}).items()):
                     dt[f"{'ABCD'[int(i)]}.a2c_ns"] = round(v - (t.get("pps_det_ns") or 0), 1)
                 c = r.get("cal")

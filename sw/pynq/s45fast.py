@@ -32,11 +32,14 @@ _L.s45_spw_acc.argtypes = [_vp, _sz, _vp, ctypes.c_int, _u32p, ctypes.c_int]
 _L.s45_spw_acc.restype = ctypes.c_int
 _L.s45_spw_rec.argtypes = [_vp, _sz, ctypes.c_char_p, _sz, _vp, _u32p]
 _L.s45_spw_rec.restype = None
-_L.s45_spw_scan.argtypes = [_vp, ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32, _vp, _vp, _vp, _vp, _vp, _vp, _vp, ctypes.c_int64, ctypes.c_int]
+_L.s45_spw_scan.argtypes = [_vp, ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32, _vp, _vp, _vp, _vp, _vp, _vp, _vp, ctypes.c_int64, ctypes.c_int, _vp]
 _L.s45_spw_scan.restype = ctypes.c_int
-SPW_WIN = np.dtype([(k, np.uint64 if k in ("w4", "acc") else np.int64) for k in (
+SPW_WIN = np.dtype([(k, np.uint64 if k in ("w4", "acc", "hd") else np.int64) for k in (
     "n_sum", "pl_nacc", "w4", "dk", "r0", "has_r0", "dead", "jb0", "has_jb0", "cur", "jb", "cnt", "m_first", "m_last", "bad",
-    "cfg", "sat", "flags", "h", "n", "t0", "seq0", "acc", "nf", "miss", "crc_bad", "val_bad", "pl_dumps", "r_bad", "drop")])   # s45fast.c の spw_win_t
+    "cfg", "sat", "flags", "h", "n", "t0", "seq0", "acc", "nf", "miss", "crc_bad", "val_bad", "pl_dumps", "r_bad", "drop",
+    "lk", "kgap", "ndump", "hd", "uoff")])   # s45fast.c の spw_win_t
+SPW_OUT = np.dtype([(k, np.uint64 if k in ("buf", "cap", "w", "r") else np.int64) for k in (
+    "buf", "cap", "w", "r", "seq", "ver", "on", "clock_ok", "stamp", "h_add", "h_or", "fl_or", "sat", "n_out")])   # spw_out_t（SpW8 M6）
 SPW_EV = np.dtype([(k, np.int64) for k in ("kind", "j", "why", "jb", "have", "k", "t", "n", "sat", "flags", "h", "cfg", "seq")])   # spw_ev_t
 SPW_WHY = {1: "欠け", 2: "r", 3: "順", 4: "CFG", 5: "N", 6: "CRC", 7: "値", 8: "頭"}   # s45acq.Bundler の理由と同じ
 _L.s45_crc32.argtypes = [ctypes.c_uint32, _vp, _sz]
@@ -158,11 +161,14 @@ class SpwScan:
         self.win["acc"] = [a0 + i * nf * 8 for i in range(nwin)]
         self.win["nf"] = nf
         self.win["dk"] = -1
+        self.win["lk"] = -1
+        self.out = np.zeros(1, SPW_OUT)            # SpW8 M6: 出口の溜まりへ直に書く（out["on"] 1 で。0 なら今までどおり束ごとに ev）
         self.p = [x.ctypes.data for x in (self.smap, self.win, self.cseq, self.ctr, self.ev, self.nev, self.rout)]
+        self.po = self.out.ctypes.data
 
     def scan(self, ring_p, size, r, w):
         ps = self.p
-        st = _L.s45_spw_scan(ring_p, size, r, w, *ps, self.base, self.posctl)
+        st = _L.s45_spw_scan(ring_p, size, r, w, *ps, self.base, self.posctl, self.po)
         return st, int(self.rout[0]), (self.ev[:int(self.nev[0])] if st == 1 else ())
 
 

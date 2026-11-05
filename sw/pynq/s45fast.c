@@ -288,6 +288,8 @@ void s45_spw_rec(const double *acc, size_t n, const uint8_t *hd, size_t hlen, fl
  * レコードごとに: magic・尾・PL の CRC、(core, s) → 論理の窓 j（smap）、頭の語 4 の照らし、コアごとの SEQ の飛び、DUMP_K の飛び（読み落とし）、
  * 束ねの区切り（m = round(DUMP_T / BASE)・r の一定・束 jb = m / n_sum）と double の器への足し込み。
  * 束ができた・捨てた（ev に最大 2 つ）か、type 5 でないレコード（TP など。Python が 1 本読む）か、W に着いたら戻る。
+ * SpW8 M6: out が在り out->on なら、できた束は ev にせず sw_out で出口の溜まりへ直に書く（書けないときだけ kind 1 の ev）。
+ * 束ができたときの k の飛び・数（lk・kgap・ndump）は out に依らず数える。
  * 戻り値: 0 W に着いた・1 ev あり・2 type 5 でないレコードの頭で止まった（*r_out がその位置）・−1 magic が違う・−2 PAD の長さが違う */
 #define SPW_MAGIC_R 0x52353453u
 #define SPW_MAGIC_E 0x45353453u
@@ -302,10 +304,62 @@ typedef struct {                 /* s45fast.SPW_WIN と同じ並び（全部 8 �
     uint64_t acc;                /* double × nf の器の番地 */
     int64_t nf;                  /* 器の長さ（f32 の数） */
     int64_t miss, crc_bad, val_bad, pl_dumps, r_bad, drop;
+    /* SpW8 M6: 束ができたときの数え（s45acq の Python の道の last_k・kgap・n_dump と同じ）と、溜まりへ直に書くための窓ごとの値 */
+    int64_t lk, kgap, ndump;     /* 最後に記録にした束の k（−1 = まだ）・k の飛び・記録にした束の数 */
+    uint64_t hd;                 /* SPEC の頭（s45proto.SPEC2_H、88 バイト）の雛形の番地。cfg・k・sat・flags・h・dump_t・utc_ns は書くときに入れる */
+    int64_t uoff;                /* utc_ns = uoff ＋ ビート→ns(dump_t − stamp)（Clock.utc_ns(stamp, ns, adc) − 1.5·L） */
 } spw_win_t;
+typedef struct {                 /* s45fast.SPW_OUT と同じ並び（全部 8 バイト）。on 0 なら今までどおり束ごとに ev を返す */
+    uint64_t buf, cap, w, r;     /* 出口の溜まり（s45ring.Ring の buf の番地・cap）、書く位置 w（C が進める。ctl[0] には呼び手がロックの中で置く）、読み手の位置 r */
+    int64_t seq, ver, on;        /* 最後に使った記録の番号（C が進める）・記録の版・1 = 直に書く */
+    int64_t clock_ok, stamp, h_add;   /* 時刻が使える・錨のビート・h に足す印（H_NOTIME・H_FORCED） */
+    int64_t h_or, fl_or, sat, n_out;  /* 直に書いた記録の h・flags の OR・sat の和・本数（呼び手が Acq の数えに足す） */
+} spw_out_t;
 typedef struct {                 /* s45fast.SPW_EV と同じ並び。kind 1 = 束ができた・2 = 捨てた */
     int64_t kind, j, why, jb, have, k, t, n, sat, flags, h, cfg, seq;
 } spw_ev_t;
+
+/* SpW8 M6: できた束を SPEC の記録 1 本として出口の溜まりに直に書く（s45acq.Acq._spec_record_spw ＋ _put と同じ bytes。test_spw_fast.py）。
+ * 空きが無い・端で入らないときは書かずに 0（呼び手は ev を返し、Python の道が書くか捨てて数える） */
+static int sw_out(spw_out_t *o, spw_win_t *W, int64_t k)
+{
+    size_t n = (size_t)W->nf, tot = 24 + 88 + 4 * n;
+    if (o->cap - (o->w - o->r) < tot)
+        return 0;
+    uint64_t p = o->w % o->cap;
+    if (o->cap - p < tot)
+        return 0;
+    uint8_t *q = (uint8_t *)(uintptr_t)o->buf + p, *hd = q + 24;
+    memcpy(hd, (const void *)(uintptr_t)W->hd, 88);
+    uint32_t u;
+    u = (uint32_t)W->cfg; memcpy(hd + 16, &u, 4);
+    u = (uint32_t)k; memcpy(hd + 20, &u, 4);
+    u = (uint32_t)W->sat; memcpy(hd + 28, &u, 4);
+    u = (uint32_t)W->flags; memcpy(hd + 32, &u, 4);
+    u = (uint32_t)(W->h | o->h_add); memcpy(hd + 36, &u, 4);
+    int64_t t = W->t0, utc = 0;
+    if (o->clock_ok) {
+        int64_t d = t - o->stamp;                          /* s45acq._b2ns_i と同じ丸め */
+        utc = W->uoff + (d >= 0 ? (d * 125 + 16) / 32 : -((-d * 125 + 16) / 32));
+    }
+    memcpy(hd + 48, &t, 8);
+    memcpy(hd + 56, &utc, 8);
+    uint32_t crc;
+    s45_spw_rec((const double *)(uintptr_t)W->acc, n, hd, 88, (float *)(hd + 88), &crc);
+    uint16_t v16 = (uint16_t)o->ver, t16 = 1;              /* s45proto.T_SPEC */
+    uint32_t plen = (uint32_t)(88 + 4 * n);
+    uint64_t seq = (uint64_t)(o->seq + 1);
+    memcpy(q, "S45F", 4);
+    memcpy(q + 4, &v16, 2);
+    memcpy(q + 6, &t16, 2);
+    memcpy(q + 8, &plen, 4);
+    memcpy(q + 12, &crc, 4);
+    memcpy(q + 16, &seq, 8);
+    o->w += tot;
+    o->seq++;
+    o->h_or |= W->h; o->fl_or |= W->flags; o->sat += W->sat; o->n_out++;
+    return 1;
+}
 
 static void sw_drop(spw_win_t *W, int64_t j, spw_ev_t *ev, int64_t *nev, int64_t why, int64_t jb, int64_t have)
 {
@@ -317,7 +371,7 @@ static void sw_drop(spw_win_t *W, int64_t j, spw_ev_t *ev, int64_t *nev, int64_t
 
 __attribute__((optimize("O3")))
 int s45_spw_scan(const uint8_t *ring, uint64_t size, uint32_t r, uint32_t w, const int8_t *smap, spw_win_t *wv, int64_t *cseq,
-                 int64_t *ctr, spw_ev_t *ev, int64_t *nev, uint32_t *r_out, int64_t base, int posctl)
+                 int64_t *ctr, spw_ev_t *ev, int64_t *nev, uint32_t *r_out, int64_t base, int posctl, spw_out_t *out)
 {
 #if !HW_CRC
     if (!crc_tab_ok)
@@ -450,11 +504,19 @@ int s45_spw_scan(const uint8_t *ring, uint64_t size, uint32_t r, uint32_t w, con
             if (W->bad || W->m_first != jb * W->n_sum)
                 sw_drop(W, j, ev, nev, W->bad ? W->bad : SW_ATAMA, jb, W->cnt);
             else {
+                int64_t kk = jb - W->jb0;
+                if (W->lk >= 0 && kk != W->lk + 1)
+                    W->kgap++;
+                W->lk = kk;
+                W->ndump++;
+                if (out && out->on && sw_out(out, W, kk))
+                    goto next;                             /* SpW8 M6: 溜まりへ直に書いた（ev を返さず、なめを続ける） */
                 spw_ev_t *e = &ev[(*nev)++];
                 e->kind = 1; e->j = j; e->why = 0; e->jb = jb; e->have = W->cnt; e->k = jb - W->jb0; e->t = W->t0;
                 e->n = W->n; e->sat = W->sat; e->flags = W->flags; e->h = W->h; e->cfg = W->cfg; e->seq = W->seq0;
             }
         }
+    next:
         if (*nev) {
             *r_out = r;
             return 1;
