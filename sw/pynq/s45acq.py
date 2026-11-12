@@ -2327,7 +2327,15 @@ class Acq:
         p99 = float(np.searchsorted(np.cumsum(tl), 0.99 * tot) * 0.1) if tot else 0.0
         tps = getattr(self.be, "tps", [])
         w, r = self.ring.positions()
+        pd = None
+        tb = getattr(self.be, "tb", None)
+        if tb is not None and hasattr(tb, "drift"):
+            try:
+                pd = tb.drift()                    # PPS のずれ（表示用。MMIO を数語読む）
+            except Exception:
+                pd = None
         return dict(state=self.state, time_ok=self.be.clock.ok, time_err=self.be.clock.err, start_at=self.start_at,
+                    pps_n=pd["n"] if pd else None, pps_drift=pd["beats"] if pd else None, pps_tol=pd["tol"] if pd else None,
                     dumps=self._dumps_min(), dumps_each=self.n_dump, miss=sum(self.n_miss), kgap=sum(self.kgap),
                     tp=[t.total for t in tps], tp_lost=sum(t.lost + t.overflow for t in tps), tp_bad=sum(t.bad_seq + t.bad_flag + t.bad_nfr for t in tps),
                     tp_ovr=sum(t.n_ovr for t in tps), tp_jump=[t.count for t in self.tpj], health=self.h_or, flags=self.fl_or, sat=self.sat,

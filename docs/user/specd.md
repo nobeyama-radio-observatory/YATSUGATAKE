@@ -98,6 +98,7 @@ SAM45-Wide は全帯域の FFT（32768 点）の ch を ADC ごとに B 個ず�
 |---|---|---|
 | `state` | IDLE・ARMED（at を待っている）・RUN・ERROR | |
 | `time_ok` | 時刻を答えられるか（1PPS が来ていて錨がある） | **0 なら START は断られる**（下） |
+| `pps_drift`・`pps_n`・`pps_tol` | 錨からの PPS の数（`pps_n`）とスタンプの差のずれ [ビート、1 ビート = 3.90625 ns]・照合の許容（±`pps_tol`、`--pps-tol-ns`）。錨が無ければ `-`。時刻を失った後も今のずれを出す | `\|pps_drift\|` が `pps_tol` を越えると `time_ok=0`。ゆっくり増えるなら PPS と 10 MHz の位相の漂い |
 | `dumps`・`miss`・`kgap` | 出したダンプの数・取り損ね・番号の飛び | `miss`・`kgap` は 0 |
 | `tp_dbfs`・`tp_dbm` | ADC ごとの TP | 入力レベル（[`wiring.md`](wiring.md)）。配線を変えたらまずここ |
 | `tp_lost`・`tp_bad`・`tp_ovr`・`tp_jump`・`sat` | TP の欠け・異常・振り切れ・跳ね・飽和 | 0 が普通 |

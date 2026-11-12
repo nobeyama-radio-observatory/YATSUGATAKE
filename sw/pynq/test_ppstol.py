@@ -63,6 +63,13 @@ def main():
     judge(checks(t, n, n * BPS + 256) and checks(t, n, n * BPS - 256), "1000 ns: ±256 ビートは通る")
     judge(not checks(t, n, n * BPS + 257), "1000 ns: +257 ビートは落ちる")
     judge(not checks(t, n - 1, n * BPS), "1000 ns: PPS を 1 発取りこぼすと落ちる（陽性対照）")
+    tb = TB.Timebase.__new__(TB.Timebase)
+    tb.tc, tb.path, tb.pps_tol, tb._anchor = FakeTC(n, n * BPS - 3), "trig", t, dict(ANCHOR)
+    judge(tb.drift() == dict(n=n, beats=-3, tol=256), "drift: 錨から 34893 発・−3 ビート・許容 256（STATUS の pps_n・pps_drift・pps_tol）")
+    tb.tc = FakeTC(n, n * BPS + 300)
+    judge(tb.drift()["beats"] == 300, "drift: 許容を越えても例外にせず今のずれを返す")
+    tb._anchor = None
+    judge(tb.drift() is None, "drift: 錨が無ければ None")
     try:
         TB.pps_tol_beats(-1)
         judge(False, "負の許容は断る")

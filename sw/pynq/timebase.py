@@ -335,6 +335,16 @@ class Timebase:
                                 "PPS を取りこぼしたか、10 MHz の基準がずれている")
         return p
 
+    def drift(self):
+        """錨からの PPS の数と、スタンプの差のずれ [ビート]（check() が ±pps_tol で照らす量）。表示用（STATUS）。
+        錨が無い・原点が変わったら None。check() と違って例外を投げず、外れた後も今のずれを返す。"""
+        a = self._anchor
+        if a is None or self.tc.counters()["epoch"] != a["epoch"]:
+            return None
+        p = self.tc.pps(self.path)
+        n = p["count"] - a["count"]
+        return dict(n=n, beats=(p["stamp"] - a["stamp"]) - n * BEATS_PER_SEC, tol=self.pps_tol)
+
     def beat_utc_ns(self, beat):
         """ビート `beat`（time_core の T）がコアに入った時刻の UTC（整数 ns）。遅れの補正はしない（`sample_utc_ns`）。"""
         self.check()
