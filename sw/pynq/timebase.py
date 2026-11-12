@@ -184,8 +184,23 @@ def require_mid_second(t_host, lo=0.25, hi=0.75):
     return frac
 
 
-def pps_is_consistent(d_count, d_stamp, tol=2):
-    """錨からの PPS の数とスタンプの差が整合しているか。スタンプは 1 個ごとに ±1 ビートの量子化（溜まらない）なので ±2。"""
+PPS_TOL_BEATS = 2                  # 錨からの累計の許容の既定。スタンプは 1 個ごとに ±1 ビートの量子化（溜まらない）なので ±2
+
+
+def pps_tol_beats(ns):
+    """累計の許容 [ns] をビートに（切り上げ。2 ビートより小さくはしない）。None なら既定。"""
+    if ns is None:
+        return PPS_TOL_BEATS
+    if ns < 0:
+        raise ValueError(f"PPS の累計の許容が負（{ns} ns）")
+    return max(PPS_TOL_BEATS, -(-int(math.ceil(ns * NS_DEN)) // NS_NUM))
+
+
+def pps_is_consistent(d_count, d_stamp, tol=PPS_TOL_BEATS):
+    """錨からの PPS の数とスタンプの差が整合しているか（±tol ビート）。
+    既定の ±2 は PPS と 10 MHz が完全に同じ基準に乗っている前提。実際の配線では PPS と 10 MHz の位相がケーブルの温度などで
+    ns 級にゆっくり漂い、錨から何時間も経つと ±2 を越えることがある（2026-11-12、45m で錨から 34893 発で −3 ビート）。
+    PPS の取りこぼし（±256,000,000 ビート）を捕まえるだけなら、許容は µs 級でよい（Timebase の pps_tol・specd の --pps-tol-ns）"""
     return abs(int(d_stamp) - int(d_count) * BEATS_PER_SEC) <= tol
 
 
@@ -261,9 +276,11 @@ class TimeCore:
 class Timebase:
     """時刻を返す層。**答えられないときは例外を投げる。**"""
 
-    def __init__(self, tc, path="trig", cal=None, time_cal="auto", log=None):
-        """time_cal: "auto" = time_cal_path() にあれば読む・None = 読まない（暫定）・dict = 読んだもの（試験）"""
+    def __init__(self, tc, path="trig", cal=None, time_cal="auto", log=None, pps_tol=PPS_TOL_BEATS):
+        """time_cal: "auto" = time_cal_path() にあれば読む・None = 読まない（暫定）・dict = 読んだもの（試験）
+        pps_tol: check() で錨からの PPS の数とスタンプの差に許す ±ビート（pps_is_consistent）"""
         self.tc = tc
+        self.pps_tol = int(pps_tol)
         key = (tc.bit_kind, tc.bit_rev)                                 # M5a: (BIT_KIND, BIT_REV)
         if time_cal == "auto":
             time_cal, p = None, time_cal_path()
@@ -311,8 +328,10 @@ class Timebase:
         if not st[f"{self.path}_alive"]:
             raise TimebaseError("PPS が来ていない（ホールドオーバは基準の質で決まる。黙って外挿しない）")
         p = self.tc.pps(self.path)
-        if not pps_is_consistent(p["count"] - a["count"], p["stamp"] - a["stamp"]):
-            raise TimebaseError(f"PPS の数とスタンプの差が合わない（{p['count'] - a['count']} 発 / {p['stamp'] - a['stamp']} ビート）。"
+        if not pps_is_consistent(p["count"] - a["count"], p["stamp"] - a["stamp"], self.pps_tol):
+            d = (p["stamp"] - a["stamp"]) - (p["count"] - a["count"]) * BEATS_PER_SEC
+            raise TimebaseError(f"PPS の数とスタンプの差が合わない（{p['count'] - a['count']} 発 / {p['stamp'] - a['stamp']} ビート、"
+                                f"ずれ {d:+d} ビート・許容 ±{self.pps_tol}）。"
                                 "PPS を取りこぼしたか、10 MHz の基準がずれている")
         return p
 

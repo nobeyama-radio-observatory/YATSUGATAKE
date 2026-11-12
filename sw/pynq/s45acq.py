@@ -590,7 +590,7 @@ class HwBackend:
             if prm != S.TP_PARAM_EXPECT:
                 raise RuntimeError(f"TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log, pps_tol=TB.pps_tol_beats(getattr(self.o, "pps_tol_ns", None)))
         self.TpStream = make_tp_reader(S)
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(W.R_ID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",   # proj021 2-2d: 載っている time_core の IF_ID（BIT_REV 1 / 2）
@@ -1076,7 +1076,7 @@ class WideBackend(HwBackend):
             if prm != S.TP_PARAM_EXPECT:
                 raise RuntimeError(f"TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log, pps_tol=TB.pps_tol_beats(getattr(self.o, "pps_tol_ns", None)))
         self.TpStream = make_tp_reader(S)
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(SC.S_SID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",
@@ -1305,7 +1305,7 @@ class G21Backend(HwBackend):
             raise RuntimeError(f"コアの TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
         self.ftp = _WinTp(c0.m, self.fst.base)     # FULL の TP のレジスタ（流れのブロックの 0x100〜 = コアの 0x100〜 と同じ並び）
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log, pps_tol=TB.pps_tol_beats(getattr(self.o, "pps_tol_ns", None)))
         self.TpStream = make_tp_reader(S)
         self.ids = dict(win=f"{self.fst.rd(SC.S_SID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",
                         proj=f"{c0.proj:08x}", kind="g21", usr=self._usr_access(),   # YATSUGATAKE M5b（2G も同じ）
@@ -1601,7 +1601,7 @@ class G22Backend(HwBackend):
         self.wins = list(self.fsts)
         self.ftps = [_WinTp(c.m, f.base) for c, f in zip(self.cores, self.fsts)]   # FULL の TP（流れのブロックの 0x100〜）
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, log=self.log, pps_tol=TB.pps_tol_beats(getattr(self.o, "pps_tol_ns", None)))
         self.TpStream = make_tp_reader(S)
         c0 = self.cores[0]
         self.ids = dict(win="/".join(f"{f.rd(SC.S_SID):08x}" for f in self.fsts), adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",

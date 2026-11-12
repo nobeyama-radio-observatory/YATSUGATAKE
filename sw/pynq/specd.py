@@ -652,6 +652,9 @@ def main():
                         " PWR 0 まで問題なし）。出荷時は 31")
     p.add_argument("--settle", type=float, default=5.0)
     p.add_argument("--path", default="trig", choices=("trig", "comp"))
+    p.add_argument("--pps-tol-ns", type=float, default=None,
+                   help="時刻の照合で、錨からの PPS の数とスタンプの差に許すずれ [ns]（既定: ±2 ビート ≒ 7.8 ns）。"
+                        "PPS と 10 MHz の位相がゆっくり漂う配線で、長い RUN の途中に時刻を失わないように広げる（例 1000）")
     p.add_argument("--cpu", type=int, default=3, help="取得のプロセスを固定する CPU（-1 で固定しない）")
     p.add_argument("--rt", type=int, default=10, help="取得のプロセスの SCHED_FIFO の優先度（0 で使わない）")
     p.add_argument("--fast", action="store_true", help="proj029 1: 2G の SPEC の記録（FULL）の中身と CRC を C で（libs45fast.so、build_fast.sh で作る）")
@@ -698,6 +701,9 @@ def main():
     signal.signal(signal.SIGTERM, _on_sig)
     signal.signal(signal.SIGHUP, _on_sig)          # ssh が切れたときも片付けてから止まる（既定の動作では片付けずに落ち、溜まりが残る）
     log(f"specd の PID {os.getpid()}（止める: Ctrl-C・kill {os.getpid()}・制御の口の SHUTDOWN confirm=1）")
+    if a.pps_tol_ns is not None:
+        import timebase
+        log(f"時刻の照合の累計の許容: ±{timebase.pps_tol_beats(a.pps_tol_ns)} ビート（--pps-tol-ns {a.pps_tol_ns:g}）")
     import s45cal
     cal_path, a.tp_cal = a.tp_cal or s45cal.tp_cal_path(), None
     if cal_path and os.path.exists(cal_path):

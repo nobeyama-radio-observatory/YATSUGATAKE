@@ -19,6 +19,7 @@ sudo -E $(which python3) specd.py --bits bits.json --clkin 0 --ref 10 --prefault
 - 起きるまで数十秒（bit を載せ、RFDC と LMK/LMX を立て、1PPS を待つ）。ログに制御の口とデータの口を開いた行が出たら使える
 - TP の較正ファイル（既定 `/etc/yatsugatake/tp_cal.json`、環境変数 `YATSUGATAKE_TP_CAL` か `--tp-cal`）が無い・別のボードのものなら、TP の dBm は出ない（dBFS は出る）。[`calibration.md`](calibration.md)
 - 時刻の較正ファイル（既定 `/etc/yatsugatake/time_cal.json`、環境変数 `YATSUGATAKE_TIME_CAL`）が無い・別のボードのものなら、時刻は開発の値（暫定）で動く。`ID` の `tcal` が `board` / `provisional`（[`calibration.md`](calibration.md)）
+- `--pps-tol-ns <ns>`: 時刻の照合で、錨からの PPS の数とスタンプの差に許すずれ（既定 ±2 ビート ≒ 7.8 ns）。一度外れると錨を打ち直す（`ANCHOR`。RUN の間はできない）まで時刻を答えない（`time_ok=0`）。PPS と 10 MHz の位相がケーブルの温度などでゆっくり漂う配線では、錨から何時間も経つと既定の許容を越える（45m で錨から 34893 発で −3 ビート、2026-11-12）。PPS の取りこぼし（1 秒 = 256,000,000 ビート）を捕まえるには µs 級の許容で足りる（例 `--pps-tol-ns 1000` = ±256 ビート）。1 秒ごとの間隔の判定（PL の ±1 ビート、DUMP_H の [1]）は変わらない
 
 その他の引数は `python3 specd.py -h`。`--buf-mb`（既定 256 MiB ≒ 38 秒ぶんの溜まり）・`--cpu`・`--rt` は試験で決めた値のまま使う。
 
