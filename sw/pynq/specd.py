@@ -272,7 +272,11 @@ class Server:
             def f(r):
                 # proj021: 取得が返さない鍵（proj020 を LOAD したときの tp_jump など）は「-」。V2-d で KeyError になった
                 d = {k: r.get(k, "-") for k in ("state", "time_ok", "start_at", "dumps", "miss", "kgap", "tp", "tp_lost", "tp_bad", "tp_ovr", "tp_jump", "tp_dbfs", "tp_dbm",
-                                       "sat", "loop_max_ms", "loop_p99_ms", "seq", "drop", "forced")}
+                                       "sat", "loop_max_ms", "loop_p99_ms", "seq", "drop", "forced",
+                                       "pps_n", "pps_drift", "pps_tol")}
+                for k in ("pps_n", "pps_drift", "pps_tol"):
+                    if d[k] is None:
+                        d[k] = "-"                 # 錨が無い・偽物
                 d["health"] = f"{r['health']:#06x}"
                 d["flags"] = f"{r['flags']:#05x}"
                 d["buf_used_mb"] = round(r["ring_used"] / 2**20, 1)
@@ -613,6 +617,9 @@ def main():
                         " PWR 0 まで問題なし）。出荷時は 31")
     p.add_argument("--settle", type=float, default=5.0)
     p.add_argument("--path", default="trig", choices=("trig", "comp"))
+    p.add_argument("--pps-tol-ns", type=float, default=None,
+                   help="時刻の照合で、錨からの PPS の数とスタンプの差に許すずれ [ns]（既定: ±2 ビート ≒ 7.8 ns）。"
+                        "PPS と 10 MHz の位相がゆっくり漂う配線で、長い RUN の途中に時刻を失わないように広げる（例 1000）")
     p.add_argument("--cpu", type=int, default=3, help="取得のプロセスを固定する CPU（-1 で固定しない）")
     p.add_argument("--rt", type=int, default=10, help="取得のプロセスの SCHED_FIFO の優先度（0 で使わない）")
     p.add_argument("--loop-sleep", type=float, default=0.003, help="読み出しの 1 周の後に寝る秒数（proj017 F-4 と同じ 3 ms）")
@@ -657,6 +664,9 @@ def main():
             a.tp_cal = None
     else:
         log(f"TP の較正ファイル {cal_path} が無い（STATUS の tp_dbm は出さない）")
+    if a.pps_tol_ns is not None:
+        import timebase
+        log(f"時刻の照合の累計の許容: ±{timebase.pps_tol_beats(a.pps_tol_ns)} ビート（--pps-tol-ns {a.pps_tol_ns:g}）")
     Server(a).run()
     sys.stdout.flush()
     os._exit(0)                                   # 受け・送りのスレッド（daemon）や multiprocessing の後始末を待たない

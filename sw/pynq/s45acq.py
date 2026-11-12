@@ -322,7 +322,7 @@ class HwBackend:
             if prm != S.TP_PARAM_EXPECT:
                 raise RuntimeError(f"TP_PARAM {prm:08x}（期待 {S.TP_PARAM_EXPECT:08x}）")
         self.tc.configure(src=self.o.path, tol=1)
-        self.tb = TB.Timebase(self.tc, path=self.o.path)
+        self.tb = TB.Timebase(self.tc, path=self.o.path, pps_tol=TB.pps_tol_beats(getattr(self.o, "pps_tol_ns", None)))
         self.TpStream = make_tp_reader(S)
         c0 = self.cores[0]
         self.ids = dict(win=f"{self.wins[0].rd(W.R_ID):08x}", adc=f"{c0.if_id:08x}", time=f"{self.tc.rd(0x00):08x}",   # proj021 2-2d: 載っている time_core の IF_ID（BIT_REV 1 / 2）
@@ -1030,7 +1030,15 @@ class Acq:
         p99 = float(np.searchsorted(np.cumsum(tl), 0.99 * tot) * 0.1) if tot else 0.0
         tps = getattr(self.be, "tps", [])
         w, r = self.ring.positions()
+        pd = None
+        tb = getattr(self.be, "tb", None)
+        if tb is not None and hasattr(tb, "drift"):
+            try:
+                pd = tb.drift()                    # PPS のずれ（表示用。MMIO を数語読む）
+            except Exception:
+                pd = None
         return dict(state=self.state, time_ok=self.be.clock.ok, time_err=self.be.clock.err, start_at=self.start_at,
+                    pps_n=pd["n"] if pd else None, pps_drift=pd["beats"] if pd else None, pps_tol=pd["tol"] if pd else None,
                     dumps=min(self.n_dump) if self.n_dump else 0, dumps_each=self.n_dump, miss=sum(self.n_miss), kgap=sum(self.kgap),
                     tp=[t.total for t in tps], tp_lost=sum(t.lost + t.overflow for t in tps), tp_bad=sum(t.bad_seq + t.bad_flag + t.bad_nfr for t in tps),
                     tp_ovr=sum(t.n_ovr for t in tps), tp_jump=[t.count for t in self.tpj], health=self.h_or, flags=self.fl_or, sat=self.sat,
