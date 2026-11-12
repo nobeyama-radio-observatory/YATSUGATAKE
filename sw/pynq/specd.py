@@ -288,7 +288,11 @@ class Server:
             def f(r):
                 # proj021: 取得が返さない鍵（proj020 を LOAD したときの tp_jump など）は「-」。V2-d で KeyError になった
                 d = {k: r.get(k, "-") for k in ("state", "time_ok", "start_at", "dumps", "miss", "kgap", "tp", "tp_lost", "tp_bad", "tp_ovr", "tp_jump", "tp_dbfs", "tp_dbm",
-                                       "sat", "loop_max_ms", "loop_p99_ms", "seq", "drop", "forced")}
+                                       "sat", "loop_max_ms", "loop_p99_ms", "seq", "drop", "forced",
+                                       "pps_n", "pps_drift", "pps_tol")}
+                for k in ("pps_n", "pps_drift", "pps_tol"):
+                    if d[k] is None:
+                        d[k] = "-"                 # 錨が無い・偽物
                 d["health"] = f"{r['health']:#06x}"
                 d["flags"] = f"{r['flags']:#05x}"
                 d["buf_used_mb"] = round(r["ring_used"] / 2**20, 1)
